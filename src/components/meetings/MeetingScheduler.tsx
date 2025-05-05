@@ -39,10 +39,7 @@ const MeetingScheduler = () => {
 
   const handleScheduleMeeting = () => {
     if (!date || !selectedTime || !title || attendees.length === 0) {
-      toast("Missing Information", {
-        description: "Please fill out all required fields",
-        variant: "destructive",
-      });
+      toast.error("Please fill out all required fields");
       return;
     }
 

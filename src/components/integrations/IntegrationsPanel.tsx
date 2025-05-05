@@ -104,10 +104,7 @@ const IntegrationsPanel = () => {
 
   const handleConnectZapier = () => {
     if (!webhookUrl) {
-      toast("Error", {
-        description: "Please enter your Zapier webhook URL",
-        variant: "destructive",
-      });
+      toast.error("Please enter your Zapier webhook URL");
       return;
     }
 
