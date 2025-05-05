@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +51,14 @@ const MeetingsList = () => {
     return false;
   });
 
+  const handleScheduleClick = () => {
+    // Find the schedule tab trigger and programmatically select it
+    const scheduleTabTrigger = document.querySelector('[value="schedule"]');
+    if (scheduleTabTrigger instanceof HTMLElement) {
+      scheduleTabTrigger.click();
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
@@ -96,7 +103,7 @@ const MeetingsList = () => {
           <p className="text-muted-foreground text-center mb-4">
             You don't have any scheduled meetings.
           </p>
-          <Button variant="outline" onClick={() => document.querySelector('[value="schedule"]')?.click()}>
+          <Button variant="outline" onClick={handleScheduleClick}>
             Schedule a Meeting
           </Button>
         </div>

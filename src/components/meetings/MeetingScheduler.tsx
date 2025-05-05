@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Calendar } from '@/components/ui/calendar';
@@ -40,8 +39,7 @@ const MeetingScheduler = () => {
 
   const handleScheduleMeeting = () => {
     if (!date || !selectedTime || !title || attendees.length === 0) {
-      toast({
-        title: "Missing Information",
+      toast("Missing Information", {
         description: "Please fill out all required fields",
         variant: "destructive",
       });
@@ -49,8 +47,7 @@ const MeetingScheduler = () => {
     }
 
     // In a real app, this would connect to calendar APIs and send invites
-    toast({
-      title: "Meeting Scheduled",
+    toast("Meeting Scheduled", {
       description: `Your meeting "${title}" has been scheduled for ${format(date, 'PPPP')} at ${selectedTime}`,
     });
 

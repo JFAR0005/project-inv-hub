@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,8 +71,7 @@ const IntegrationsPanel = () => {
     // In a real app, this would open OAuth flow with Google
     setTimeout(() => {
       updateIntegrationStatus('google-calendar', true);
-      toast({
-        title: "Connected to Google Calendar",
+      toast("Connected to Google Calendar", {
         description: "Your Google Calendar has been connected successfully.",
       });
       setIsLoading(false);
@@ -85,8 +83,7 @@ const IntegrationsPanel = () => {
     // In a real app, this would open OAuth flow with Calendly
     setTimeout(() => {
       updateIntegrationStatus('calendly', true);
-      toast({
-        title: "Connected to Calendly",
+      toast("Connected to Calendly", {
         description: "Your Calendly account has been connected successfully.",
       });
       setIsLoading(false);
@@ -98,8 +95,7 @@ const IntegrationsPanel = () => {
     // In a real app, this would open OAuth flow with Slack
     setTimeout(() => {
       updateIntegrationStatus('slack', true);
-      toast({
-        title: "Connected to Slack",
+      toast("Connected to Slack", {
         description: "Your Slack workspace has been connected successfully.",
       });
       setIsLoading(false);
@@ -108,8 +104,7 @@ const IntegrationsPanel = () => {
 
   const handleConnectZapier = () => {
     if (!webhookUrl) {
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Please enter your Zapier webhook URL",
         variant: "destructive",
       });
@@ -120,8 +115,7 @@ const IntegrationsPanel = () => {
     // In a real app, this would validate the Zapier webhook
     setTimeout(() => {
       updateIntegrationStatus('zapier', true);
-      toast({
-        title: "Connected to Zapier",
+      toast("Connected to Zapier", {
         description: "Your Zapier webhook has been configured successfully.",
       });
       setIsLoading(false);
@@ -134,8 +128,7 @@ const IntegrationsPanel = () => {
     // In a real app, this would connect to Gmail API
     setTimeout(() => {
       updateIntegrationStatus('gmail', true);
-      toast({
-        title: "Connected to Gmail",
+      toast("Connected to Gmail", {
         description: "Your Gmail account has been connected successfully.",
       });
       setIsLoading(false);
@@ -152,8 +145,7 @@ const IntegrationsPanel = () => {
 
   const handleDisconnect = (id: string) => {
     updateIntegrationStatus(id, false);
-    toast({
-      title: "Disconnected",
+    toast("Disconnected", {
       description: `${integrations.find(i => i.id === id)?.name} has been disconnected.`,
     });
   };
