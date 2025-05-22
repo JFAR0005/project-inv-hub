@@ -31,6 +31,11 @@ const formSchema = z.object({
 // This is the correct type definition based on the schema transformation above
 type FormValues = z.infer<typeof formSchema>;
 
+// This defines what the transformed valuation_expectation looks like after zod processing
+type TransformedFormValues = Omit<FormValues, 'valuation_expectation'> & {
+  valuation_expectation: number | null;
+};
+
 interface DealFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -82,6 +87,9 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
 
   const onSubmit = async (values: FormValues) => {
     try {
+      // The form values are transformed by zod, so we need to ensure the types are correct
+      const transformedValues = values as unknown as TransformedFormValues;
+
       const { error } = await supabase
         .from('deals')
         .insert({
@@ -89,8 +97,8 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
           stage: values.stage,
           status: values.status,
           source: values.source || null,
-          // The correct type assertion based on our schema transformation
-          valuation_expectation: values.valuation_expectation as number | null,
+          // Now we can safely use the transformed value which is number | null
+          valuation_expectation: transformedValues.valuation_expectation,
           lead_partner: values.lead_partner || null,
           notes: values.notes || null,
         });
