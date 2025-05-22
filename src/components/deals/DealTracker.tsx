@@ -8,13 +8,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, User, Calendar } from 'lucide-react';
+import { Plus, DollarSign, User, Calendar, FileText, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DealForm from './DealForm';
+import DDForm from './DDForm';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
   company_name: string;
+  due_diligence_status?: string;
 };
 
 type BoardColumn = {
@@ -29,6 +31,8 @@ const DealTracker = () => {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [ddFormOpen, setDdFormOpen] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [columns, setColumns] = useState<BoardColumn[]>([
     { id: 'Discovery', title: 'Discovery', deals: [] },
     { id: 'DD', title: 'Due Diligence', deals: [] },
@@ -62,6 +66,26 @@ const DealTracker = () => {
           ...deal,
           company_name: deal.companies?.name || 'Unknown Company'
         })) || [];
+
+        // Fetch due diligence status for DD deals
+        const ddDeals = formattedDeals.filter(deal => deal.stage === 'DD');
+        if (ddDeals.length > 0) {
+          const ddIds = ddDeals.map(deal => deal.id);
+          const { data: ddData, error: ddError } = await supabase
+            .from('deal_due_diligence')
+            .select('deal_id, due_diligence_status')
+            .in('deal_id', ddIds);
+
+          if (!ddError && ddData) {
+            // Add due diligence status to deals
+            formattedDeals.forEach(deal => {
+              const ddInfo = ddData.find(dd => dd.deal_id === deal.id);
+              if (ddInfo) {
+                deal.due_diligence_status = ddInfo.due_diligence_status;
+              }
+            });
+          }
+        }
 
         // Update columns with deals
         setColumns(prev => 
@@ -137,10 +161,29 @@ const DealTracker = () => {
         return column;
       }));
 
-      toast({
-        title: "Deal Moved",
-        description: `Deal moved to ${targetColumn} stage`,
-      });
+      // If moved to DD column, prompt to open the DD form
+      if (targetColumn === 'DD') {
+        toast({
+          title: "Deal Moved to Due Diligence",
+          description: "Would you like to complete the DD form now?",
+          action: (
+            <Button 
+              size="sm" 
+              onClick={() => {
+                setSelectedDeal({ ...sourceDeal, stage: 'DD' as any });
+                setDdFormOpen(true);
+              }}
+            >
+              Open Form
+            </Button>
+          ),
+        });
+      } else {
+        toast({
+          title: "Deal Moved",
+          description: `Deal moved to ${targetColumn} stage`,
+        });
+      }
       
       // Invalidate the deals query to refresh data
       queryClient.invalidateQueries({ queryKey: ['deals'] });
@@ -151,6 +194,13 @@ const DealTracker = () => {
         description: "Failed to update deal stage",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleCardClick = (deal: Deal) => {
+    if (deal.stage === 'DD') {
+      setSelectedDeal(deal);
+      setDdFormOpen(true);
     }
   };
 
@@ -171,6 +221,14 @@ const DealTracker = () => {
       day: 'numeric',
       year: 'numeric'
     }).format(date);
+  };
+
+  const getDDStatusColor = (status?: string) => {
+    switch (status) {
+      case 'Complete': return 'bg-green-100 text-green-800';
+      case 'In Progress': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-orange-100 text-orange-800';
+    }
   };
 
   return (
@@ -211,18 +269,28 @@ const DealTracker = () => {
                 column.deals.map((deal) => (
                   <Card
                     key={deal.id}
-                    className="bg-card cursor-pointer hover:shadow-md transition-shadow"
+                    className={`bg-card cursor-pointer hover:shadow-md transition-shadow ${column.id === 'DD' ? 'border-l-4 border-l-blue-500' : ''}`}
                     draggable={canEditDeals}
                     onDragStart={(e) => handleDragStart(e, deal.id, column.id)}
+                    onClick={() => handleCardClick(deal)}
                   >
                     <CardHeader className="p-3 pb-1">
                       <CardTitle className="text-base flex items-center justify-between">
                         <Link 
                           to={`/companies/${deal.company_id}`}
                           className="hover:text-primary transition-colors"
+                          onClick={(e) => e.stopPropagation()} // Prevent card click when clicking link
                         >
                           {deal.company_name}
                         </Link>
+                        {column.id === 'DD' && deal.due_diligence_status && (
+                          <Badge 
+                            variant="outline" 
+                            className={getDDStatusColor(deal.due_diligence_status)}
+                          >
+                            {deal.due_diligence_status}
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0 pb-1">
@@ -243,6 +311,12 @@ const DealTracker = () => {
                       )}
                       {deal.notes && (
                         <p className="text-xs mt-1 line-clamp-2">{deal.notes}</p>
+                      )}
+                      {column.id === 'DD' && (
+                        <div className="flex items-center mt-2 text-xs text-blue-600">
+                          <FileText className="h-3 w-3 mr-1" />
+                          <span>View DD details</span>
+                        </div>
                       )}
                     </CardContent>
                     <CardFooter className="p-3 pt-1 text-xs text-muted-foreground">
@@ -265,6 +339,17 @@ const DealTracker = () => {
         onOpenChange={setFormOpen} 
         onDealCreated={handleDealCreated} 
       />
+
+      {/* Due Diligence form */}
+      {selectedDeal && (
+        <DDForm
+          dealId={selectedDeal.id}
+          companyName={selectedDeal.company_name}
+          open={ddFormOpen}
+          onOpenChange={setDdFormOpen}
+          onDDDataUpdated={refetch}
+        />
+      )}
     </div>
   );
 };
