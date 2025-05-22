@@ -113,11 +113,11 @@ const NoteList = () => {
           title: note.title,
           content: note.content,
           author: {
-            id: note.users.id,
-            name: note.users.name,
+            id: note.users?.id || '',
+            name: note.users?.name || '',
           },
           companyId: note.company_id,
-          companyName: note.companies?.name,
+          companyName: note.companies?.name || '',
           visibility: note.visibility,
           createdAt: new Date(note.created_at),
           tags: [], // We'll need to add tags from a separate query or join
