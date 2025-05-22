@@ -66,6 +66,59 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_due_diligence: {
+        Row: {
+          assigned_analyst: string | null
+          created_at: string
+          deal_id: string
+          due_diligence_status: Database["public"]["Enums"]["due_diligence_status"]
+          financial_review: string | null
+          id: string
+          investment_thesis: string | null
+          market_analysis: string | null
+          risk_assessment: string | null
+          target_completion_date: string | null
+          team_assessment: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_analyst?: string | null
+          created_at?: string
+          deal_id: string
+          due_diligence_status?: Database["public"]["Enums"]["due_diligence_status"]
+          financial_review?: string | null
+          id?: string
+          investment_thesis?: string | null
+          market_analysis?: string | null
+          risk_assessment?: string | null
+          target_completion_date?: string | null
+          team_assessment?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_analyst?: string | null
+          created_at?: string
+          deal_id?: string
+          due_diligence_status?: Database["public"]["Enums"]["due_diligence_status"]
+          financial_review?: string | null
+          id?: string
+          investment_thesis?: string | null
+          market_analysis?: string | null
+          risk_assessment?: string | null
+          target_completion_date?: string | null
+          team_assessment?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_due_diligence_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           company_id: string | null
@@ -274,6 +327,7 @@ export type Database = {
     }
     Enums: {
       deal_stage: "Discovery" | "DD" | "IC" | "Funded" | "Rejected"
+      due_diligence_status: "Pending" | "In Progress" | "Complete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -390,6 +444,7 @@ export const Constants = {
   public: {
     Enums: {
       deal_stage: ["Discovery", "DD", "IC", "Funded", "Rejected"],
+      due_diligence_status: ["Pending", "In Progress", "Complete"],
     },
   },
 } as const
