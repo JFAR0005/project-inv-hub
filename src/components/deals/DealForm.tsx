@@ -28,6 +28,7 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
+// This is the correct type definition based on the schema transformation above
 type FormValues = z.infer<typeof formSchema>;
 
 interface DealFormProps {
@@ -88,6 +89,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
           stage: values.stage,
           status: values.status,
           source: values.source || null,
+          // The correct type assertion based on our schema transformation
           valuation_expectation: values.valuation_expectation as number | null,
           lead_partner: values.lead_partner || null,
           notes: values.notes || null,
