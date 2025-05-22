@@ -1,10 +1,22 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Check if environment variables are available
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Provide fallback for development or show helpful error if missing
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    "Missing Supabase credentials. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables."
+  );
+}
+
+// Initialize Supabase client with fallback values for development
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder-url.supabase.co',  
+  supabaseAnonKey || 'placeholder-key'
+);
 
 // Custom types for database tables
 export type Database = {
