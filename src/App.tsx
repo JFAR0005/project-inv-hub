@@ -15,7 +15,9 @@ import Deals from "./pages/Deals";
 import Meetings from "./pages/Meetings";
 import NotFound from "./pages/NotFound";
 import CompanyDetails from "./pages/CompanyDetails";
+import CompanyProfile from "./pages/CompanyProfile";
 import Dealflow from "./pages/Dealflow";
+import SubmitUpdate from "./pages/SubmitUpdate";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +36,8 @@ const App = () => (
             <Route path="/deals" element={<Deals />} />
             <Route path="/dealflow" element={<Dealflow />} />
             <Route path="/meetings" element={<Meetings />} />
-            <Route path="/companies/:id" element={<CompanyDetails />} />
+            <Route path="/companies/:id" element={<CompanyProfile />} />
+            <Route path="/submit-update" element={<SubmitUpdate />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -66,6 +66,41 @@ export type Database = {
         }
         Relationships: []
       }
+      company_files: {
+        Row: {
+          company_id: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          uploaded_at: string | null
+          uploader_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          uploaded_at?: string | null
+          uploader_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          uploaded_at?: string | null
+          uploader_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_due_diligence: {
         Row: {
           assigned_analyst: string | null
@@ -166,6 +201,68 @@ export type Database = {
           },
         ]
       }
+      founder_updates: {
+        Row: {
+          arr: number | null
+          burn_rate: number | null
+          churn: number | null
+          comments: string | null
+          company_id: string | null
+          deck_url: string | null
+          headcount: number | null
+          id: string
+          mrr: number | null
+          raise_status: string | null
+          raise_target_amount: number | null
+          requested_intros: string | null
+          runway: number | null
+          submitted_at: string | null
+          submitted_by: string | null
+        }
+        Insert: {
+          arr?: number | null
+          burn_rate?: number | null
+          churn?: number | null
+          comments?: string | null
+          company_id?: string | null
+          deck_url?: string | null
+          headcount?: number | null
+          id?: string
+          mrr?: number | null
+          raise_status?: string | null
+          raise_target_amount?: number | null
+          requested_intros?: string | null
+          runway?: number | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+        }
+        Update: {
+          arr?: number | null
+          burn_rate?: number | null
+          churn?: number | null
+          comments?: string | null
+          company_id?: string | null
+          deck_url?: string | null
+          headcount?: number | null
+          id?: string
+          mrr?: number | null
+          raise_status?: string | null
+          raise_target_amount?: number | null
+          requested_intros?: string | null
+          runway?: number | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "founder_updates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_participants: {
         Row: {
           id: string
@@ -232,6 +329,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "meetings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metrics: {
+        Row: {
+          company_id: string | null
+          date: string | null
+          id: string
+          metric_name: string | null
+          value: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          date?: string | null
+          id?: string
+          metric_name?: string | null
+          value?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          date?: string | null
+          id?: string
+          metric_name?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

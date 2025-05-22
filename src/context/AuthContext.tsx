@@ -1,10 +1,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 // Define user roles as per specification
-export type UserRole = 'admin' | 'partner' | 'founder';
+export type UserRole = 'admin' | 'partner' | 'founder' | 'lp';
 
 // Extend user interface to include company_id for founders
 interface User {
@@ -33,7 +33,9 @@ type Permission =
   | 'view:own:company'
   | 'edit:own:company'
   | 'view:notes:founder'
-  | 'view:team';
+  | 'view:team'
+  | 'submit:updates'
+  | 'view:portfolio';
 
 interface AuthContextType {
   user: User | null;
@@ -68,6 +70,12 @@ const MOCK_USERS: User[] = [
     role: 'founder',
     companyId: '101', // Links to their company
   },
+  {
+    id: '4',
+    name: 'Limited Partner',
+    email: 'lp@example.com',
+    role: 'lp',
+  },
 ];
 
 // Permission mapping based on Black Nova roles
@@ -84,6 +92,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'vote:investments',
     'book:meetings',
     'view:team',
+    'view:portfolio',
   ],
   partner: [
     'view:portfolio:limited',
@@ -91,6 +100,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view:notes:shared',
     'book:meetings',
     'view:team',
+    'view:portfolio',
   ],
   founder: [
     'view:own:company',
@@ -98,6 +108,12 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'book:meetings',
     'view:notes:founder',
     'view:team',
+    'submit:updates',
+  ],
+  lp: [
+    'view:portfolio',
+    'view:portfolio:limited',
+    'view:notes:shared',
   ],
 };
 
@@ -164,7 +180,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
+    
     try {
+      // Clean up auth state first to prevent issues
+      cleanupAuthState();
+      
       // Try to authenticate with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -233,12 +253,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      // Clean up auth state first
+      cleanupAuthState();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut({ scope: 'global' });
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {
+      // Clear local state
       setUser(null);
       localStorage.removeItem('blacknova_user');
+      
+      // Force page reload for a clean state
+      window.location.href = '/login';
     }
   };
 
