@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, DollarSign, User, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import DealForm from './DealForm';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
   company_name: string;
@@ -22,9 +24,11 @@ type BoardColumn = {
 };
 
 const DealTracker = () => {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
   const [columns, setColumns] = useState<BoardColumn[]>([
     { id: 'Discovery', title: 'Discovery', deals: [] },
     { id: 'DD', title: 'Due Diligence', deals: [] },
@@ -33,133 +37,53 @@ const DealTracker = () => {
     { id: 'Rejected', title: 'Rejected', deals: [] },
   ]);
 
-  const canEditDeals = hasPermission('edit:all');
+  const canEditDeals = hasPermission('edit:all') || user?.role === 'admin' || user?.role === 'partner';
 
-  useEffect(() => {
-    const fetchDeals = async () => {
+  // Use React Query for data fetching
+  const { data: deals, refetch } = useQuery({
+    queryKey: ['deals'],
+    queryFn: async () => {
       setIsLoading(true);
       try {
-        // In a real app, this would be a Supabase query with joins
+        // Fetch deals with company information
         const { data, error } = await supabase
           .from('deals')
           .select(`
             *,
             companies (
+              id,
               name
             )
           `);
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        if (data) {
-          // Process the data to format it for our columns
-          const formattedDeals = data.map(deal => ({
-            ...deal,
-            company_name: deal.companies?.name || 'Unknown Company'
-          }));
+        const formattedDeals = data?.map(deal => ({
+          ...deal,
+          company_name: deal.companies?.name || 'Unknown Company'
+        })) || [];
 
-          // Update each column with its deals
-          setColumns(prev => 
-            prev.map(column => ({
-              ...column,
-              deals: formattedDeals.filter(deal => deal.stage === column.id)
-            }))
-          );
-        } else {
-          // Fallback to mock data for development
-          // Mock data for development
-          const mockDeals: Deal[] = [
-            {
-              id: '1',
-              company_id: '101',
-              company_name: 'TechStartup Inc',
-              stage: 'Discovery',
-              status: 'Active',
-              source: 'Referral',
-              valuation_expectation: 10000000,
-              lead_partner: 'Jane Smith',
-              notes: 'Initial meeting went well, they have a solid team.',
-              created_at: '2023-01-15T09:00:00Z',
-              updated_at: '2023-01-20T15:30:00Z',
-            },
-            {
-              id: '2',
-              company_id: '102',
-              company_name: 'CloudScale AI',
-              stage: 'DD',
-              status: 'In Progress',
-              source: 'Conference',
-              valuation_expectation: 7500000,
-              lead_partner: 'Mike Johnson',
-              notes: 'Technical review pending, financials look good.',
-              created_at: '2023-02-10T10:15:00Z',
-              updated_at: '2023-02-18T11:45:00Z',
-            },
-            {
-              id: '3',
-              company_id: '103',
-              company_name: 'DevSecOps Platform',
-              stage: 'IC',
-              status: 'Scheduled',
-              source: 'Direct',
-              valuation_expectation: 15000000,
-              lead_partner: 'Jane Smith',
-              notes: 'IC meeting scheduled for next week, all materials ready.',
-              created_at: '2023-03-05T14:30:00Z',
-              updated_at: '2023-03-12T16:20:00Z',
-            },
-            {
-              id: '4',
-              company_id: '104',
-              company_name: 'DataMetrics',
-              stage: 'Funded',
-              status: 'Completed',
-              source: 'VC Referral',
-              valuation_expectation: 5000000,
-              lead_partner: 'Mike Johnson',
-              notes: 'Term sheet signed, closing next month.',
-              created_at: '2023-01-20T11:00:00Z',
-              updated_at: '2023-04-05T09:15:00Z',
-            },
-            {
-              id: '5',
-              company_id: '105',
-              company_name: 'SupplyChainConnect',
-              stage: 'Rejected',
-              status: 'Closed',
-              source: 'Inbound',
-              valuation_expectation: 12000000,
-              lead_partner: 'Jane Smith',
-              notes: 'Not a good fit for our investment thesis at this time.',
-              created_at: '2023-02-25T13:45:00Z',
-              updated_at: '2023-03-10T10:30:00Z',
-            },
-          ];
+        // Update columns with deals
+        setColumns(prev => 
+          prev.map(column => ({
+            ...column,
+            deals: formattedDeals.filter(deal => deal.stage === column.id)
+          }))
+        );
 
-          // Update each column with its mock deals
-          setColumns(prev => 
-            prev.map(column => ({
-              ...column,
-              deals: mockDeals.filter(deal => deal.stage === column.id)
-            }))
-          );
-        }
+        setIsLoading(false);
+        return formattedDeals;
       } catch (error) {
         console.error('Error fetching deals:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load deals data",
-          variant: "destructive",
-        });
-      } finally {
         setIsLoading(false);
+        throw error;
       }
-    };
+    }
+  });
 
-    fetchDeals();
-  }, [toast]);
+  const handleDealCreated = () => {
+    refetch();
+  };
 
   const handleDragStart = (e: React.DragEvent, dealId: string, currentColumn: string) => {
     e.dataTransfer.setData('dealId', dealId);
@@ -217,6 +141,9 @@ const DealTracker = () => {
         title: "Deal Moved",
         description: `Deal moved to ${targetColumn} stage`,
       });
+      
+      // Invalidate the deals query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
     } catch (error) {
       console.error('Error updating deal stage:', error);
       toast({
@@ -255,7 +182,7 @@ const DealTracker = () => {
         </div>
 
         {canEditDeals && (
-          <Button>
+          <Button onClick={() => setFormOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Deal
           </Button>
@@ -309,8 +236,13 @@ const DealTracker = () => {
                           <span>{deal.lead_partner || 'Unassigned'}</span>
                         </div>
                       </div>
+                      {deal.source && (
+                        <div className="mt-2 text-xs">
+                          <span className="font-medium">Source:</span> {deal.source}
+                        </div>
+                      )}
                       {deal.notes && (
-                        <p className="text-xs mt-2 line-clamp-2">{deal.notes}</p>
+                        <p className="text-xs mt-1 line-clamp-2">{deal.notes}</p>
                       )}
                     </CardContent>
                     <CardFooter className="p-3 pt-1 text-xs text-muted-foreground">
@@ -326,6 +258,13 @@ const DealTracker = () => {
           </div>
         ))}
       </div>
+      
+      {/* Deal creation form */}
+      <DealForm 
+        open={formOpen} 
+        onOpenChange={setFormOpen} 
+        onDealCreated={handleDealCreated} 
+      />
     </div>
   );
 };
