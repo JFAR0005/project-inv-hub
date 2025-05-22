@@ -75,8 +75,10 @@ const MeetingsCalendar = ({ view }: MeetingsCalendarProps) => {
             start_time: meeting.start_time,
             end_time: meeting.end_time,
             company_id: meeting.company_id,
-            // Fixed access to company name - check if companies exists first and access the name property
-            companyName: meeting.companies ? meeting.companies.name : undefined,
+            // Fixed access to company name - properly handle companies as an array
+            companyName: meeting.companies && Array.isArray(meeting.companies) && meeting.companies.length > 0 
+              ? meeting.companies[0].name 
+              : undefined,
             participants: Array.isArray(meeting.meeting_participants) 
               ? meeting.meeting_participants.map((p: any) => ({
                   id: p.users?.id || p.user_id,

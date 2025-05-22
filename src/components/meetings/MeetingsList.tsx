@@ -67,8 +67,10 @@ const MeetingsList = () => {
             description: meeting.description,
             location: meeting.location,
             created_by: meeting.created_by,
-            // Fix accessing company name - properly check if companies exists first
-            companyName: meeting.companies ? meeting.companies.name : undefined,
+            // Fix accessing company name - properly handle companies as an array
+            companyName: meeting.companies && Array.isArray(meeting.companies) && meeting.companies.length > 0 
+              ? meeting.companies[0].name 
+              : undefined,
             participants: Array.isArray(meeting.meeting_participants) 
               ? meeting.meeting_participants.map((p: any) => ({
                   id: p.users?.id || p.user_id,
