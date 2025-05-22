@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
+// Define the form schema with proper string-to-number transformation
 const formSchema = z.object({
   company_id: z.string().uuid({ message: "Please select a company" }),
   stage: z.enum(['Discovery', 'DD', 'IC', 'Funded', 'Rejected'], { required_error: "Please select a stage" }),
@@ -28,10 +29,18 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-// This is the correct type definition based on the schema transformation above
-type FormValues = z.infer<typeof formSchema>;
+// Define the form values before transformation
+type FormValues = {
+  company_id: string;
+  stage: 'Discovery' | 'DD' | 'IC' | 'Funded' | 'Rejected';
+  status: string;
+  source: string;
+  valuation_expectation: string; // Keep as string for the form input
+  lead_partner: string;
+  notes: string;
+};
 
-// This defines what the transformed valuation_expectation looks like after zod processing
+// Define the transformed values after Zod processing
 type TransformedFormValues = Omit<FormValues, 'valuation_expectation'> & {
   valuation_expectation: number | null;
 };
@@ -51,7 +60,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
       stage: 'Discovery',
       status: 'Active',
       source: '',
-      valuation_expectation: '', // This is fine as string for the form input
+      valuation_expectation: '', // This is correct as a string for the form input
       lead_partner: '',
       notes: '',
     },
