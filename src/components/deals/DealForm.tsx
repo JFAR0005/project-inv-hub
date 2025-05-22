@@ -87,7 +87,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
 
   const onSubmit = async (values: FormValues) => {
     try {
-      // The form values are transformed by zod, so we need to ensure the types are correct
+      // Cast to the transformed type that matches our database schema
       const transformedValues = values as unknown as TransformedFormValues;
 
       const { error } = await supabase
