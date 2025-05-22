@@ -39,9 +39,10 @@ export interface Note {
 
 interface NoteCardProps {
   note: Note;
+  onEdit?: (id: string) => void;
 }
 
-export function NoteCard({ note }: NoteCardProps) {
+export function NoteCard({ note, onEdit }: NoteCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const visibilityMap = {
@@ -125,10 +126,17 @@ export function NoteCard({ note }: NoteCardProps) {
             {note.author.name} · {formatDistanceToNow(note.createdAt, { addSuffix: true })}
           </div>
         </div>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-          <Pencil className="h-4 w-4" />
-          <span className="sr-only">Edit</span>
-        </Button>
+        {onEdit && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0"
+            onClick={() => onEdit(note.id)}
+          >
+            <Pencil className="h-4 w-4" />
+            <span className="sr-only">Edit</span>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

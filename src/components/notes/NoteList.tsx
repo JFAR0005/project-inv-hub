@@ -1,197 +1,268 @@
 
-import React, { useState } from "react";
-import { format } from "date-fns";
-import { Note, NoteCard } from "./NoteCard";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Search, Plus, Filter } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/sonner';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogHeader } from '@/components/ui/dialog';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Plus, FileText } from 'lucide-react';
+import NoteCard, { Note } from './NoteCard';
+import NoteForm from './NoteForm';
+import NoteFilters, { FilterOptions } from './NoteFilters';
+import { format, sub } from 'date-fns';
 
-// Sample notes data
-const MOCK_NOTES: Note[] = [
-  {
-    id: "1",
-    title: "Meeting with TechStartup Inc",
-    content: "Discussed their growth strategy and upcoming Series A round. They're focusing on enterprise sales and have a pipeline of 3 major clients. We should follow up next month to see how the deals progress. The team is strong in technical execution but might need help with go-to-market strategy.",
-    author: { id: "1", name: "Admin User" },
-    companyId: "101",
-    companyName: "TechStartup Inc",
-    tags: ["meeting", "strategy", "funding"],
-    visibility: "internal",
-    createdAt: new Date(2023, 4, 15),
-    attachments: [
-      {
-        id: "a1",
-        filename: "pitch_deck_v2.pdf",
-        type: "application/pdf",
-        url: "#",
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Due Diligence: CloudScale AI",
-    content: "Technical assessment complete. Their ML models show impressive accuracy compared to competitors. Scalability concerns addressed with new architecture. Team has strong academic background but limited industry experience. Recommended to proceed with funding discussions.",
-    author: { id: "1", name: "Admin User" },
-    companyId: "102",
-    companyName: "CloudScale AI",
-    tags: ["due diligence", "technical", "AI"],
-    visibility: "partner",
-    createdAt: new Date(2023, 4, 10),
-    attachments: [],
-  },
-  {
-    id: "3",
-    title: "Quarterly Review: DevSecOps Platform",
-    content: "Q1 performance above projections. MRR increased by 18% vs targeted 15%. Cash burn is on track with forecasts. Team grew from 15 to 22 with key hires in engineering and sales. Enterprise contracts increased by 3.",
-    author: { id: "2", name: "Venture Partner" },
-    companyId: "103",
-    companyName: "DevSecOps Platform",
-    tags: ["quarterly", "metrics", "growth"],
-    visibility: "founder",
-    createdAt: new Date(2023, 4, 5),
-    attachments: [
-      {
-        id: "a2",
-        filename: "q1_financials.xlsx",
-        type: "application/xlsx",
-        url: "#",
-      },
-      {
-        id: "a3",
-        filename: "metrics_dashboard.pdf",
-        type: "application/pdf",
-        url: "#",
-      },
-    ],
-  },
-  {
-    id: "4",
-    title: "Competitor Analysis: DataMetrics",
-    content: "Conducted market research on competitors in the analytics space. DataMetrics has unique advantages in data visualization and real-time processing. Main competitors are raising significantly more capital, so we need a capital-efficient growth strategy.",
-    author: { id: "1", name: "Admin User" },
-    companyId: "104",
-    companyName: "DataMetrics",
-    tags: ["market", "competition", "strategy"],
-    visibility: "internal",
-    createdAt: new Date(2023, 4, 1),
-    attachments: [],
-  },
-];
-
-const NoteList: React.FC = () => {
+const NoteList = () => {
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [visibilityFilter, setVisibilityFilter] = useState<string>("");
-
-  // Filter notes based on search term, visibility, and user role
-  const filteredNotes = MOCK_NOTES.filter((note) => {
-    // First filter by search term
-    const matchesSearch =
-      searchTerm === "" ||
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (note.companyName && note.companyName.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    // Then filter by visibility based on role
-    let hasAccess = false;
-    if (user?.role === 'admin') {
-      // Admins can see all notes
-      hasAccess = true;
-    } else if (user?.role === 'partner') {
-      // Partners can see notes marked for partners and founders
-      hasAccess = note.visibility === 'partner' || note.visibility === 'founder';
-    } else if (user?.role === 'founder') {
-      // Founders can only see notes marked for founders
-      hasAccess = note.visibility === 'founder';
-      // And only for their company
-      if (user.companyId && note.companyId) {
-        hasAccess = hasAccess && note.companyId === user.companyId;
-      }
-    }
-
-    // Apply visibility filter if set
-    if (visibilityFilter && note.visibility !== visibilityFilter) {
-      return false;
-    }
-
-    return matchesSearch && hasAccess;
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [filters, setFilters] = useState<FilterOptions>({
+    search: '',
+    visibility: 'all',
+    companyId: '',
+    dateRange: 'all',
   });
-
-  // Sort notes by date (newest first)
-  const sortedNotes = [...filteredNotes].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search notes..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+  
+  // Function to fetch notes from the database
+  const fetchNotes = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Start building the query
+      let query = supabase
+        .from('notes')
+        .select(`
+          id,
+          title,
+          content,
+          visibility,
+          created_at,
+          updated_at,
+          company_id,
+          companies(name),
+          users!notes_author_id_fkey(id, name)
+        `);
+      
+      // Apply role-based filtering
+      if (user.role === 'founder') {
+        // Founders can only see notes marked as 'founder' AND linked to their company
+        query = query
+          .eq('visibility', 'founder')
+          .eq('company_id', user.companyId);
+      } else if (user.role === 'partner') {
+        // Partners can see notes marked as 'partner' or 'founder'
+        query = query.in('visibility', ['partner', 'founder']);
+      }
+      // Admins can see all notes (no additional filter)
+      
+      // Apply search filter if provided
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
+      }
+      
+      // Apply visibility filter if not 'all'
+      if (filters.visibility !== 'all') {
+        query = query.eq('visibility', filters.visibility);
+      }
+      
+      // Apply company filter if provided
+      if (filters.companyId) {
+        query = query.eq('company_id', filters.companyId);
+      }
+      
+      // Apply date range filter
+      if (filters.dateRange !== 'all') {
+        let dateFrom;
+        const now = new Date();
+        
+        switch (filters.dateRange) {
+          case 'today':
+            dateFrom = format(now, 'yyyy-MM-dd');
+            break;
+          case 'week':
+            dateFrom = format(sub(now, { weeks: 1 }), 'yyyy-MM-dd');
+            break;
+          case 'month':
+            dateFrom = format(sub(now, { months: 1 }), 'yyyy-MM-dd');
+            break;
+          case 'quarter':
+            dateFrom = format(sub(now, { months: 3 }), 'yyyy-MM-dd');
+            break;
+          default:
+            dateFrom = null;
+        }
+        
+        if (dateFrom) {
+          query = query.gte('created_at', dateFrom);
+        }
+      }
+      
+      // Execute the query
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) {
+        // Format the data to match our Note interface
+        const formattedNotes: Note[] = data.map(note => ({
+          id: note.id,
+          title: note.title,
+          content: note.content,
+          author: {
+            id: note.users.id,
+            name: note.users.name,
+          },
+          companyId: note.company_id,
+          companyName: note.companies?.name,
+          visibility: note.visibility,
+          createdAt: new Date(note.created_at),
+          tags: [], // We'll need to add tags from a separate query or join
+          attachments: [], // Same for attachments
+        }));
+        
+        setNotes(formattedNotes);
+      }
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+      toast("Error loading notes", {
+        description: "Could not load your notes. Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Fetch notes when component mounts or filters change
+  useEffect(() => {
+    fetchNotes();
+  }, [user, filters]);
+  
+  const handleCreateNote = () => {
+    setEditingNote(null);
+    setIsFormOpen(true);
+  };
+  
+  const handleEditNote = (id: string) => {
+    const noteToEdit = notes.find(note => note.id === id);
+    if (noteToEdit) {
+      setEditingNote(noteToEdit);
+      setIsFormOpen(true);
+    }
+  };
+  
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    setEditingNote(null);
+    fetchNotes();
+  };
+  
+  const handleFilterChange = (newFilters: FilterOptions) => {
+    setFilters(newFilters);
+  };
+  
+  // If user is not authenticated, show login prompt
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 border rounded-lg">
+        <div className="mb-2 p-4 bg-background rounded-full border">
+          <FileText className="h-6 w-6 text-muted-foreground" />
         </div>
-
-        <div className="flex gap-2">
-          <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
-            <SelectTrigger className="w-40 h-9">
-              <SelectValue placeholder="All visibility" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All visibility</SelectItem>
-              {user?.role === 'admin' && <SelectItem value="internal">Internal Only</SelectItem>}
-              {(user?.role === 'admin' || user?.role === 'partner') && <SelectItem value="partner">Shared with Partners</SelectItem>}
-              <SelectItem value="founder">Shared with Founders</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {(user?.role === 'admin' || user?.role === 'partner') && (
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Note
-            </Button>
-          )}
-        </div>
+        <h3 className="text-lg font-medium mb-1">Authentication Required</h3>
+        <p className="text-muted-foreground text-center mb-4">
+          You need to be logged in to view and manage notes.
+        </p>
       </div>
-
-      {sortedNotes.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          No notes match your search criteria.
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Group notes by month */}
-          {Object.entries(
-            sortedNotes.reduce((groups, note) => {
-              const month = format(note.createdAt, "MMMM yyyy");
-              if (!groups[month]) groups[month] = [];
-              groups[month].push(note);
-              return groups;
-            }, {} as Record<string, Note[]>)
-          ).map(([month, notes]) => (
-            <div key={month}>
-              <h3 className="text-lg font-medium mb-3">{month}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {notes.map((note) => (
-                  <NoteCard key={note.id} note={note} />
-                ))}
-              </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Notes</h2>
+        <Button onClick={handleCreateNote}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Note
+        </Button>
+      </div>
+      
+      <NoteFilters onFilterChange={handleFilterChange} />
+      
+      <Tabs defaultValue="all" className="w-full">
+        <TabsContent value="all" className="mt-0">
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ))}
-        </div>
-      )}
+          ) : notes.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {notes.map((note) => (
+                <NoteCard 
+                  key={note.id} 
+                  note={note}
+                  onEdit={
+                    user.role === 'admin' || (user.role === 'partner' && note.author.id === user.id)
+                      ? handleEditNote
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 border rounded-lg">
+              <div className="mb-2 p-4 bg-background rounded-full border">
+                <FileText className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium mb-1">No notes found</h3>
+              <p className="text-muted-foreground text-center mb-4">
+                {filters.search || filters.visibility !== 'all' || filters.companyId || filters.dateRange !== 'all'
+                  ? "No notes match your filter criteria. Try adjusting your filters."
+                  : "You don't have any notes yet. Create your first note to get started."}
+              </p>
+              {!(filters.search || filters.visibility !== 'all' || filters.companyId || filters.dateRange !== 'all') && (
+                <Button variant="outline" onClick={handleCreateNote}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Note
+                </Button>
+              )}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="my">
+          {/* Content for My Notes tab - filter by current user */}
+        </TabsContent>
+        
+        <TabsContent value="recent">
+          {/* Content for Recent tab - filter by date */}
+        </TabsContent>
+        
+        <TabsContent value="important">
+          {/* Content for Important tab - filter by tag or importance */}
+        </TabsContent>
+      </Tabs>
+      
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{editingNote ? 'Edit Note' : 'Create Note'}</DialogTitle>
+          </DialogHeader>
+          <NoteForm 
+            onSuccess={handleFormSuccess}
+            initialData={editingNote ? {
+              id: editingNote.id,
+              title: editingNote.title,
+              content: editingNote.content,
+              visibility: editingNote.visibility,
+              companyId: editingNote.companyId,
+              tags: editingNote.tags.join(', '),
+            } : undefined}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
