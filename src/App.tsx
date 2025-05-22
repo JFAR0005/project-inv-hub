@@ -14,6 +14,8 @@ import Notes from "./pages/Notes";
 import Deals from "./pages/Deals";
 import Meetings from "./pages/Meetings";
 import NotFound from "./pages/NotFound";
+import CompanyDetails from "./pages/CompanyDetails";
+import Dealflow from "./pages/Dealflow";
 
 const queryClient = new QueryClient();
 
@@ -30,7 +32,9 @@ const App = () => (
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/deals" element={<Deals />} />
+            <Route path="/dealflow" element={<Dealflow />} />
             <Route path="/meetings" element={<Meetings />} />
+            <Route path="/companies/:id" element={<CompanyDetails />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

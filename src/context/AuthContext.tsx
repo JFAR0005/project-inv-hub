@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 // Define user roles as per specification
 export type UserRole = 'admin' | 'partner' | 'founder';
@@ -102,45 +104,142 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { toast } = useToast();
 
   // Check for existing session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('blacknova_user');
-    if (storedUser) {
+    const checkSession = async () => {
       try {
-        setUser(JSON.parse(storedUser));
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking auth session:', error);
+          return;
+        }
+
+        if (data.session) {
+          // Fetch user data from our users table
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', data.session.user.id)
+            .single();
+
+          if (userError) {
+            console.error('Error fetching user data:', userError);
+            return;
+          }
+
+          if (userData) {
+            setUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+              team: userData.team,
+              companyId: userData.company_id,
+            });
+          }
+        } else {
+          // For development, if no Supabase session exists, check localStorage
+          const storedUser = localStorage.getItem('blacknova_user');
+          if (storedUser) {
+            try {
+              setUser(JSON.parse(storedUser));
+            } catch (error) {
+              console.error('Failed to parse stored user data', error);
+              localStorage.removeItem('blacknova_user');
+            }
+          }
+        }
       } catch (error) {
-        console.error('Failed to parse stored user data', error);
-        localStorage.removeItem('blacknova_user');
+        console.error('Session check failed:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    checkSession();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // In a real app with Supabase, this would use Supabase auth
-      // For demo we'll use mock data
-      const foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+      // Try to authenticate with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Fetch user details from our custom users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (userError) {
+          // If we can't find the user in our table, fallback to mock data for demo
+          console.warn('Falling back to mock data');
+          const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+          
+          if (!mockUser || password !== 'demo') {
+            throw new Error('Invalid credentials');
+          }
+          
+          setUser(mockUser);
+          localStorage.setItem('blacknova_user', JSON.stringify(mockUser));
+          return;
+        }
+
+        // Convert from DB schema to our User type
+        const authUser: User = {
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          team: userData.team,
+          companyId: userData.company_id,
+        };
+
+        setUser(authUser);
+      }
+    } catch (error) {
+      console.error('Login failed', error);
       
-      if (!foundUser || password !== 'demo') {
+      // For demo, fall back to mock users if Supabase fails
+      const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+      
+      if (!mockUser || password !== 'demo') {
+        toast({
+          title: "Login Failed",
+          description: "Invalid credentials. For demo, use the sample accounts with password 'demo'.",
+          variant: "destructive",
+        });
         throw new Error('Invalid credentials');
       }
       
-      setUser(foundUser);
-      localStorage.setItem('blacknova_user', JSON.stringify(foundUser));
-    } catch (error) {
-      console.error('Login failed', error);
-      throw error;
+      setUser(mockUser);
+      localStorage.setItem('blacknova_user', JSON.stringify(mockUser));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('blacknova_user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('blacknova_user');
+    }
   };
 
   const hasPermission = (permission: Permission): boolean => {
