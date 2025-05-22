@@ -88,7 +88,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
           stage: values.stage,
           status: values.status,
           source: values.source || null,
-          valuation_expectation: values.valuation_expectation,
+          valuation_expectation: values.valuation_expectation as number | null,
           lead_partner: values.lead_partner || null,
           notes: values.notes || null,
         });
