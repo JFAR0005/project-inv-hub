@@ -20,8 +20,8 @@ const formSchema = z.object({
   source: z.string().optional(),
   valuation_expectation: z.string()
     .optional()
-    .transform(val => val === '' ? undefined : Number(val))
-    .refine(val => val === undefined || !isNaN(val as number), {
+    .transform(val => val === '' ? null : Number(val))
+    .refine(val => val === null || !isNaN(val as number), {
       message: "Valuation must be a number"
     }),
   lead_partner: z.string().optional(),
