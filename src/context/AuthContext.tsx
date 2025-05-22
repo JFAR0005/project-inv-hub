@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: userData.id,
               name: userData.name,
               email: userData.email,
-              role: userData.role,
+              role: userData.role as UserRole, // Cast to UserRole type
               team: userData.team,
               companyId: userData.company_id,
             });
@@ -161,7 +161,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const storedUser = localStorage.getItem('blacknova_user');
           if (storedUser) {
             try {
-              setUser(JSON.parse(storedUser));
+              const parsedUser = JSON.parse(storedUser);
+              // Ensure role is a valid UserRole
+              if (parsedUser && typeof parsedUser.role === 'string') {
+                parsedUser.role = parsedUser.role as UserRole;
+              }
+              setUser(parsedUser);
             } catch (error) {
               console.error('Failed to parse stored user data', error);
               localStorage.removeItem('blacknova_user');

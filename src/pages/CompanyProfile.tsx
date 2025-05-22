@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { Download, FileText, PlusCircle } from 'lucide-react';
-import { Layout } from '@/components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase, getCompanyFileUrl } from '@/integrations/supabase/client';
-import { FounderUpdate, Metric, CompanyFile } from '@/types/reporting';
+import { FounderUpdate, Metric, CompanyFile, RaiseStatus } from '@/types/reporting';
 
 export default function CompanyProfile() {
   const { id } = useParams<{ id: string }>();
@@ -76,7 +76,12 @@ export default function CompanyProfile() {
           .order('submitted_at', { ascending: false });
           
         if (updatesError) throw updatesError;
-        setUpdates(updatesData);
+        // Cast raise_status to RaiseStatus type
+        const typedUpdates: FounderUpdate[] = updatesData.map(update => ({
+          ...update,
+          raise_status: update.raise_status as RaiseStatus
+        }));
+        setUpdates(typedUpdates);
         
         // Fetch metrics for charts
         const { data: metricsData, error: metricsError } = await supabase
