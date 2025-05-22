@@ -9,7 +9,262 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      companies: {
+        Row: {
+          arr: number | null
+          burn_rate: number | null
+          churn_rate: number | null
+          created_at: string | null
+          description: string | null
+          headcount: number | null
+          id: string
+          location: string | null
+          logo_url: string | null
+          mrr: number | null
+          name: string
+          runway: number | null
+          sector: string | null
+          stage: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          arr?: number | null
+          burn_rate?: number | null
+          churn_rate?: number | null
+          created_at?: string | null
+          description?: string | null
+          headcount?: number | null
+          id?: string
+          location?: string | null
+          logo_url?: string | null
+          mrr?: number | null
+          name: string
+          runway?: number | null
+          sector?: string | null
+          stage?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          arr?: number | null
+          burn_rate?: number | null
+          churn_rate?: number | null
+          created_at?: string | null
+          description?: string | null
+          headcount?: number | null
+          id?: string
+          location?: string | null
+          logo_url?: string | null
+          mrr?: number | null
+          name?: string
+          runway?: number | null
+          sector?: string | null
+          stage?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      deals: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          lead_partner: string | null
+          notes: string | null
+          source: string | null
+          stage: Database["public"]["Enums"]["deal_stage"]
+          status: string | null
+          updated_at: string | null
+          valuation_expectation: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          lead_partner?: string | null
+          notes?: string | null
+          source?: string | null
+          stage?: Database["public"]["Enums"]["deal_stage"]
+          status?: string | null
+          updated_at?: string | null
+          valuation_expectation?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          lead_partner?: string | null
+          notes?: string | null
+          source?: string | null
+          stage?: Database["public"]["Enums"]["deal_stage"]
+          status?: string | null
+          updated_at?: string | null
+          valuation_expectation?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_participants: {
+        Row: {
+          id: string
+          meeting_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          meeting_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          meeting_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          end_time: string
+          id: string
+          location: string | null
+          start_time: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          end_time: string
+          id?: string
+          location?: string | null
+          start_time: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          end_time?: string
+          id?: string
+          location?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          author_id: string
+          company_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          visibility: string
+        }
+        Insert: {
+          author_id: string
+          company_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+          visibility: string
+        }
+        Update: {
+          author_id?: string
+          company_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          role: string | null
+          team: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          name?: string | null
+          role?: string | null
+          team?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          role?: string | null
+          team?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +273,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      deal_stage: "Discovery" | "DD" | "IC" | "Funded" | "Rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +388,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      deal_stage: ["Discovery", "DD", "IC", "Funded", "Rejected"],
+    },
   },
 } as const
