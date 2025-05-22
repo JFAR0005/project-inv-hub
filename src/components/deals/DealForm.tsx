@@ -51,7 +51,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
       stage: 'Discovery',
       status: 'Active',
       source: '',
-      valuation_expectation: '',
+      valuation_expectation: '', // This is fine as string for the form input
       lead_partner: '',
       notes: '',
     },
