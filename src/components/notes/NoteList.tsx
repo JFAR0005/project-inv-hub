@@ -108,21 +108,27 @@ const NoteList = () => {
       
       if (data) {
         // Format the data to match our Note interface
-        const formattedNotes: Note[] = data.map(note => ({
-          id: note.id,
-          title: note.title,
-          content: note.content,
-          author: {
-            id: note.users?.id || '',
-            name: note.users?.name || '',
-          },
-          companyId: note.company_id,
-          companyName: note.companies?.name || '',
-          visibility: note.visibility,
-          createdAt: new Date(note.created_at),
-          tags: [], // We'll need to add tags from a separate query or join
-          attachments: [], // Same for attachments
-        }));
+        const formattedNotes: Note[] = data.map(note => {
+          // Since users and companies are returned as arrays, handle accordingly
+          const userData = Array.isArray(note.users) ? note.users[0] : note.users;
+          const companyData = Array.isArray(note.companies) ? note.companies[0] : note.companies;
+          
+          return {
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            author: {
+              id: userData?.id || '',
+              name: userData?.name || '',
+            },
+            companyId: note.company_id,
+            companyName: companyData?.name || '',
+            visibility: note.visibility,
+            createdAt: new Date(note.created_at),
+            tags: [], // We'll need to add tags from a separate query or join
+            attachments: [], // Same for attachments
+          };
+        });
         
         setNotes(formattedNotes);
       }
