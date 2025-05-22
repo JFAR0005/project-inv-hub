@@ -9,7 +9,7 @@ export interface FounderUpdate {
   runway: number | null;
   headcount: number | null;
   churn: number | null;
-  raise_status: string | null;
+  raise_status: RaiseStatus | null;
   raise_target_amount: number | null;
   requested_intros: string | null;
   comments: string | null;
