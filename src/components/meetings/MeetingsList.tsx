@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Users } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/sonner';
 
 type Meeting = {
@@ -111,9 +111,9 @@ const MeetingsList = () => {
         }
       } catch (error) {
         console.error('Error fetching meetings:', error);
-        toast({
-          title: "Error loading meetings",
-          description: "Could not load your meetings. Please try again later."
+        // Fixed the toast call to match the sonner toast API
+        toast("Error loading meetings", {
+          description: "Could not load your meetings. Please try again later.",
         });
         // Fallback to mock data on error
         setMeetings([]);
