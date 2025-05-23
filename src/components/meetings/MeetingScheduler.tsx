@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Calendar } from '@/components/ui/calendar';
@@ -14,6 +13,7 @@ import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import MeetingsList from './MeetingsList';
 import IntegrationsPanel from '../integrations/IntegrationsPanel';
+import { Meeting } from '@/pages/Meetings';
 
 const MeetingScheduler = () => {
   const { user } = useAuth();
@@ -24,6 +24,8 @@ const MeetingScheduler = () => {
   const [description, setDescription] = useState<string>('');
   const [attendees, setAttendees] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string>('upcoming');
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Mock time slots - in a real app these would come from calendar integration
   const availableTimeSlots = [
@@ -62,6 +64,11 @@ const MeetingScheduler = () => {
     } else {
       setAttendees([...attendees, attendeeId]);
     }
+  };
+
+  const handleEditMeeting = (meeting: Meeting) => {
+    // In a real implementation, this would open a modal or form to edit the meeting
+    toast(`Editing meeting: ${meeting.title}`);
   };
 
   return (
@@ -198,7 +205,11 @@ const MeetingScheduler = () => {
         </TabsContent>
 
         <TabsContent value="upcoming" className="pt-4">
-          <MeetingsList />
+          <MeetingsList 
+            meetings={meetings} 
+            isLoading={isLoading} 
+            onEditMeeting={handleEditMeeting} 
+          />
         </TabsContent>
 
         <TabsContent value="integrations" className="pt-4">
