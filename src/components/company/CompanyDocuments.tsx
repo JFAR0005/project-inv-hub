@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -80,17 +79,14 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           
           let uploaderName = 'Unknown';
           
-          // Fix: Double-check for null values with proper TypeScript safety
-          if (!metaError && metaData) {
+          // Fix: Comprehensive null checking for uploader data
+          if (!metaError && metaData && metaData.uploader) {
             const uploaderData = metaData.uploader;
-            // Ensure uploaderData is not null before trying to access its properties
-            if (uploaderData && typeof uploaderData === 'object') {
-              // Additional check to ensure 'name' property exists before accessing
-              if ('name' in uploaderData && uploaderData.name !== null) {
-                const uploaderNameValue = uploaderData.name;
-                if (typeof uploaderNameValue === 'string') {
-                  uploaderName = uploaderNameValue || 'Unknown';
-                }
+            // Ensure uploaderData is not null and has the name property
+            if (uploaderData !== null && typeof uploaderData === 'object' && 'name' in uploaderData) {
+              const uploaderNameValue = uploaderData.name;
+              if (typeof uploaderNameValue === 'string' && uploaderNameValue.trim()) {
+                uploaderName = uploaderNameValue;
               }
             }
           }
