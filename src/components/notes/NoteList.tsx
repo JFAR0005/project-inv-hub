@@ -123,7 +123,7 @@ const NoteList = () => {
             },
             companyId: note.company_id,
             companyName: companyData?.name || '',
-            visibility: note.visibility,
+            visibility: note.visibility as "internal" | "partner" | "founder",
             createdAt: new Date(note.created_at),
             tags: [], // We'll need to add tags from a separate query or join
             attachments: [], // Same for attachments
