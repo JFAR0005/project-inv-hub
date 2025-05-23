@@ -1,5 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import Layout from '@/components/layout/Layout';
 import MeetingsCalendar from '@/components/meetings/MeetingsCalendar';
 import MeetingsList from '@/components/meetings/MeetingsList';
@@ -9,10 +11,91 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MeetingScheduleForm from '@/components/meetings/MeetingScheduleForm';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+// Define Meeting type for TypeScript
+export interface Meeting {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  company_id: string | null;
+  company_name?: string;
+  location: string | null;
+  description: string | null;
+  created_by: string;
+  created_at: string;
+  participants?: string[];
+}
 
 const Meetings = () => {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [activeView, setActiveView] = useState<'week' | 'month'>('week');
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Fetch meetings using React Query
+  const { data: meetings, isLoading, isError, refetch } = useQuery({
+    queryKey: ['meetings'],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      // Fetch meetings that include the current user
+      const { data: participantMeetings, error: participantError } = await supabase
+        .from('meeting_participants')
+        .select('meeting_id')
+        .eq('user_id', user.id);
+      
+      if (participantError) {
+        throw new Error(participantError.message);
+      }
+      
+      const meetingIds = participantMeetings?.map(pm => pm.meeting_id) || [];
+      
+      // If no meetings include this user, return empty array
+      if (meetingIds.length === 0) {
+        return [];
+      }
+      
+      // Get the actual meetings with company names
+      const { data, error } = await supabase
+        .from('meetings')
+        .select(`
+          *,
+          companies (id, name)
+        `)
+        .in('id', meetingIds);
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      // Format the meetings
+      return data.map(meeting => ({
+        ...meeting,
+        company_name: meeting.companies?.name || 'No company',
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const handleScheduleSuccess = () => {
+    setIsScheduleDialogOpen(false);
+    setEditingMeeting(null);
+    refetch();
+    toast({
+      title: "Success",
+      description: "Meeting has been scheduled",
+    });
+  };
+
+  const handleEditMeeting = (meeting: Meeting) => {
+    setEditingMeeting(meeting);
+    setIsScheduleDialogOpen(true);
+  };
 
   return (
     <Layout>
@@ -55,11 +138,20 @@ const Meetings = () => {
                 </Button>
               </div>
             </div>
-            <MeetingsCalendar view={activeView} />
+            <MeetingsCalendar 
+              view={activeView} 
+              meetings={meetings || []} 
+              isLoading={isLoading} 
+              onEditMeeting={handleEditMeeting}
+            />
           </TabsContent>
           <TabsContent value="list" className="mt-4">
             <h2 className="text-xl font-semibold mb-4">Upcoming Meetings</h2>
-            <MeetingsList />
+            <MeetingsList 
+              meetings={meetings || []} 
+              isLoading={isLoading} 
+              onEditMeeting={handleEditMeeting}
+            />
           </TabsContent>
           <TabsContent value="integrations" className="mt-4">
             <h2 className="text-xl font-semibold mb-4">Calendar Integrations</h2>
@@ -72,9 +164,12 @@ const Meetings = () => {
       <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
         <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Schedule a Meeting</DialogTitle>
+            <DialogTitle>{editingMeeting ? 'Edit Meeting' : 'Schedule a Meeting'}</DialogTitle>
           </DialogHeader>
-          <MeetingScheduleForm onSuccess={() => setIsScheduleDialogOpen(false)} />
+          <MeetingScheduleForm 
+            onSuccess={handleScheduleSuccess} 
+            meeting={editingMeeting}
+          />
         </DialogContent>
       </Dialog>
     </Layout>

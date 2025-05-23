@@ -1,242 +1,144 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from '@/components/ui/sonner';
-import { Calendar, CalendarCheck, CalendarClock, Link as LinkIcon } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import IntegrationAuth from '@/components/integrations/IntegrationAuth';
-import WorkflowBuilder from '@/components/integrations/WorkflowBuilder';
+import { Calendar, Mail, Slack } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
-type IntegrationStatus = 'connected' | 'disconnected';
+const CalendarIntegration = () => {
+  const { user } = useAuth();
 
-interface CalendarIntegrationProps {
-  onSuccess?: () => void;
-}
-
-const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({ onSuccess }) => {
-  const [googleAuthUrl, setGoogleAuthUrl] = useState<string>('');
-  const [googleStatus, setGoogleStatus] = useState<IntegrationStatus>('disconnected');
-  const [calendlyUrl, setCalendlyUrl] = useState<string>('');
-  const [calendlyStatus, setCalendlyStatus] = useState<IntegrationStatus>('disconnected');
-  const [zapierWebhookUrl, setZapierWebhookUrl] = useState<string>('');
-
-  const handleGoogleConnect = () => {
-    // In a real implementation, this would redirect to Google OAuth flow
-    toast("Google Calendar Integration", {
-      description: "To connect with Google Calendar, you'd be redirected to Google's authentication page.",
-    });
-    
-    // For demo purposes, we'll simulate a successful connection
-    setTimeout(() => {
-      setGoogleStatus('connected');
-      toast("Connected to Google Calendar", {
-        description: "Your Google Calendar account has been successfully connected.",
-      });
-      if (onSuccess) onSuccess();
-    }, 1500);
+  const handleGoogleCalendarConnect = () => {
+    // In a real implementation, this would redirect to OAuth flow
+    alert('This would connect to Google Calendar in a real implementation');
   };
 
-  const handleGoogleDisconnect = () => {
-    setGoogleStatus('disconnected');
-    toast("Disconnected from Google Calendar", {
-      description: "Your Google Calendar connection has been removed.",
-    });
+  const handleOutlookCalendarConnect = () => {
+    // In a real implementation, this would redirect to OAuth flow
+    alert('This would connect to Outlook Calendar in a real implementation');
   };
 
-  const handleCalendlyConnect = () => {
-    if (!calendlyUrl) {
-      toast("Missing Calendly URL", {
-        description: "Please enter your Calendly URL to continue.",
-      });
-      return;
-    }
-
-    // In a real implementation, this would validate and store the Calendly URL
-    toast("Calendly Integration", {
-      description: "Your Calendly scheduling page has been connected.",
-    });
-    setCalendlyStatus('connected');
-    if (onSuccess) onSuccess();
-  };
-
-  const handleCalendlyDisconnect = () => {
-    setCalendlyUrl('');
-    setCalendlyStatus('disconnected');
-    toast("Disconnected from Calendly", {
-      description: "Your Calendly connection has been removed.",
-    });
-  };
-
-  const handleZapierTest = async () => {
-    if (!zapierWebhookUrl) {
-      toast("Error", {
-        description: "Please enter your Zapier webhook URL",
-      });
-      return;
-    }
-
-    try {
-      await fetch(zapierWebhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        mode: "no-cors",
-        body: JSON.stringify({
-          timestamp: new Date().toISOString(),
-          triggered_from: window.location.origin,
-          event: "test_connection"
-        }),
-      });
-
-      toast("Request Sent", {
-        description: "The test event was sent to Zapier. Please check your Zap's history to confirm it was triggered.",
-      });
-    } catch (error) {
-      console.error("Error triggering webhook:", error);
-      toast("Error", {
-        description: "Failed to trigger the Zapier webhook. Please check the URL and try again.",
-      });
-    }
+  const handleSlackConnect = () => {
+    // In a real implementation, this would redirect to OAuth flow
+    alert('This would connect to Slack in a real implementation');
   };
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="direct-integrations" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="direct-integrations">Direct Integrations</TabsTrigger>
-          <TabsTrigger value="api-management">API Management</TabsTrigger>
-          <TabsTrigger value="workflow">Workflow Automation</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="direct-integrations" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Google Calendar Integration
-              </CardTitle>
-              <CardDescription>
-                Connect your Google Calendar to automatically sync meetings and send invites
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">
-                    Status: <span className={googleStatus === 'connected' ? 'text-green-500' : 'text-muted-foreground'}>
-                      {googleStatus === 'connected' ? 'Connected' : 'Not connected'}
-                    </span>
-                  </p>
-                  {googleStatus === 'connected' && (
-                    <p className="text-sm text-muted-foreground">Connected as example@gmail.com</p>
-                  )}
-                </div>
-                {googleStatus === 'connected' ? (
-                  <Button variant="outline" onClick={handleGoogleDisconnect}>Disconnect</Button>
-                ) : (
-                  <Button onClick={handleGoogleConnect}>Connect Google Calendar</Button>
-                )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="mr-2 h-5 w-5 text-primary" />
+              Google Calendar
+            </CardTitle>
+            <CardDescription>
+              Sync meetings with your Google Calendar account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Keep your Google Calendar in sync with your Black Nova meetings. Changes made in either system will be reflected in both.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleGoogleCalendarConnect} className="w-full">
+              Connect Google Calendar
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Mail className="mr-2 h-5 w-5 text-primary" />
+              Outlook Calendar
+            </CardTitle>
+            <CardDescription>
+              Sync meetings with your Outlook Calendar
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Keep your Outlook Calendar in sync with your Black Nova meetings. Changes made in either system will be reflected in both.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleOutlookCalendarConnect} variant="outline" className="w-full">
+              Connect Outlook
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Slack className="mr-2 h-5 w-5 text-primary" />
+              Slack Notifications
+            </CardTitle>
+            <CardDescription>
+              Get meeting notifications in Slack
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Receive notifications about upcoming meetings, changes, and cancellations directly in your Slack workspace.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleSlackConnect} variant="outline" className="w-full">
+              Connect Slack
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendar Settings</CardTitle>
+          <CardDescription>
+            Configure your calendar preferences
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            These settings control how your calendar appears and behaves in the Black Nova system.
+          </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium">Email Notifications</h4>
+                <p className="text-sm text-muted-foreground">
+                  Receive email notifications for meeting updates
+                </p>
               </div>
-
-              {googleStatus === 'connected' && (
-                <div className="mt-4 rounded-md bg-muted p-3">
-                  <p className="text-xs text-muted-foreground">
-                    Your meetings will be synced with Google Calendar, and meeting invites will be sent to participants automatically.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarClock className="h-5 w-5" />
-                Calendly Integration
-              </CardTitle>
-              <CardDescription>
-                Connect your Calendly booking page to allow others to schedule meetings with you
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">
-                    Status: <span className={calendlyStatus === 'connected' ? 'text-green-500' : 'text-muted-foreground'}>
-                      {calendlyStatus === 'connected' ? 'Connected' : 'Not connected'}
-                    </span>
-                  </p>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="calendlyUrl">Calendly URL</Label>
-                  <Input
-                    id="calendlyUrl"
-                    placeholder="https://calendly.com/yourusername"
-                    value={calendlyUrl}
-                    onChange={(e) => setCalendlyUrl(e.target.value)}
-                    disabled={calendlyStatus === 'connected'}
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  {calendlyStatus === 'connected' ? (
-                    <Button variant="outline" onClick={handleCalendlyDisconnect}>Disconnect</Button>
-                  ) : (
-                    <Button onClick={handleCalendlyConnect}>Connect Calendly</Button>
-                  )}
-                </div>
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="email-notifications" className="rounded border-gray-300" defaultChecked />
+                <label htmlFor="email-notifications" className="text-sm">Enabled</label>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarCheck className="h-5 w-5" />
-                Zapier Integration for Notifications
-              </CardTitle>
-              <CardDescription>
-                Use Zapier to send meeting notifications to Slack, email, or other platforms
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="zapierWebhook">Zapier Webhook URL</Label>
-                  <Input
-                    id="zapierWebhook"
-                    placeholder="https://hooks.zapier.com/hooks/catch/..."
-                    value={zapierWebhookUrl}
-                    onChange={(e) => setZapierWebhookUrl(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Create a Zap that starts with a Webhook trigger, then copy the webhook URL here.
-                  </p>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={handleZapierTest}>
-                    Test Webhook
-                  </Button>
-                </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium">Calendar Reminders</h4>
+                <p className="text-sm text-muted-foreground">
+                  Get reminders before scheduled meetings
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="api-management">
-          <IntegrationAuth />
-        </TabsContent>
-        
-        <TabsContent value="workflow">
-          <WorkflowBuilder />
-        </TabsContent>
-      </Tabs>
+              <div className="flex items-center space-x-2">
+                <select className="text-sm border rounded px-2 py-1">
+                  <option value="15">15 minutes before</option>
+                  <option value="30">30 minutes before</option>
+                  <option value="60">1 hour before</option>
+                  <option value="1440">1 day before</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button className="w-full">Save Settings</Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

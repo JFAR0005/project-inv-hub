@@ -1,343 +1,457 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Calendar } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { format } from 'date-fns';
+import { CalendarIcon, Loader2 } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/components/ui/sonner';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { supabase } from '@/lib/supabase';
-import { format, addHours, parse } from 'date-fns';
-import { Clock, Users } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Meeting } from '@/pages/Meetings';
+import { MeetingFormValues, MeetingParticipant, Company } from './types';
+
+// Define schema for form validation
+const formSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  start_time: z.date({ required_error: 'Start time is required' }),
+  end_time: z.date({ required_error: 'End time is required' }),
+  location: z.string().optional(),
+  description: z.string().optional(),
+  company_id: z.string().optional(),
+  participants: z.array(z.string()).min(1, 'At least one participant is required'),
+});
 
 interface MeetingScheduleFormProps {
-  onSuccess?: () => void;
-  initialDate?: Date;
+  onSuccess: () => void;
+  meeting?: Meeting | null;
 }
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
-
-type Company = {
-  id: string;
-  name: string;
-};
-
-const MeetingScheduleForm = ({ onSuccess, initialDate }: MeetingScheduleFormProps) => {
-  const { user } = useAuth();
-  const [date, setDate] = useState<Date | undefined>(initialDate || new Date());
-  const [startTime, setStartTime] = useState<string>('09:00');
-  const [endTime, setEndTime] = useState<string>('10:00');
-  const [title, setTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [location, setLocation] = useState<string>('');
-  const [companyId, setCompanyId] = useState<string>('');
-  const [attendees, setAttendees] = useState<string[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
+  onSuccess,
+  meeting = null,
+}) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<MeetingParticipant[]>([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
+  const form = useForm<MeetingFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: '',
+      start_time: new Date(),
+      end_time: new Date(new Date().setHours(new Date().getHours() + 1)),
+      location: '',
+      description: '',
+      company_id: '',
+      participants: user ? [user.id] : [],
+    },
+  });
+
+  // Fetch companies and users for dropdowns
   useEffect(() => {
-    const fetchUsers = async () => {
-      if (!user) return;
+    const fetchData = async () => {
+      // Fetch companies
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name', { ascending: true });
 
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, name, email, role');
+      if (companiesError) {
+        console.error('Error fetching companies:', companiesError);
+      } else {
+        setCompanies(companiesData || []);
+      }
 
-        if (error) throw error;
-        setUsers(data || []);
-      } catch (error) {
-        console.error('Error loading users:', error);
-        toast("Failed to load users", { description: "Please try again later." });
+      // Fetch users
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name, email, role')
+        .order('name', { ascending: true });
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+      } else {
+        setUsers(usersData || []);
       }
     };
 
-    const fetchCompanies = async () => {
-      try {
-        // For founders, only show their company
-        if (user?.role === 'founder' && user.companyId) {
-          const { data, error } = await supabase
-            .from('companies')
-            .select('id, name')
-            .eq('id', user.companyId)
-            .single();
+    fetchData();
+  }, []);
 
-          if (error) throw error;
-          setCompanies(data ? [data] : []);
-          setCompanyId(user.companyId);
-        } else {
-          // For admins and partners, show all companies
-          const { data, error } = await supabase
-            .from('companies')
-            .select('id, name');
+  // Set form values if editing a meeting
+  useEffect(() => {
+    if (meeting) {
+      // Fetch meeting participants
+      const fetchParticipants = async () => {
+        const { data: participantData, error: participantError } = await supabase
+          .from('meeting_participants')
+          .select('user_id')
+          .eq('meeting_id', meeting.id);
 
-          if (error) throw error;
-          setCompanies(data || []);
+        if (participantError) {
+          console.error('Error fetching participants:', participantError);
+          return;
         }
-      } catch (error) {
-        console.error('Error loading companies:', error);
-        toast("Failed to load companies", { description: "Please try again later." });
-      }
-    };
 
-    fetchUsers();
-    fetchCompanies();
-  }, [user]);
+        const participantIds = participantData?.map(p => p.user_id) || [];
 
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 8; hour <= 18; hour++) {
-      for (let min = 0; min < 60; min += 15) {
-        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-        options.push(time);
-      }
+        form.reset({
+          title: meeting.title,
+          start_time: new Date(meeting.start_time),
+          end_time: new Date(meeting.end_time),
+          location: meeting.location || '',
+          description: meeting.description || '',
+          company_id: meeting.company_id || '',
+          participants: participantIds,
+        });
+      };
+
+      fetchParticipants();
     }
-    return options;
-  };
+  }, [meeting, form]);
 
-  const handleAttendeeToggle = (userId: string) => {
-    setAttendees(prev => 
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!date || !title || attendees.length === 0) {
-      toast.error("Please fill in all required fields");
+  const onSubmit = async (values: MeetingFormValues) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to schedule meetings",
+        variant: "destructive",
+      });
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      // Convert time strings to full datetime
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const startDateTime = parse(`${dateStr} ${startTime}`, 'yyyy-MM-dd HH:mm', new Date());
-      const endDateTime = parse(`${dateStr} ${endTime}`, 'yyyy-MM-dd HH:mm', new Date());
+      let meetingId: string;
 
-      // Save meeting to database
-      const { data: meetingData, error: meetingError } = await supabase
-        .from('meetings')
-        .insert({
-          title,
-          description,
-          start_time: startDateTime.toISOString(),
-          end_time: endDateTime.toISOString(),
-          location,
-          company_id: companyId || null,
-          created_by: user?.id,
-        })
-        .select('id')
-        .single();
-
-      if (meetingError) throw meetingError;
-
-      // Add meeting participants
-      const participantPromises = attendees.map(attendeeId => 
-        supabase
-          .from('meeting_participants')
-          .insert({
-            meeting_id: meetingData.id,
-            user_id: attendeeId
+      if (meeting) {
+        // Update existing meeting
+        const { data: updatedMeeting, error: updateError } = await supabase
+          .from('meetings')
+          .update({
+            title: values.title,
+            start_time: values.start_time.toISOString(),
+            end_time: values.end_time.toISOString(),
+            location: values.location || null,
+            description: values.description || null,
+            company_id: values.company_id || null,
+            updated_at: new Date().toISOString(),
           })
-      );
+          .eq('id', meeting.id)
+          .select()
+          .single();
 
-      // Also add the creator as a participant if not already included
-      if (!attendees.includes(user?.id as string)) {
-        participantPromises.push(
-          supabase
-            .from('meeting_participants')
-            .insert({
-              meeting_id: meetingData.id,
-              user_id: user?.id
-            })
-        );
+        if (updateError) throw updateError;
+        meetingId = meeting.id;
+
+        // Delete existing participants
+        const { error: deleteParticipantsError } = await supabase
+          .from('meeting_participants')
+          .delete()
+          .eq('meeting_id', meeting.id);
+
+        if (deleteParticipantsError) throw deleteParticipantsError;
+      } else {
+        // Insert new meeting
+        const { data: newMeeting, error: insertError } = await supabase
+          .from('meetings')
+          .insert({
+            title: values.title,
+            start_time: values.start_time.toISOString(),
+            end_time: values.end_time.toISOString(),
+            location: values.location || null,
+            description: values.description || null,
+            company_id: values.company_id || null,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        meetingId = newMeeting.id;
       }
 
-      await Promise.all(participantPromises);
+      // Insert participants
+      const participantsToInsert = values.participants.map(participantId => ({
+        meeting_id: meetingId,
+        user_id: participantId,
+      }));
 
-      toast("Meeting Scheduled", {
-        description: `Your meeting "${title}" has been scheduled for ${format(startDateTime, 'PPP p')}`,
-      });
+      const { error: participantsError } = await supabase
+        .from('meeting_participants')
+        .insert(participantsToInsert);
 
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setLocation('');
-      setAttendees([]);
-      setDate(new Date());
-      setStartTime('09:00');
-      setEndTime('10:00');
+      if (participantsError) throw participantsError;
 
-      // Callback on success
-      if (onSuccess) onSuccess();
+      onSuccess();
     } catch (error) {
-      console.error('Error scheduling meeting:', error);
-      toast.error("Failed to schedule meeting. Please try again.");
+      console.error('Error saving meeting:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save meeting. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const timeOptions = generateTimeOptions();
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title" className="required">Meeting Title</Label>
-        <Input
-          id="title"
-          placeholder="Enter meeting title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Meeting Title*</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter meeting title" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Date</Label>
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={setDate}
-            className="border rounded-md"
-            disabled={(date) => date < new Date()}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="start_time"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Start Time*</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        className="pl-3 text-left font-normal flex justify-between items-center"
+                      >
+                        {field.value ? format(field.value, "PPP p") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                    />
+                    <div className="p-3 border-t border-border">
+                      <Input
+                        type="time"
+                        value={field.value ? format(field.value, "HH:mm") : ""}
+                        onChange={(e) => {
+                          const [hours, minutes] = e.target.value.split(':').map(Number);
+                          const newDate = new Date(field.value);
+                          newDate.setHours(hours);
+                          newDate.setMinutes(minutes);
+                          field.onChange(newDate);
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="end_time"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>End Time*</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        className="pl-3 text-left font-normal flex justify-between items-center"
+                      >
+                        {field.value ? format(field.value, "PPP p") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                    />
+                    <div className="p-3 border-t border-border">
+                      <Input
+                        type="time"
+                        value={field.value ? format(field.value, "HH:mm") : ""}
+                        onChange={(e) => {
+                          const [hours, minutes] = e.target.value.split(':').map(Number);
+                          const newDate = new Date(field.value);
+                          newDate.setHours(hours);
+                          newDate.setMinutes(minutes);
+                          field.onChange(newDate);
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="startTime" className="required">Start Time</Label>
-            <Select value={startTime} onValueChange={setStartTime}>
-              <SelectTrigger id="startTime">
-                <SelectValue placeholder="Select start time" />
-              </SelectTrigger>
-              <SelectContent>
-                {timeOptions.map((time) => (
-                  <SelectItem key={`start-${time}`} value={time}>
-                    {time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="endTime" className="required">End Time</Label>
-            <Select value={endTime} onValueChange={setEndTime}>
-              <SelectTrigger id="endTime">
-                <SelectValue placeholder="Select end time" />
-              </SelectTrigger>
-              <SelectContent>
-                {timeOptions.map((time) => (
-                  <SelectItem 
-                    key={`end-${time}`} 
-                    value={time}
-                    disabled={time <= startTime}
-                  >
-                    {time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input
-          id="location"
-          placeholder="Office, Virtual, or meeting link"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-      </div>
-      
-      {user?.role !== 'founder' && (
-        <div className="space-y-2">
-          <Label htmlFor="company">Company (Optional)</Label>
-          <Select value={companyId} onValueChange={setCompanyId}>
-            <SelectTrigger id="company">
-              <SelectValue placeholder="Select a company" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">No company</SelectItem>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      
-      <div className="space-y-2">
-        <Label htmlFor="description">Notes (Optional)</Label>
-        <Textarea
-          id="description"
-          placeholder="Meeting agenda or additional information"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="min-h-[100px]"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <Label className="required">Attendees</Label>
-        <div className="border rounded-md p-2 max-h-[200px] overflow-y-auto space-y-2">
-          {users.filter(u => u.id !== user?.id).map((attendee) => (
-            <div 
-              key={attendee.id}
-              className={`flex items-center justify-between p-2 rounded-md ${
-                attendees.includes(attendee.id) ? 'bg-primary/10' : 'hover:bg-muted'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                  {attendee.name?.charAt(0) || '?'}
-                </div>
-                <div>
-                  <div className="font-medium">{attendee.name}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{attendee.role}</div>
-                </div>
-              </div>
-              <Checkbox
-                checked={attendees.includes(attendee.id)}
-                onCheckedChange={() => handleAttendeeToggle(attendee.id)}
-              />
-            </div>
-          ))}
-          
-          {users.length === 0 && (
-            <div className="text-muted-foreground text-center py-4">
-              No users found
-            </div>
+
+        <FormField
+          control={form.control}
+          name="company_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company (Optional)</FormLabel>
+              <Select
+                value={field.value || ""}
+                onValueChange={field.onChange}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a company" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="">No company</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
           )}
+        />
+
+        <FormField
+          control={form.control}
+          name="location"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Location (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter meeting location" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="participants"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Participants*</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <select
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                      field.onChange(selectedOptions);
+                    }}
+                    value={field.value}
+                  >
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>{user.name}</option>
+                    ))}
+                  </select>
+                  <div className="border border-input rounded-md p-2 min-h-10">
+                    <div className="flex flex-wrap gap-1">
+                      {field.value.map(userId => {
+                        const selectedUser = users.find(u => u.id === userId);
+                        return selectedUser ? (
+                          <div key={userId} className="bg-primary/10 px-2 py-1 rounded-md flex items-center">
+                            <span className="text-sm">{selectedUser.name}</span>
+                            <button
+                              type="button"
+                              className="ml-1 text-gray-500 hover:text-gray-700"
+                              onClick={() => {
+                                field.onChange(field.value.filter(id => id !== userId));
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                      <select
+                        className="flex-grow min-w-[100px] border-0 focus:ring-0 focus:outline-none bg-transparent text-sm"
+                        onChange={(e) => {
+                          if (e.target.value && !field.value.includes(e.target.value)) {
+                            field.onChange([...field.value, e.target.value]);
+                          }
+                          e.target.value = '';
+                        }}
+                      >
+                        <option value="">Add participant...</option>
+                        {users
+                          .filter(user => !field.value.includes(user.id))
+                          .map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.name} ({user.role})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description (Optional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Enter meeting details" className="min-h-[100px]" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" type="button" onClick={() => onSuccess()}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {meeting ? 'Update Meeting' : 'Schedule Meeting'}
+          </Button>
         </div>
-      </div>
-      
-      <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Scheduling...' : 'Schedule Meeting'}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 };
 
