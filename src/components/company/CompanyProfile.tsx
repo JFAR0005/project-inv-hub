@@ -4,16 +4,14 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/integrations/supabase/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, ExternalLink, Save, Globe, Users, TrendingUp, Clock } from 'lucide-react';
+import { Edit, Save, ExternalLink, Globe, FileText, Users, Activity, BarChart3 } from 'lucide-react';
+import CompanyOverview from './CompanyOverview';
+import CompanyMetrics from './CompanyMetrics';
 
 type Company = Database['public']['Tables']['companies']['Row'];
 
@@ -25,6 +23,7 @@ const CompanyProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Company>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const canEdit = hasPermission('edit:all') || 
     (hasPermission('edit:own:company') && user?.companyId === id);
@@ -33,7 +32,6 @@ const CompanyProfile = () => {
     const fetchCompany = async () => {
       setIsLoading(true);
       try {
-        // In a real app, this would be a Supabase query
         if (!id) return;
 
         const { data, error } = await supabase
@@ -43,35 +41,15 @@ const CompanyProfile = () => {
           .single();
 
         if (error) {
-          throw error;
-        }
-
-        if (data) {
+          if (error.code === 'PGRST116') {
+            // No data found
+            setCompany(null);
+          } else {
+            throw error;
+          }
+        } else {
           setCompany(data);
           setFormData(data);
-        } else {
-          // Fallback to mock data for development
-          // This would be removed in production
-          const mockCompany = {
-            id,
-            name: 'TechStartup Inc',
-            logo_url: '',
-            website: 'https://techstartup.com',
-            stage: 'Series A',
-            location: 'San Francisco, CA',
-            description: 'A cutting-edge tech company focused on AI solutions.',
-            sector: 'SaaS',
-            arr: 1500000,
-            mrr: 125000,
-            burn_rate: 80000,
-            runway: 14,
-            churn_rate: 2.5,
-            headcount: 25,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          setCompany(mockCompany as Company);
-          setFormData(mockCompany);
         }
       } catch (error) {
         console.error('Error fetching company:', error);
@@ -105,13 +83,15 @@ const CompanyProfile = () => {
   };
 
   const handleSave = async () => {
+    if (!id) return;
+    
+    setIsSaving(true);
     try {
       const updatedData = {
         ...formData,
         updated_at: new Date().toISOString()
       };
 
-      // In a real app, this would be a Supabase update
       const { error } = await supabase
         .from('companies')
         .update(updatedData)
@@ -132,18 +112,27 @@ const CompanyProfile = () => {
         description: "Failed to update company data",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    setFormData(company || {});
+    setIsEditing(false);
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-[250px]" />
-        <Skeleton className="h-[200px] w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Skeleton className="h-[150px]" />
-          <Skeleton className="h-[150px]" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
         </div>
+        <Skeleton className="h-[400px] w-full" />
       </div>
     );
   }
@@ -157,41 +146,33 @@ const CompanyProfile = () => {
     );
   }
 
-  const formatCurrency = (value?: number) => {
-    if (value === undefined || value === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex justify-between items-start">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16">
             {company.logo_url ? (
               <AvatarImage src={company.logo_url} alt={company.name} />
             ) : (
-              <AvatarFallback className="text-lg">
+              <AvatarFallback className="text-lg bg-primary/10 text-primary">
                 {company.name.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             )}
           </Avatar>
           <div>
             <h1 className="text-3xl font-bold">{company.name}</h1>
-            <div className="flex items-center text-muted-foreground">
+            <div className="flex items-center text-muted-foreground mt-1">
               {company.website && (
                 <a 
                   href={company.website} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-primary"
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
                 >
                   <Globe className="h-4 w-4" />
-                  <span>{company.website}</span>
-                  <ExternalLink className="h-3 w-3 ml-1" />
+                  <span className="text-sm">{new URL(company.website).hostname}</span>
+                  <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
@@ -199,12 +180,24 @@ const CompanyProfile = () => {
         </div>
 
         {canEdit && (
-          <div>
+          <div className="flex gap-2">
             {isEditing ? (
-              <Button onClick={handleSave} variant="default">
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </Button>
+              <>
+                <Button 
+                  onClick={handleCancel} 
+                  variant="outline"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSave} 
+                  disabled={isSaving}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </>
             ) : (
               <Button onClick={() => setIsEditing(true)} variant="outline">
                 <Edit className="mr-2 h-4 w-4" />
@@ -215,295 +208,65 @@ const CompanyProfile = () => {
         )}
       </div>
 
+      {/* Content Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="metrics">Metrics</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Metrics
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Team
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Activity
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>About</CardTitle>
-              <CardDescription>Company details and information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isEditing ? (
-                <>
-                  <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium">Company Name</label>
-                    <Input 
-                      id="name" 
-                      name="name" 
-                      value={formData.name || ''} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="website" className="text-sm font-medium">Website</label>
-                      <Input 
-                        id="website" 
-                        name="website" 
-                        value={formData.website || ''} 
-                        onChange={handleInputChange} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="location" className="text-sm font-medium">Location</label>
-                      <Input 
-                        id="location" 
-                        name="location" 
-                        value={formData.location || ''} 
-                        onChange={handleInputChange} 
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="stage" className="text-sm font-medium">Stage</label>
-                      <Input 
-                        id="stage" 
-                        name="stage" 
-                        value={formData.stage || ''} 
-                        onChange={handleInputChange} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="sector" className="text-sm font-medium">Sector</label>
-                      <Input 
-                        id="sector" 
-                        name="sector" 
-                        value={formData.sector || ''} 
-                        onChange={handleInputChange} 
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="description" className="text-sm font-medium">Description</label>
-                    <Textarea 
-                      id="description" 
-                      name="description" 
-                      value={formData.description || ''} 
-                      onChange={handleInputChange} 
-                      rows={4}
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Stage</h3>
-                      <p>{company.stage || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Sector</h3>
-                      <p>{company.sector || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Location</h3>
-                      <p>{company.location || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Website</h3>
-                      <p>
-                        {company.website ? (
-                          <a 
-                            href={company.website} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline"
-                          >
-                            {company.website}
-                          </a>
-                        ) : (
-                          'Not specified'
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <Separator className="my-4" />
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">
-                      {company.description || 'No description provided.'}
-                    </p>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="overview" className="mt-6">
+          <CompanyOverview
+            company={company}
+            isEditing={isEditing}
+            formData={formData}
+            onInputChange={handleInputChange}
+          />
         </TabsContent>
 
-        <TabsContent value="metrics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Key Metrics</CardTitle>
-              <CardDescription>Financial and growth metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isEditing ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="arr" className="text-sm font-medium">ARR</label>
-                    <Input 
-                      id="arr" 
-                      name="arr" 
-                      type="number" 
-                      value={formData.arr || ''} 
-                      onChange={handleNumberChange} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="mrr" className="text-sm font-medium">MRR</label>
-                    <Input 
-                      id="mrr" 
-                      name="mrr" 
-                      type="number" 
-                      value={formData.mrr || ''} 
-                      onChange={handleNumberChange} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="burn_rate" className="text-sm font-medium">Burn Rate (monthly)</label>
-                    <Input 
-                      id="burn_rate" 
-                      name="burn_rate" 
-                      type="number" 
-                      value={formData.burn_rate || ''} 
-                      onChange={handleNumberChange} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="runway" className="text-sm font-medium">Runway (months)</label>
-                    <Input 
-                      id="runway" 
-                      name="runway" 
-                      type="number" 
-                      value={formData.runway || ''} 
-                      onChange={handleNumberChange} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="churn_rate" className="text-sm font-medium">Churn Rate (%)</label>
-                    <Input 
-                      id="churn_rate" 
-                      name="churn_rate" 
-                      type="number" 
-                      step="0.1" 
-                      value={formData.churn_rate || ''} 
-                      onChange={handleNumberChange} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="headcount" className="text-sm font-medium">Headcount</label>
-                    <Input 
-                      id="headcount" 
-                      name="headcount" 
-                      type="number" 
-                      value={formData.headcount || ''} 
-                      onChange={handleNumberChange} 
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="bg-muted/40">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <TrendingUp className="h-5 w-5 text-green-500" />
-                          <h3 className="text-sm font-medium">ARR</h3>
-                        </div>
-                        <span className="text-xl font-bold">
-                          {formatCurrency(company.arr)}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        MRR: {formatCurrency(company.mrr)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-muted/40">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-5 w-5 text-blue-500" />
-                          <h3 className="text-sm font-medium">Runway</h3>
-                        </div>
-                        <span className="text-xl font-bold">
-                          {company.runway !== undefined && company.runway !== null 
-                            ? `${company.runway} months` 
-                            : 'N/A'}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Burn: {formatCurrency(company.burn_rate)}/mo
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-muted/40">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Users className="h-5 w-5 text-purple-500" />
-                          <h3 className="text-sm font-medium">Headcount</h3>
-                        </div>
-                        <span className="text-xl font-bold">
-                          {company.headcount !== undefined && company.headcount !== null 
-                            ? company.headcount 
-                            : 'N/A'}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Churn: {company.churn_rate !== undefined && company.churn_rate !== null 
-                          ? `${company.churn_rate}%` 
-                          : 'N/A'}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="metrics" className="mt-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Key Metrics</h2>
+              <p className="text-muted-foreground">Financial and operational performance indicators</p>
+            </div>
+            <CompanyMetrics
+              company={company}
+              isEditing={isEditing}
+              formData={formData}
+              onNumberChange={handleNumberChange}
+            />
+          </div>
         </TabsContent>
 
-        <TabsContent value="team">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-              <CardDescription>Leadership and key personnel</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Team information coming soon
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="team" className="mt-6">
+          <div className="text-center py-12 text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium mb-2">Team Management</h3>
+            <p>Team member management will be available soon</p>
+          </div>
         </TabsContent>
 
-        <TabsContent value="activity">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Timeline of company events, notes, and updates</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Activity timeline coming soon
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="activity" className="mt-6">
+          <div className="text-center py-12 text-muted-foreground">
+            <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium mb-2">Activity Timeline</h3>
+            <p>Company activity and updates timeline will be available soon</p>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
