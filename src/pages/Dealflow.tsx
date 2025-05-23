@@ -15,8 +15,8 @@ import { Plus, Search, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-re
 import { Database } from '@/integrations/supabase/types';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
-  companies?: Database['public']['Tables']['companies']['Row'];
-  users?: Database['public']['Tables']['users']['Row'];
+  companies?: Database['public']['Tables']['companies']['Row'] | null;
+  users?: Database['public']['Tables']['users']['Row'] | null;
 };
 
 const Dealflow = () => {
@@ -31,22 +31,33 @@ const Dealflow = () => {
   const { data: deals = [], isLoading, refetch } = useQuery({
     queryKey: ['deals', searchTerm, selectedStage],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('deals')
         .select(`
           *,
           companies (*),
           users (
             id,
-            name
+            name,
+            email,
+            role,
+            team,
+            company_id,
+            created_at
           )
         `)
         .order('created_at', { ascending: false });
-
-      const { data, error } = await query;
       
       if (error) throw error;
-      return (data || []) as Deal[];
+      
+      // Transform the data to handle potential null joins
+      const transformedData: Deal[] = (data || []).map(deal => ({
+        ...deal,
+        companies: deal.companies || null,
+        users: deal.users || null
+      }));
+      
+      return transformedData;
     },
   });
 
@@ -65,7 +76,7 @@ const Dealflow = () => {
       const fundedDeals = data.filter(deal => deal.stage === 'Funded').length;
       const rejectedDeals = data.filter(deal => deal.stage === 'Rejected').length;
 
-      const stageDistribution = data.reduce((acc: any, deal) => {
+      const stageDistribution = data.reduce((acc: Record<string, number>, deal) => {
         acc[deal.stage] = (acc[deal.stage] || 0) + 1;
         return acc;
       }, {});
@@ -309,7 +320,7 @@ const Dealflow = () => {
                       {Object.entries(analytics.stageDistribution).map(([stage, count]) => (
                         <div key={stage} className="flex items-center justify-between">
                           <span className="text-sm font-medium">{stage}</span>
-                          <Badge className={getStageColor(stage)}>{count as React.ReactNode}</Badge>
+                          <Badge className={getStageColor(stage)}>{count}</Badge>
                         </div>
                       ))}
                     </div>

@@ -14,8 +14,8 @@ import { BarChart4, KanbanSquare, Plus } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
-  companies?: Database['public']['Tables']['companies']['Row'];
-  users?: Database['public']['Tables']['users']['Row'];
+  companies?: Database['public']['Tables']['companies']['Row'] | null;
+  users?: Database['public']['Tables']['users']['Row'] | null;
 };
 
 const Deals = () => {
@@ -37,13 +37,26 @@ const Deals = () => {
           companies (*),
           users (
             id,
-            name
+            name,
+            email,
+            role,
+            team,
+            company_id,
+            created_at
           )
         `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return (data || []) as Deal[];
+      
+      // Transform the data to handle potential null joins
+      const transformedData: Deal[] = (data || []).map(deal => ({
+        ...deal,
+        companies: deal.companies || null,
+        users: deal.users || null
+      }));
+      
+      return transformedData;
     },
   });
 
