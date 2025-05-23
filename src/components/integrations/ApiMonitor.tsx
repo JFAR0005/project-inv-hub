@@ -32,6 +32,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Download, Activity, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 interface ApiUsageData {
   date: string;
@@ -47,6 +48,17 @@ interface EndpointStats {
   successes: number;
   failures: number;
   avg_latency: number;
+}
+
+interface RateLimitInfo {
+  limit: number;
+  used: number;
+  resetAt: string;
+}
+
+interface RateLimits {
+  daily: RateLimitInfo;
+  monthly: RateLimitInfo;
 }
 
 const ApiMonitor: React.FC = () => {
@@ -123,7 +135,10 @@ const ApiMonitor: React.FC = () => {
   });
 
   // Get rate limits
-  const { data: rateLimits = {}, isLoading: isLoadingRateLimits } = useQuery({
+  const { data: rateLimits = { 
+    daily: { limit: 10000, used: 5000, resetAt: new Date().toISOString() },
+    monthly: { limit: 300000, used: 150000, resetAt: new Date().toISOString() }
+  }, isLoading: isLoadingRateLimits } = useQuery({
     queryKey: ['rate-limits'],
     queryFn: async () => {
       // Simulate API call - In a real app, this would fetch your actual rate limits
@@ -138,7 +153,7 @@ const ApiMonitor: React.FC = () => {
           used: Math.floor(Math.random() * 240000) + 50000,
           resetAt: new Date(new Date().setDate(1)).toISOString(),
         }
-      };
+      } as RateLimits;
     },
     enabled: !!user,
   });
@@ -310,22 +325,22 @@ const ApiMonitor: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Daily usage</span>
-                <span className="font-medium">{rateLimits.daily?.used.toLocaleString()} / {rateLimits.daily?.limit.toLocaleString()}</span>
+                <span className="font-medium">{rateLimits.daily.used.toLocaleString()} / {rateLimits.daily.limit.toLocaleString()}</span>
               </div>
-              <Progress value={(rateLimits.daily?.used / rateLimits.daily?.limit) * 100} className="h-2" />
+              <Progress value={(rateLimits.daily.used / rateLimits.daily.limit) * 100} className="h-2" />
               <div className="text-xs text-muted-foreground">
-                Resets at {new Date(rateLimits.daily?.resetAt).toLocaleTimeString()}
+                Resets at {new Date(rateLimits.daily.resetAt).toLocaleTimeString()}
               </div>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Monthly usage</span>
-                <span className="font-medium">{rateLimits.monthly?.used.toLocaleString()} / {rateLimits.monthly?.limit.toLocaleString()}</span>
+                <span className="font-medium">{rateLimits.monthly.used.toLocaleString()} / {rateLimits.monthly.limit.toLocaleString()}</span>
               </div>
-              <Progress value={(rateLimits.monthly?.used / rateLimits.monthly?.limit) * 100} className="h-2" />
+              <Progress value={(rateLimits.monthly.used / rateLimits.monthly.limit) * 100} className="h-2" />
               <div className="text-xs text-muted-foreground">
-                Resets on {format(new Date(rateLimits.monthly?.resetAt), 'MMMM 1')}
+                Resets on {format(new Date(rateLimits.monthly.resetAt), 'MMMM 1')}
               </div>
             </div>
           </div>
@@ -450,14 +465,11 @@ const ApiMonitor: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Progress 
                         value={(endpoint.successes / endpoint.requests) * 100} 
-                        className="h-2 flex-1" 
-                        indicatorClassName={
-                          (endpoint.successes / endpoint.requests) * 100 >= 99 
-                            ? "bg-green-500" 
-                            : (endpoint.successes / endpoint.requests) * 100 >= 95
-                              ? "bg-yellow-500"
-                              : "bg-red-500"
-                        }
+                        className={cn("h-2 flex-1", {
+                          "bg-green-500": (endpoint.successes / endpoint.requests) * 100 >= 99,
+                          "bg-yellow-500": (endpoint.successes / endpoint.requests) * 100 >= 95 && (endpoint.successes / endpoint.requests) * 100 < 99,
+                          "bg-red-500": (endpoint.successes / endpoint.requests) * 100 < 95
+                        })}
                       />
                       <span className="text-xs text-muted-foreground w-12">
                         {((endpoint.successes / endpoint.requests) * 100).toFixed(1)}%

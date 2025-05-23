@@ -1,7 +1,5 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -19,15 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Check, ExternalLink, MessageSquare, Bell, Shield, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
-interface Integration {
-  id: string;
-  service: string;
-  is_connected: boolean;
-  config: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
+import { Integration } from '@/types/integrations';
 
 const AVAILABLE_INTEGRATIONS = [
   {
@@ -78,54 +68,87 @@ const ServiceIntegrations: React.FC = () => {
     events: ['comment', 'meeting', 'update'],
   });
 
+  // Mock integrations data instead of querying the database directly
   const { data: integrations = [], isLoading } = useQuery({
     queryKey: ['integrations'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Integration[];
+      // In a real app with Supabase properly set up, you would use:
+      // const { data, error } = await supabase.from('integrations').select('*').order('created_at', { ascending: false });
+      
+      // For now, return mock data
+      return [
+        {
+          id: '1',
+          service: 'slack',
+          is_connected: true,
+          config: {
+            webhook_url: 'https://hooks.slack.com/services/XXX/YYY/ZZZ',
+            channel: '#updates',
+            events: ['comment', 'meeting', 'update']
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: '2',
+          service: 'email',
+          is_connected: false,
+          config: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ] as Integration[];
     },
     enabled: !!user,
   });
 
   const saveIntegrationMutation = useMutation({
     mutationFn: async (integration: Partial<Integration>) => {
-      // Check if integration already exists
+      // In a real app with Supabase properly set up, you would use:
+      // if (existingIntegration) {
+      //   const { data, error } = await supabase
+      //     .from('integrations')
+      //     .update({
+      //       is_connected: integration.is_connected,
+      //       config: integration.config,
+      //       updated_at: new Date().toISOString(),
+      //     })
+      //     .eq('id', existingIntegration.id)
+      //     .select()
+      //     .single();
+      // } else {
+      //   const { data, error } = await supabase
+      //     .from('integrations')
+      //     .insert({
+      //       service: integration.service,
+      //       is_connected: integration.is_connected,
+      //       config: integration.config,
+      //     })
+      //     .select()
+      //     .single();
+      // }
+      
+      // Mock response
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
       const existingIntegration = integrations.find((i) => i.service === integration.service);
       
       if (existingIntegration) {
-        // Update existing
-        const { data, error } = await supabase
-          .from('integrations')
-          .update({
-            is_connected: integration.is_connected,
-            config: integration.config,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingIntegration.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
+        return {
+          ...existingIntegration,
+          is_connected: integration.is_connected,
+          config: integration.config,
+          updated_at: new Date().toISOString()
+        };
       } else {
-        // Create new
-        const { data, error } = await supabase
-          .from('integrations')
-          .insert({
-            service: integration.service,
-            is_connected: integration.is_connected,
-            config: integration.config,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
+        return {
+          id: Math.random().toString(36).substring(7),
+          service: integration.service as string,
+          is_connected: integration.is_connected as boolean,
+          config: integration.config as Record<string, any>,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
       }
     },
     onSuccess: () => {
@@ -140,7 +163,6 @@ const ServiceIntegrations: React.FC = () => {
   const testIntegrationMutation = useMutation({
     mutationFn: async (service: string) => {
       // In a real implementation, this would call an edge function to test the integration
-      // For now, we'll simulate a successful test
       await new Promise((resolve) => setTimeout(resolve, 1000));
       return { success: true };
     },
@@ -161,15 +183,27 @@ const ServiceIntegrations: React.FC = () => {
 
   const disconnectIntegrationMutation = useMutation({
     mutationFn: async (integrationId: string) => {
-      const { data, error } = await supabase
-        .from('integrations')
-        .update({ is_connected: false })
-        .eq('id', integrationId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      // In a real app with Supabase properly set up, you would use:
+      // const { data, error } = await supabase
+      //   .from('integrations')
+      //   .update({ is_connected: false })
+      //   .eq('id', integrationId)
+      //   .select()
+      //   .single();
+      
+      // Mock response
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      const updatedIntegration = integrations.find(i => i.id === integrationId);
+      if (!updatedIntegration) {
+        throw new Error('Integration not found');
+      }
+      
+      return {
+        ...updatedIntegration,
+        is_connected: false,
+        updated_at: new Date().toISOString()
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
@@ -200,6 +234,7 @@ const ServiceIntegrations: React.FC = () => {
     disconnectIntegrationMutation.mutate(integrationId);
   };
 
+  // ... keep existing code (renderIntegrationConfig and the rest of the component)
   const renderIntegrationConfig = (service: string) => {
     const integration = getCurrentIntegration(service);
     
