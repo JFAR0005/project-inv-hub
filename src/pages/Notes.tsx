@@ -1,11 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import NoteList from '@/components/notes/NoteList';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useState } from 'react';
 import NoteForm from '@/components/notes/NoteForm';
 
 const Notes = () => {

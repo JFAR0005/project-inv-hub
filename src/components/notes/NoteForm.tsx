@@ -1,96 +1,86 @@
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
-import { toast } from "@/components/ui/sonner";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, X, Upload, Paperclip } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
-// Form validation schema
+// Define form validation schema
 const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  content: z.string().min(1, "Content is required"),
-  visibility: z.enum(["internal", "partner", "founder"]),
-  companyId: z.string().optional(),
-  tags: z.string().optional(),
+  title: z.string().min(1, { message: 'Title is required' }),
+  content: z.string().min(1, { message: 'Content is required' }),
+  company_id: z.string().optional(),
+  visibility: z.string({ required_error: 'Please select a visibility level' }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface Company {
-  id: string;
-  name: string;
-}
-
 interface NoteFormProps {
-  onSuccess: () => void;
-  initialData?: {
-    id: string;
-    title: string;
-    content: string;
-    visibility: "internal" | "partner" | "founder";
-    companyId?: string;
-    tags?: string;
-  };
+  onSuccess?: () => void;
 }
 
-export function NoteForm({ onSuccess, initialData }: NoteFormProps) {
+const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [attachments, setAttachments] = useState<File[]>([]);
-  
-  // Initialize form with react-hook-form
+
+  // Setup form with default values
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      title: "",
-      content: "",
-      visibility: "internal",
-      companyId: "",
-      tags: "",
+    defaultValues: {
+      title: '',
+      content: '',
+      company_id: undefined,
+      visibility: 'admin',
     },
   });
 
-  // Fetch available companies
+  // Fetch companies for dropdown
   useEffect(() => {
     const fetchCompanies = async () => {
-      if (!user) return;
-
       try {
-        let query = supabase.from("companies").select("id, name");
-        
-        // If user is a founder, only show their company
-        if (user.role === "founder" && user.companyId) {
-          query = query.eq("id", user.companyId);
-        }
-        
-        const { data, error } = await query.order("name");
-        
+        const { data, error } = await supabase
+          .from('companies')
+          .select('id, name')
+          .order('name');
+          
         if (error) throw error;
         setCompanies(data || []);
       } catch (error) {
-        console.error("Error fetching companies:", error);
-        toast("Error loading companies", {
-          description: "Could not load companies. Please try again later.",
+        console.error('Error fetching companies:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load companies. Please try again.",
+          variant: "destructive",
         });
       }
     };
-
+    
     fetchCompanies();
-  }, [user]);
+  }, [toast]);
 
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+  };
+
+  // Form submission handler
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast("Authentication error", {
+      toast({
+        title: "Error",
         description: "You must be logged in to create notes.",
+        variant: "destructive",
       });
       return;
     }
@@ -98,86 +88,61 @@ export function NoteForm({ onSuccess, initialData }: NoteFormProps) {
     setIsSubmitting(true);
 
     try {
-      // Parse tags from comma-separated string
-      const tagsList = values.tags 
-        ? values.tags.split(",").map(tag => tag.trim()).filter(Boolean) 
-        : [];
-
-      // Prepare note data
-      const noteData = {
-        title: values.title,
-        content: values.content,
-        visibility: values.visibility,
-        company_id: values.companyId || null,
-        author_id: user.id,
-        tags: tagsList,
-      };
-
-      let result;
+      let fileUrl = null;
       
-      // Update or create note
-      if (initialData?.id) {
-        result = await supabase
-          .from("notes")
-          .update({ 
-            ...noteData,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", initialData.id);
-      } else {
-        result = await supabase
-          .from("notes")
-          .insert({
-            ...noteData,
-            created_at: new Date().toISOString(),
-          });
+      // Upload file if selected
+      if (selectedFile && values.company_id) {
+        const fileName = `${Date.now()}_${selectedFile.name}`;
+        const filePath = `${values.company_id}/notes/${fileName}`;
+        
+        const { data: fileData, error: fileError } = await supabase
+          .storage
+          .from('company_files')
+          .upload(filePath, selectedFile);
+          
+        if (fileError) throw fileError;
+        
+        fileUrl = supabase
+          .storage
+          .from('company_files')
+          .getPublicUrl(filePath).data.publicUrl;
       }
-
-      if (result.error) throw result.error;
-
-      // Handle file uploads if there are any
-      if (attachments.length > 0) {
-        // Implementation for file uploads would go here
-        // This would likely use the Supabase storage API
-      }
-
-      toast(initialData ? "Note updated" : "Note created", {
-        description: initialData 
-          ? "Your note has been updated successfully." 
-          : "Your note has been created successfully.",
-      });
-
-      // Reset form and call success callback
-      if (!initialData) {
-        form.reset({
-          title: "",
-          content: "",
-          visibility: "internal",
-          companyId: "",
-          tags: "",
+      
+      // Insert note into database
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          title: values.title,
+          content: values.content,
+          company_id: values.company_id || null,
+          author_id: user.id,
+          visibility: values.visibility,
+          file_url: fileUrl,
         });
-        setAttachments([]);
-      }
+        
+      if (error) throw error;
       
-      onSuccess();
+      toast({
+        title: "Success",
+        description: "Note created successfully.",
+      });
+      
+      // Reset form
+      form.reset();
+      setSelectedFile(null);
+      
+      // Call success callback
+      if (onSuccess) onSuccess();
     } catch (error) {
-      console.error("Error saving note:", error);
-      toast("Error saving note", {
-        description: "There was a problem saving your note. Please try again.",
+      console.error('Error creating note:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create note. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setAttachments(prev => [...prev, ...Array.from(e.target.files as FileList)]);
-    }
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -196,7 +161,36 @@ export function NoteForm({ onSuccess, initialData }: NoteFormProps) {
             </FormItem>
           )}
         />
-
+        
+        <FormField
+          control={form.control}
+          name="company_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Related Company</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a company (optional)" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="">No company</SelectItem>
+                  {companies.map(company => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Optionally associate this note with a company
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
         <FormField
           control={form.control}
           name="content"
@@ -205,8 +199,8 @@ export function NoteForm({ onSuccess, initialData }: NoteFormProps) {
               <FormLabel>Content</FormLabel>
               <FormControl>
                 <Textarea 
-                  placeholder="Write your note here..." 
-                  className="min-h-[200px]" 
+                  placeholder="Write your note here..."
+                  className="min-h-[200px]"
                   {...field} 
                 />
               </FormControl>
@@ -214,142 +208,57 @@ export function NoteForm({ onSuccess, initialData }: NoteFormProps) {
             </FormItem>
           )}
         />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="visibility"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Visibility</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select visibility" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="internal">Internal Only</SelectItem>
-                    <SelectItem value="partner">Partners & Admins</SelectItem>
-                    <SelectItem value="founder">All (Founders, Partners, Admins)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="companyId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company (Optional)</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {companies.map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
+        
         <FormField
           control={form.control}
-          name="tags"
+          name="visibility"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tags (comma separated)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. important, follow-up, research" {...field} />
-              </FormControl>
+              <FormLabel>Visibility</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select visibility" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="admin">Admins Only</SelectItem>
+                  <SelectItem value="partner">Partners & Admins</SelectItem>
+                  <SelectItem value="founder">Everyone (Including Founders)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Controls who can view this note
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <div className="space-y-2">
-          <FormLabel>Attachments</FormLabel>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => document.getElementById("file-upload")?.click()}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Add File
-            </Button>
-            <input
-              id="file-upload"
-              type="file"
-              className="hidden"
-              onChange={handleFileChange}
-              multiple
-            />
-          </div>
-
-          {attachments.length > 0 && (
-            <div className="mt-2 space-y-2">
-              {attachments.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                  <div className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm truncate max-w-xs">{file.name}</span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeAttachment(index)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Remove</span>
-                  </Button>
-                </div>
-              ))}
+          <FormLabel>Attachment</FormLabel>
+          <Input 
+            type="file" 
+            onChange={handleFileChange}
+          />
+          <FormDescription>
+            Optional. Upload a file to attach to this note.
+          </FormDescription>
+          {selectedFile && (
+            <div className="text-sm text-green-600">
+              File selected: {selectedFile.name}
             </div>
           )}
         </div>
-
-        <div className="flex justify-end space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              form.reset();
-              setAttachments([]);
-            }}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
+        
+        <div className="flex justify-end">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : initialData ? "Update Note" : "Create Note"}
+            {isSubmitting ? "Creating..." : "Create Note"}
           </Button>
         </div>
       </form>
     </Form>
   );
-}
+};
 
 export default NoteForm;

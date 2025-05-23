@@ -1,274 +1,233 @@
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/sonner';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { Pencil, Search, FileText } from 'lucide-react';
+import { format } from 'date-fns';
+import NoteCard from './NoteCard'; 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogHeader } from '@/components/ui/dialog';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Plus, FileText } from 'lucide-react';
-import NoteCard, { Note } from './NoteCard';
-import NoteForm from './NoteForm';
-import NoteFilters, { FilterOptions } from './NoteFilters';
-import { format, sub } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
-const NoteList = () => {
-  const { user } = useAuth();
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  company_id: string | null;
+  company_name?: string;
+  author_id: string;
+  author_name?: string;
+  visibility: string;
+  file_url?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+const NoteList: React.FC = () => {
+  const { user, hasPermission } = useAuth();
+  const { toast } = useToast();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [filters, setFilters] = useState<FilterOptions>({
-    search: '',
-    visibility: 'all',
-    companyId: '',
-    dateRange: 'all',
-  });
-  
-  // Function to fetch notes from the database
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [visibilityFilter, setVisibilityFilter] = useState<string>('');
+  const [companyFilter, setCompanyFilter] = useState<string>('');
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Determine what notes the current user can access
   const fetchNotes = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
+    setLoading(true);
     
     try {
-      // Start building the query
       let query = supabase
         .from('notes')
         .select(`
-          id,
-          title,
-          content,
-          visibility,
-          created_at,
-          updated_at,
-          company_id,
-          companies(name),
-          users!notes_author_id_fkey(id, name)
+          *,
+          companies (id, name),
+          users (id, name)
         `);
       
       // Apply role-based filtering
-      if (user.role === 'founder') {
-        // Founders can only see notes marked as 'founder' AND linked to their company
+      if (user?.role === 'founder' && user?.companyId) {
+        // Founders can only see notes for their company with visibility = 'founder'
         query = query
-          .eq('visibility', 'founder')
-          .eq('company_id', user.companyId);
-      } else if (user.role === 'partner') {
-        // Partners can see notes marked as 'partner' or 'founder'
-        query = query.in('visibility', ['partner', 'founder']);
+          .eq('company_id', user.companyId)
+          .eq('visibility', 'founder');
+      } else if (user?.role === 'partner') {
+        // Partners can see notes with visibility = 'partner' or 'founder'
+        query = query
+          .in('visibility', ['partner', 'founder']);
       }
       // Admins can see all notes (no additional filter)
       
-      // Apply search filter if provided
-      if (filters.search) {
-        query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
-      }
-      
-      // Apply visibility filter if not 'all'
-      if (filters.visibility !== 'all') {
-        query = query.eq('visibility', filters.visibility);
-      }
-      
-      // Apply company filter if provided
-      if (filters.companyId) {
-        query = query.eq('company_id', filters.companyId);
-      }
-      
-      // Apply date range filter
-      if (filters.dateRange !== 'all') {
-        let dateFrom;
-        const now = new Date();
-        
-        switch (filters.dateRange) {
-          case 'today':
-            dateFrom = format(now, 'yyyy-MM-dd');
-            break;
-          case 'week':
-            dateFrom = format(sub(now, { weeks: 1 }), 'yyyy-MM-dd');
-            break;
-          case 'month':
-            dateFrom = format(sub(now, { months: 1 }), 'yyyy-MM-dd');
-            break;
-          case 'quarter':
-            dateFrom = format(sub(now, { months: 3 }), 'yyyy-MM-dd');
-            break;
-          default:
-            dateFrom = null;
-        }
-        
-        if (dateFrom) {
-          query = query.gte('created_at', dateFrom);
-        }
-      }
-      
-      // Execute the query
       const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      if (data) {
-        // Format the data to match our Note interface
-        const formattedNotes: Note[] = data.map(note => {
-          // Since users and companies are returned as arrays, handle accordingly
-          const userData = Array.isArray(note.users) ? note.users[0] : note.users;
-          const companyData = Array.isArray(note.companies) ? note.companies[0] : note.companies;
-          
-          return {
-            id: note.id,
-            title: note.title,
-            content: note.content,
-            author: {
-              id: userData?.id || '',
-              name: userData?.name || '',
-            },
-            companyId: note.company_id,
-            companyName: companyData?.name || '',
-            visibility: note.visibility as "internal" | "partner" | "founder",
-            createdAt: new Date(note.created_at),
-            tags: [], // We'll need to add tags from a separate query or join
-            attachments: [], // Same for attachments
-          };
-        });
-        
-        setNotes(formattedNotes);
-      }
+      // Transform data to include company and author names
+      const formattedNotes: Note[] = data.map(note => ({
+        ...note,
+        company_name: note.companies?.name || 'No company',
+        author_name: note.users?.name || 'Unknown user',
+      }));
+      
+      setNotes(formattedNotes);
+      setFilteredNotes(formattedNotes);
     } catch (error) {
       console.error('Error fetching notes:', error);
-      toast("Error loading notes", {
-        description: "Could not load your notes. Please try again later.",
+      toast({
+        title: "Error",
+        description: "Failed to load notes. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
-  // Fetch notes when component mounts or filters change
+
+  // Fetch companies for the filter dropdown
+  const fetchCompanies = async () => {
+    try {
+      let query = supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
+        
+      // If user is a founder, limit to their company
+      if (user?.role === 'founder' && user?.companyId) {
+        query = query.eq('id', user.companyId);
+      }
+        
+      const { data, error } = await query;
+        
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
+
+  // Initial data loading
   useEffect(() => {
-    fetchNotes();
-  }, [user, filters]);
-  
-  const handleCreateNote = () => {
-    setEditingNote(null);
-    setIsFormOpen(true);
-  };
-  
-  const handleEditNote = (id: string) => {
-    const noteToEdit = notes.find(note => note.id === id);
-    if (noteToEdit) {
-      setEditingNote(noteToEdit);
-      setIsFormOpen(true);
+    if (user) {
+      fetchNotes();
+      fetchCompanies();
+    }
+  }, [user]);
+
+  // Apply filters when filter values change
+  useEffect(() => {
+    if (notes.length === 0) return;
+    
+    let filtered = [...notes];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(note => 
+        note.title.toLowerCase().includes(term) || 
+        note.content.toLowerCase().includes(term)
+      );
+    }
+    
+    // Apply visibility filter
+    if (visibilityFilter) {
+      filtered = filtered.filter(note => note.visibility === visibilityFilter);
+    }
+    
+    // Apply company filter
+    if (companyFilter) {
+      filtered = filtered.filter(note => note.company_id === companyFilter);
+    }
+    
+    setFilteredNotes(filtered);
+  }, [notes, searchTerm, visibilityFilter, companyFilter]);
+
+  // Get badge color for visibility
+  const getVisibilityColor = (visibility: string) => {
+    switch (visibility) {
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'partner': return 'bg-blue-100 text-blue-800';
+      case 'founder': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
-  
-  const handleFormSuccess = () => {
-    setIsFormOpen(false);
-    setEditingNote(null);
-    fetchNotes();
-  };
-  
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
-  };
-  
-  // If user is not authenticated, show login prompt
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 border rounded-lg">
-        <div className="mb-2 p-4 bg-background rounded-full border">
-          <FileText className="h-6 w-6 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-medium mb-1">Authentication Required</h3>
-        <p className="text-muted-foreground text-center mb-4">
-          You need to be logged in to view and manage notes.
-        </p>
-      </div>
-    );
-  }
-  
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Notes</h2>
-        <Button onClick={handleCreateNote}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Note
-        </Button>
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-grow">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search notes..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full md:w-auto">
+          <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Visibility" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Visibility</SelectItem>
+              <SelectItem value="admin">Admins Only</SelectItem>
+              <SelectItem value="partner">Partners & Admins</SelectItem>
+              <SelectItem value="founder">Everyone</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Company" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Companies</SelectItem>
+              {companies.map(company => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
-      <NoteFilters onFilterChange={handleFilterChange} />
-      
-      <Tabs defaultValue="all" className="w-full">
-        <TabsContent value="all" className="mt-0">
-          {isLoading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : notes.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {notes.map((note) => (
-                <NoteCard 
-                  key={note.id} 
-                  note={note}
-                  onEdit={
-                    user.role === 'admin' || (user.role === 'partner' && note.author.id === user.id)
-                      ? handleEditNote
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-8 border rounded-lg">
-              <div className="mb-2 p-4 bg-background rounded-full border">
-                <FileText className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium mb-1">No notes found</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                {filters.search || filters.visibility !== 'all' || filters.companyId || filters.dateRange !== 'all'
-                  ? "No notes match your filter criteria. Try adjusting your filters."
-                  : "You don't have any notes yet. Create your first note to get started."}
-              </p>
-              {!(filters.search || filters.visibility !== 'all' || filters.companyId || filters.dateRange !== 'all') && (
-                <Button variant="outline" onClick={handleCreateNote}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Note
-                </Button>
-              )}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="my">
-          {/* Content for My Notes tab - filter by current user */}
-        </TabsContent>
-        
-        <TabsContent value="recent">
-          {/* Content for Recent tab - filter by date */}
-        </TabsContent>
-        
-        <TabsContent value="important">
-          {/* Content for Important tab - filter by tag or importance */}
-        </TabsContent>
-      </Tabs>
-      
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{editingNote ? 'Edit Note' : 'Create Note'}</DialogTitle>
-          </DialogHeader>
-          <NoteForm 
-            onSuccess={handleFormSuccess}
-            initialData={editingNote ? {
-              id: editingNote.id,
-              title: editingNote.title,
-              content: editingNote.content,
-              visibility: editingNote.visibility,
-              companyId: editingNote.companyId,
-              tags: editingNote.tags.join(', '),
-            } : undefined}
-          />
-        </DialogContent>
-      </Dialog>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array(6).fill(0).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="h-20 bg-gray-100"></CardHeader>
+              <CardContent className="h-32 bg-gray-50"></CardContent>
+              <CardFooter className="h-10 bg-gray-100"></CardFooter>
+            </Card>
+          ))}
+        </div>
+      ) : filteredNotes.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredNotes.map(note => (
+            <NoteCard key={note.id} note={note} />
+          ))}
+        </div>
+      ) : (
+        <Card className="w-full">
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <Pencil className="h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium">No notes found</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {searchTerm || visibilityFilter || companyFilter
+                ? "Try adjusting your filters"
+                : "Create your first note to get started"}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
