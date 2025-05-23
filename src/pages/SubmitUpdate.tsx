@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { RaiseStatus } from '@/types/reporting';
+import { format } from 'date-fns';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   arr: z.number().optional().nullable(),
@@ -37,6 +40,8 @@ export default function SubmitUpdate() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [hasPreviousUpdate, setHasPreviousUpdate] = useState(false);
+  const [previousUpdateDate, setPreviousUpdateDate] = useState<string | null>(null);
 
   // Redirect if not a founder
   React.useEffect(() => {
@@ -49,6 +54,33 @@ export default function SubmitUpdate() {
       navigate('/');
     }
   }, [user, navigate, toast]);
+
+  // Check for previous submissions in the current month
+  useEffect(() => {
+    if (user?.companyId) {
+      const checkPreviousSubmissions = async () => {
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        const { data, error } = await supabase
+          .from('founder_updates')
+          .select('submitted_at')
+          .eq('company_id', user.companyId)
+          .gte('submitted_at', firstDayOfMonth.toISOString())
+          .order('submitted_at', { ascending: false })
+          .limit(1);
+          
+        if (error) {
+          console.error('Error checking previous submissions:', error);
+        } else if (data && data.length > 0) {
+          setHasPreviousUpdate(true);
+          setPreviousUpdateDate(format(new Date(data[0].submitted_at), 'MMMM d, yyyy'));
+        }
+      };
+      
+      checkPreviousSubmissions();
+    }
+  }, [user]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -90,6 +122,7 @@ export default function SubmitUpdate() {
         const fileName = `${Date.now()}_${selectedFile.name}`;
         const filePath = `${user.companyId}/${fileName}`;
         
+        // Upload file to storage
         const { data: fileData, error: fileError } = await supabase
           .storage
           .from('company_files')
@@ -98,7 +131,12 @@ export default function SubmitUpdate() {
         if (fileError) throw fileError;
         
         // Get the public URL
-        fileUrl = fileData.path;
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('company_files')
+          .getPublicUrl(filePath);
+          
+        fileUrl = publicUrlData.publicUrl;
 
         // Add the file to the company_files table
         const { error: fileRecordError } = await supabase
@@ -167,6 +205,36 @@ export default function SubmitUpdate() {
         }
       }
 
+      // Attempt to get partner information to send notification
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', user.companyId)
+        .single();
+
+      // Update the company's metrics in the companies table
+      if (values.arr !== null || values.mrr !== null || values.burn_rate !== null || 
+          values.runway !== null || values.headcount !== null || values.churn !== null) {
+        
+        const updateData: Record<string, any> = {};
+        if (values.arr !== null) updateData.arr = values.arr;
+        if (values.mrr !== null) updateData.mrr = values.mrr;
+        if (values.burn_rate !== null) updateData.burn_rate = values.burn_rate;
+        if (values.runway !== null) updateData.runway = values.runway;
+        if (values.headcount !== null) updateData.headcount = values.headcount;
+        if (values.churn !== null) updateData.churn_rate = values.churn;
+        updateData.updated_at = new Date().toISOString();
+        
+        const { error: companyUpdateError } = await supabase
+          .from('companies')
+          .update(updateData)
+          .eq('id', user.companyId);
+          
+        if (companyUpdateError) {
+          console.error('Error updating company metrics:', companyUpdateError);
+        }
+      }
+
       toast({
         title: "Update Submitted",
         description: "Your company update has been submitted successfully.",
@@ -214,6 +282,17 @@ export default function SubmitUpdate() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {hasPreviousUpdate && (
+              <Alert className="mb-6 bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                <AlertTitle className="text-amber-700">Previous update detected</AlertTitle>
+                <AlertDescription className="text-amber-600">
+                  You have already submitted an update this month ({previousUpdateDate}). 
+                  Submitting another update will overwrite some of your previously reported metrics.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
