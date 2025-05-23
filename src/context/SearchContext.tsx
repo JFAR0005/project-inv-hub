@@ -1,114 +1,67 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-export interface SearchFilters {
-  query: string;
-  sectors: string[];
-  stages: string[];
-  metrics: {
-    arr?: { min?: number; max?: number };
-    growth?: { min?: number; max?: number };
-    runway?: { min?: number; max?: number };
-  };
-  statuses: string[];
-  sortBy: string;
-  sortDirection: 'asc' | 'desc';
-  lastUpdated?: number; // days
-}
-
-interface SavedSearch {
-  id: string;
-  name: string;
-  filters: SearchFilters;
-  createdAt: string;
-}
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { SearchFilters } from '@/types/search';
 
 interface SearchContextType {
   globalQuery: string;
   setGlobalQuery: (query: string) => void;
-  filters: SearchFilters;
-  setFilters: (filters: SearchFilters) => void;
-  savedSearches: SavedSearch[];
-  setSavedSearches: (searches: SavedSearch[]) => void;
-  addSavedSearch: (name: string) => void;
-  removeSavedSearch: (id: string) => void;
-  applySavedSearch: (id: string) => void;
+  globalFilters: SearchFilters;
+  setGlobalFilters: (filters: SearchFilters) => void;
+  updateGlobalFilters: (filters: Partial<SearchFilters>) => void;
+  clearGlobalSearch: () => void;
   recentSearches: string[];
   addRecentSearch: (query: string) => void;
 }
 
-const defaultFilters: SearchFilters = {
-  query: '',
-  sectors: [],
-  stages: [],
-  metrics: {},
-  statuses: [],
-  sortBy: 'name',
-  sortDirection: 'asc',
-};
+const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
-export const SearchContext = createContext<SearchContextType | undefined>(undefined);
-
-export const SearchProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const SearchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [globalQuery, setGlobalQuery] = useState('');
-  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
-  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [globalFilters, setGlobalFilters] = useState<SearchFilters>({
+    types: ['company', 'note', 'meeting', 'deal'],
+  });
+  const [recentSearches, setRecentSearches] = useState<string[]>([
+    'fintech companies',
+    'due diligence notes',
+    'board meetings',
+    'series A deals',
+  ]);
 
-  const addSavedSearch = (name: string) => {
-    const newSavedSearch: SavedSearch = {
-      id: crypto.randomUUID(),
-      name,
-      filters: { ...filters },
-      createdAt: new Date().toISOString(),
-    };
-    setSavedSearches((prev) => [...prev, newSavedSearch]);
-  };
+  const updateGlobalFilters = useCallback((newFilters: Partial<SearchFilters>) => {
+    setGlobalFilters(prev => ({ ...prev, ...newFilters }));
+  }, []);
 
-  const removeSavedSearch = (id: string) => {
-    setSavedSearches((prev) => prev.filter((search) => search.id !== id));
-  };
-
-  const applySavedSearch = (id: string) => {
-    const savedSearch = savedSearches.find((search) => search.id === id);
-    if (savedSearch) {
-      setFilters(savedSearch.filters);
-    }
-  };
-
-  const addRecentSearch = (query: string) => {
-    if (!query.trim()) return;
-    setRecentSearches((prev) => {
-      const newSearches = prev.filter((s) => s !== query);
-      return [query, ...newSearches].slice(0, 10);
+  const clearGlobalSearch = useCallback(() => {
+    setGlobalQuery('');
+    setGlobalFilters({
+      types: ['company', 'note', 'meeting', 'deal'],
     });
+  }, []);
+
+  const addRecentSearch = useCallback((query: string) => {
+    if (query.trim() && !recentSearches.includes(query)) {
+      setRecentSearches(prev => [query, ...prev.slice(0, 9)]);
+    }
+  }, [recentSearches]);
+
+  const value = {
+    globalQuery,
+    setGlobalQuery,
+    globalFilters,
+    setGlobalFilters,
+    updateGlobalFilters,
+    clearGlobalSearch,
+    recentSearches,
+    addRecentSearch,
   };
 
-  return (
-    <SearchContext.Provider
-      value={{
-        globalQuery,
-        setGlobalQuery,
-        filters,
-        setFilters,
-        savedSearches,
-        setSavedSearches,
-        addSavedSearch,
-        removeSavedSearch,
-        applySavedSearch,
-        recentSearches,
-        addRecentSearch,
-      }}
-    >
-      {children}
-    </SearchContext.Provider>
-  );
+  return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>;
 };
 
-export const useSearch = (): SearchContextType => {
+export const useSearchContext = (): SearchContextType => {
   const context = useContext(SearchContext);
   if (context === undefined) {
-    throw new Error('useSearch must be used within a SearchProvider');
+    throw new Error('useSearchContext must be used within a SearchProvider');
   }
   return context;
 };

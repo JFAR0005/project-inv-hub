@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -26,6 +25,7 @@ import SubmitUpdate from './pages/SubmitUpdate';
 import Integrations from './pages/Integrations';
 import IntegrationHub from './pages/IntegrationHub';
 import NotFound from './pages/NotFound';
+import Search from './pages/Search';
 
 const queryClient = new QueryClient();
 
@@ -78,6 +78,10 @@ const router = createBrowserRouter([
   {
     path: "/portfolio-search",
     element: <Layout><PortfolioSearch /></Layout>,
+  },
+  {
+    path: "/search",
+    element: <Layout><Search /></Layout>,
   },
   {
     path: "/company/:id",
