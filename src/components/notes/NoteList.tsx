@@ -45,11 +45,13 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
 
   // Expose the fetchNotes function via ref
   useImperativeHandle(ref, () => ({
-    fetchNotes,
+    fetchNotes: async () => {
+      await fetchNotesData();
+    },
   }));
 
   // Determine what notes the current user can access
-  const fetchNotes = async () => {
+  const fetchNotesData = async () => {
     setLoading(true);
     
     try {
@@ -136,7 +138,7 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
   // Initial data loading
   useEffect(() => {
     if (user) {
-      fetchNotes();
+      fetchNotesData();
       fetchCompanies();
     }
   }, [user]);
