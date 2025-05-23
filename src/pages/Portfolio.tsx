@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -9,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
 import PortfolioGrid from '@/components/portfolio/PortfolioGrid';
 import PortfolioList from '@/components/portfolio/PortfolioList';
-import { BarChart3, Grid3X3, List, TrendingUp } from 'lucide-react';
+import PortfolioTable from '@/components/portfolio/PortfolioTable';
+import { BarChart3, Grid3X3, List, TrendingUp, Activity } from 'lucide-react';
 
 export default function Portfolio() {
   const { user } = useAuth();
@@ -47,10 +49,14 @@ export default function Portfolio() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="health" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Health Dashboard
               </TabsTrigger>
               <TabsTrigger value="cards" className="flex items-center gap-2">
                 <Grid3X3 className="h-4 w-4" />
@@ -68,6 +74,10 @@ export default function Portfolio() {
 
             <TabsContent value="overview" className="space-y-6">
               <PortfolioOverview />
+            </TabsContent>
+
+            <TabsContent value="health" className="space-y-6">
+              <PortfolioTable />
             </TabsContent>
 
             <TabsContent value="cards" className="space-y-6">
