@@ -19,7 +19,23 @@ import {
   Users,
   Activity
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, ComposedChart, Area, AreaChart } from 'recharts';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  PieChart as RechartsPieChart, 
+  Cell, 
+  ComposedChart, 
+  Area, 
+  AreaChart,
+  Pie
+} from 'recharts';
 import { format, subMonths, startOfMonth } from 'date-fns';
 
 interface PortfolioMetrics {
@@ -410,7 +426,7 @@ const PortfolioAnalytics: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="sector" />
                     <YAxis />
-                    <Tooltip formatter={([value]) => [formatCurrency(Number(value)), 'Total ARR']} />
+                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Total ARR']} />
                     <Bar dataKey="totalARR" fill="#3B82F6" />
                   </BarChart>
                 </ResponsiveContainer>
