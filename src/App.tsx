@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,7 +6,6 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from './context/AuthContext';
 import { SearchProvider } from './context/SearchContext';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import Layout from '@/components/layout/Layout';
 
 // Import pages
 import Index from './pages/Index';
@@ -61,67 +59,67 @@ function App() {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout><Index /></Layout>,
+    element: <Index />,
   },
   {
     path: "/login",
-    element: <Layout requireAuth={false}><Login /></Layout>,
+    element: <Login />,
   },
   {
     path: "/portfolio",
-    element: <Layout><Portfolio /></Layout>,
+    element: <Portfolio />,
   },
   {
     path: "/enhanced-portfolio",
-    element: <Layout><EnhancedPortfolio /></Layout>,
+    element: <EnhancedPortfolio />,
   },
   {
     path: "/portfolio-search",
-    element: <Layout><PortfolioSearch /></Layout>,
+    element: <PortfolioSearch />,
   },
   {
     path: "/company/:id",
-    element: <Layout><CompanyDetails /></Layout>,
+    element: <CompanyDetails />,
   },
   {
     path: "/company-profile/:id",
-    element: <Layout><CompanyProfile /></Layout>,
+    element: <CompanyProfile />,
   },
   {
     path: "/notes",
-    element: <Layout><Notes /></Layout>,
+    element: <Notes />,
   },
   {
     path: "/meetings",
-    element: <Layout><Meetings /></Layout>,
+    element: <Meetings />,
   },
   {
     path: "/deals",
-    element: <Layout><Deals /></Layout>,
+    element: <Deals />,
   },
   {
     path: "/dealflow",
-    element: <Layout><Dealflow /></Layout>,
+    element: <Dealflow />,
   },
   {
     path: "/analytics",
-    element: <Layout><Analytics /></Layout>,
+    element: <Analytics />,
   },
   {
     path: "/submit-update",
-    element: <Layout><SubmitUpdate /></Layout>,
+    element: <SubmitUpdate />,
   },
   {
     path: "/integrations",
-    element: <Layout><Integrations /></Layout>,
+    element: <Integrations />,
   },
   {
     path: "/integration-hub",
-    element: <Layout><IntegrationHub /></Layout>,
+    element: <IntegrationHub />,
   },
   {
     path: "*",
-    element: <Layout requireAuth={false}><NotFound /></Layout>,
+    element: <NotFound />,
   },
 ]);
 
