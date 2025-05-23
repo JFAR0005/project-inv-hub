@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/context/AuthContext';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -15,15 +15,24 @@ import { useToast } from '@/hooks/use-toast';
 
 const RoleViewSwitcher = () => {
   const { user, originalRole, setTemporaryRole, clearTemporaryRole } = useAuth();
+  const [currentViewRole, setCurrentViewRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   const isImpersonating = originalRole !== null;
 
   // Only admins can use this component
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== 'admin' && !isImpersonating) {
     return null;
   }
 
+  // Update local state when role changes
+  useEffect(() => {
+    if (user) {
+      setCurrentViewRole(user.role);
+    }
+  }, [user?.role]);
+
   const handleRoleChange = (role: UserRole) => {
+    setCurrentViewRole(role);
     setTemporaryRole(role);
     toast({
       title: "View mode changed",
@@ -33,6 +42,7 @@ const RoleViewSwitcher = () => {
 
   const handleReset = () => {
     clearTemporaryRole();
+    setCurrentViewRole('admin');
     toast({
       title: "View mode reset",
       description: "You are now viewing the application with your original role",
@@ -56,8 +66,7 @@ const RoleViewSwitcher = () => {
           <div className="space-y-4">
             <h4 className="font-medium text-sm">View application as:</h4>
             <RadioGroup 
-              defaultValue={user.role}
-              value={user.role}
+              value={currentViewRole || user.role}
               onValueChange={(value) => handleRoleChange(value as UserRole)}
             >
               <div className="flex items-center space-x-2">

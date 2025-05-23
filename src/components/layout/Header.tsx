@@ -15,8 +15,9 @@ import RoleViewSwitcher from '@/components/auth/RoleViewSwitcher';
 import { User } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, originalRole } = useAuth();
   const navigate = useNavigate();
+  const isAdminOrImpersonating = user?.role === 'admin' || originalRole !== null;
 
   return (
     <header className="bg-background border-b border-border h-14 px-4 flex items-center justify-between">
@@ -25,7 +26,7 @@ const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        {user?.role === 'admin' && <RoleViewSwitcher />}
+        {isAdminOrImpersonating && <RoleViewSwitcher />}
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
