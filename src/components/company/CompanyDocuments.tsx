@@ -79,17 +79,15 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           
           let uploaderName = 'Unknown';
           
-          // Simplified type checking that TypeScript can understand
+          // Explicit null checking with proper type narrowing
           if (!metaError && metaData?.uploader) {
             const uploaderData = metaData.uploader;
             
-            // Step-by-step type checking to satisfy TypeScript
-            if (uploaderData != null && typeof uploaderData === 'object') {
-              if ('name' in uploaderData) {
-                const nameValue = uploaderData.name;
-                if (typeof nameValue === 'string' && nameValue.trim()) {
-                  uploaderName = nameValue.trim();
-                }
+            // Check if uploaderData is a valid object with a name property
+            if (uploaderData && typeof uploaderData === 'object' && 'name' in uploaderData) {
+              const nameValue = uploaderData.name;
+              if (typeof nameValue === 'string' && nameValue.trim()) {
+                uploaderName = nameValue.trim();
               }
             }
           }
