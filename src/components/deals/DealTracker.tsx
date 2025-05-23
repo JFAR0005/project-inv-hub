@@ -1,413 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { Database } from '@/integrations/supabase/types';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, User, Calendar, FileText, ClipboardList } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import DealForm from './DealForm';
-import DDForm from './DDForm';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Calendar, DollarSign, User, Building, Clock, FileText } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
-  company_name: string;
-  due_diligence_status?: string;
+  companies?: Database['public']['Tables']['companies']['Row'];
+  users?: Database['public']['Tables']['users']['Row'];
 };
 
-type BoardColumn = {
-  id: 'Discovery' | 'DD' | 'IC' | 'Funded' | 'Rejected';
-  title: string;
-  deals: Deal[];
-};
-
-// Add viewType prop to the component interface
 interface DealTrackerProps {
-  viewType?: 'table' | 'kanban';
+  deal: Deal;
+  onEditDeal: (deal: Deal) => void;
+  onOpenDD: (deal: Deal) => void;
 }
 
-const DealTracker: React.FC<DealTrackerProps> = ({ viewType = 'kanban' }) => {
-  const { user, hasPermission } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [isLoading, setIsLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
-  const [ddFormOpen, setDdFormOpen] = useState(false);
-  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [columns, setColumns] = useState<BoardColumn[]>([
-    { id: 'Discovery', title: 'Discovery', deals: [] },
-    { id: 'DD', title: 'Due Diligence', deals: [] },
-    { id: 'IC', title: 'Investment Committee', deals: [] },
-    { id: 'Funded', title: 'Funded', deals: [] },
-    { id: 'Rejected', title: 'Rejected', deals: [] },
-  ]);
-
-  const canEditDeals = hasPermission('edit:all') || user?.role === 'admin' || user?.role === 'partner';
-
-  // Use React Query for data fetching
-  const { data: deals, refetch } = useQuery({
-    queryKey: ['deals'],
-    queryFn: async () => {
-      setIsLoading(true);
-      try {
-        // Fetch deals with company information
-        const { data, error } = await supabase
-          .from('deals')
-          .select(`
-            *,
-            companies (
-              id,
-              name
-            )
-          `);
-
-        if (error) throw error;
-
-        // First, format deals with company information
-        const formattedDeals: Deal[] = data?.map(deal => ({
-          ...deal,
-          company_name: deal.companies?.name || 'Unknown Company',
-          due_diligence_status: undefined  // Initialize with undefined
-        })) || [];
-
-        // Fetch due diligence status for DD deals
-        const ddDeals = formattedDeals.filter(deal => deal.stage === 'DD');
-        if (ddDeals.length > 0) {
-          const ddIds = ddDeals.map(deal => deal.id);
-          const { data: ddData, error: ddError } = await supabase
-            .from('deal_due_diligence')
-            .select('deal_id, due_diligence_status')
-            .in('deal_id', ddIds);
-
-          if (!ddError && ddData) {
-            // Add due diligence status to deals
-            formattedDeals.forEach(deal => {
-              const ddInfo = ddData.find(dd => dd.deal_id === deal.id);
-              if (ddInfo) {
-                deal.due_diligence_status = ddInfo.due_diligence_status;
-              }
-            });
-          }
-        }
-
-        // Update columns with deals
-        setColumns(prev => 
-          prev.map(column => ({
-            ...column,
-            deals: formattedDeals.filter(deal => deal.stage === column.id)
-          }))
-        );
-
-        setIsLoading(false);
-        return formattedDeals;
-      } catch (error) {
-        console.error('Error fetching deals:', error);
-        setIsLoading(false);
-        throw error;
-      }
-    }
-  });
-
-  const handleDealCreated = () => {
-    refetch();
-  };
-
-  const handleDragStart = (e: React.DragEvent, dealId: string, currentColumn: string) => {
-    e.dataTransfer.setData('dealId', dealId);
-    e.dataTransfer.setData('sourceColumn', currentColumn);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetColumn: string) => {
-    e.preventDefault();
-    const dealId = e.dataTransfer.getData('dealId');
-    const sourceColumn = e.dataTransfer.getData('sourceColumn');
-    
-    if (sourceColumn === targetColumn) return;
-
-    // Find the deal in the source column
-    const sourceDeal = columns
-      .find(col => col.id === sourceColumn)
-      ?.deals.find(deal => deal.id === dealId);
-      
-    if (!sourceDeal) return;
-
-    try {
-      // Update the deal's stage in the database
-      const { error } = await supabase
-        .from('deals')
-        .update({ 
-          stage: targetColumn as any,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', dealId);
-
-      if (error) throw error;
-
-      // Update the local state by moving the deal to the new column
-      setColumns(prev => prev.map(column => {
-        if (column.id === sourceColumn) {
-          return {
-            ...column,
-            deals: column.deals.filter(deal => deal.id !== dealId)
-          };
-        }
-        if (column.id === targetColumn) {
-          return {
-            ...column,
-            deals: [...column.deals, { ...sourceDeal, stage: targetColumn as any }]
-          };
-        }
-        return column;
-      }));
-
-      // If moved to DD column, prompt to open the DD form
-      if (targetColumn === 'DD') {
-        toast({
-          title: "Deal Moved to Due Diligence",
-          description: "Would you like to complete the DD form now?",
-          action: (
-            <Button 
-              size="sm" 
-              onClick={() => {
-                setSelectedDeal({ ...sourceDeal, stage: 'DD' as any });
-                setDdFormOpen(true);
-              }}
-            >
-              Open Form
-            </Button>
-          ),
-        });
-      } else {
-        toast({
-          title: "Deal Moved",
-          description: `Deal moved to ${targetColumn} stage`,
-        });
-      }
-      
-      // Invalidate the deals query to refresh data
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-    } catch (error) {
-      console.error('Error updating deal stage:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update deal stage",
-        variant: "destructive",
-      });
+const DealTracker: React.FC<DealTrackerProps> = ({ deal, onEditDeal, onOpenDD }) => {
+  const getStageProgress = (stage: string) => {
+    switch (stage) {
+      case 'Discovery': return 20;
+      case 'DD': return 40;
+      case 'IC': return 60;
+      case 'Funded': return 100;
+      case 'Rejected': return 0;
+      default: return 0;
     }
   };
 
-  const handleCardClick = (deal: Deal) => {
-    if (deal.stage === 'DD') {
-      setSelectedDeal(deal);
-      setDdFormOpen(true);
+  const getStageColor = (stage: string) => {
+    switch (stage) {
+      case 'Discovery': return 'bg-blue-500';
+      case 'DD': return 'bg-yellow-500';
+      case 'IC': return 'bg-purple-500';
+      case 'Funded': return 'bg-green-500';
+      case 'Rejected': return 'bg-red-500';
+      default: return 'bg-gray-500';
     }
   };
 
   const formatCurrency = (value?: number) => {
-    if (value === undefined || value === null) return 'N/A';
+    if (!value) return 'N/A';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 1
+      maximumFractionDigits: 0
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString();
   };
 
-  const getDDStatusColor = (status?: string) => {
-    switch (status) {
-      case 'Complete': return 'bg-green-100 text-green-800';
-      case 'In Progress': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-orange-100 text-orange-800';
-    }
-  };
+  const progress = getStageProgress(deal.stage);
 
-  // Render different views based on viewType prop
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Deals Pipeline</h1>
-          <p className="text-muted-foreground">Track and manage potential investment opportunities</p>
+    <Card className="hover:shadow-lg transition-shadow duration-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{deal.companies?.name || 'Unknown Company'}</CardTitle>
+          <Badge className={`${getStageColor(deal.stage)} text-white`}>
+            {deal.stage}
+          </Badge>
+        </div>
+        <CardDescription className="flex items-center gap-4 text-sm">
+          <span className="flex items-center gap-1">
+            <Building className="h-3 w-3" />
+            {deal.companies?.sector || 'Unknown Sector'}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {formatDate(deal.created_at)}
+          </span>
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Progress Bar */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Deal Progress</span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="h-2" />
         </div>
 
-        {canEditDeals && (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Deal
-          </Button>
-        )}
-      </div>
-
-      {viewType === 'table' ? (
-        <div className="bg-white rounded-lg shadow">
-          {/* Table view implementation placeholder - you can expand this later */}
-          <div className="p-4">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-2 px-4 text-left">Company</th>
-                    <th className="py-2 px-4 text-left">Stage</th>
-                    <th className="py-2 px-4 text-left">Valuation</th>
-                    <th className="py-2 px-4 text-left">Lead</th>
-                    <th className="py-2 px-4 text-left">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!isLoading && columns.flatMap(column => 
-                    column.deals.map(deal => (
-                      <tr key={deal.id} className="border-b hover:bg-gray-50">
-                        <td className="py-2 px-4">
-                          <Link 
-                            to={`/companies/${deal.company_id}`}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {deal.company_name}
-                          </Link>
-                        </td>
-                        <td className="py-2 px-4">
-                          <Badge variant="outline">{deal.stage}</Badge>
-                        </td>
-                        <td className="py-2 px-4">{formatCurrency(deal.valuation_expectation)}</td>
-                        <td className="py-2 px-4">{deal.lead_partner || 'Unassigned'}</td>
-                        <td className="py-2 px-4">{formatDate(deal.updated_at)}</td>
-                      </tr>
-                    ))
-                  )}
-                  {isLoading && (
-                    <tr>
-                      <td colSpan={5} className="py-8 text-center">
-                        Loading deals...
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        {/* Deal Details */}
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-gray-500" />
+              <div>
+                <p className="text-gray-600">Valuation</p>
+                <p className="font-medium">{formatCurrency(deal.valuation_expectation)}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-gray-500" />
+              <div>
+                <p className="text-gray-600">Lead Partner</p>
+                <p className="font-medium">{deal.users?.name || 'Unassigned'}</p>
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
-          {columns.map((column) => (
-            <div 
-              key={column.id}
-              className="min-w-[280px] bg-muted/40 rounded-lg p-3"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, column.id)}
-            >
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium">{column.title}</h3>
-                <Badge variant="outline">{column.deals.length}</Badge>
-              </div>
 
-              <div className="space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 2 }).map((_, index) => (
-                    <Card key={index} className="bg-card animate-pulse h-32" />
-                  ))
-                ) : (
-                  column.deals.map((deal) => (
-                    <Card
-                      key={deal.id}
-                      className={`bg-card cursor-pointer hover:shadow-md transition-shadow ${column.id === 'DD' ? 'border-l-4 border-l-blue-500' : ''}`}
-                      draggable={canEditDeals}
-                      onDragStart={(e) => handleDragStart(e, deal.id, column.id)}
-                      onClick={() => handleCardClick(deal)}
-                    >
-                      <CardHeader className="p-3 pb-1">
-                        <CardTitle className="text-base flex items-center justify-between">
-                          <Link 
-                            to={`/companies/${deal.company_id}`}
-                            className="hover:text-primary transition-colors"
-                            onClick={(e) => e.stopPropagation()} // Prevent card click when clicking link
-                          >
-                            {deal.company_name}
-                          </Link>
-                          {column.id === 'DD' && deal.due_diligence_status && (
-                            <Badge 
-                              variant="outline" 
-                              className={getDDStatusColor(deal.due_diligence_status)}
-                            >
-                              {deal.due_diligence_status}
-                            </Badge>
-                          )}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-3 pt-0 pb-1">
-                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
-                            <span>{formatCurrency(deal.valuation_expectation)}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>{deal.lead_partner || 'Unassigned'}</span>
-                          </div>
-                        </div>
-                        {deal.source && (
-                          <div className="mt-2 text-xs">
-                            <span className="font-medium">Source:</span> {deal.source}
-                          </div>
-                        )}
-                        {deal.notes && (
-                          <p className="text-xs mt-1 line-clamp-2">{deal.notes}</p>
-                        )}
-                        {column.id === 'DD' && (
-                          <div className="flex items-center mt-2 text-xs text-blue-600">
-                            <FileText className="h-3 w-3 mr-1" />
-                            <span>View DD details</span>
-                          </div>
-                        )}
-                      </CardContent>
-                      <CardFooter className="p-3 pt-1 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>Updated {formatDate(deal.updated_at)}</span>
-                        </div>
-                      </CardFooter>
-                    </Card>
-                  ))
-                )}
-              </div>
+          <div className="space-y-2">
+            <div>
+              <p className="text-gray-600">Status</p>
+              <Badge variant={deal.status === 'Active' ? 'default' : 'secondary'}>
+                {deal.status}
+              </Badge>
             </div>
-          ))}
+            
+            {deal.source && (
+              <div>
+                <p className="text-gray-600">Source</p>
+                <p className="font-medium">{deal.source}</p>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-      
-      {/* Deal creation form */}
-      <DealForm 
-        open={formOpen} 
-        onOpenChange={setFormOpen} 
-        onDealCreated={handleDealCreated} 
-      />
 
-      {/* Due Diligence form */}
-      {selectedDeal && (
-        <DDForm
-          dealId={selectedDeal.id}
-          companyName={selectedDeal.company_name}
-          open={ddFormOpen}
-          onOpenChange={setDdFormOpen}
-          onDDDataUpdated={refetch}
-        />
-      )}
-    </div>
+        {/* Company Info */}
+        {deal.companies && (
+          <div className="border-t pt-3">
+            <p className="text-xs text-gray-600 mb-1">Company Details</p>
+            <div className="flex justify-between text-sm">
+              <span>{deal.companies.location || 'Unknown Location'}</span>
+              <span className="text-gray-500">{deal.companies.stage || 'Unknown Stage'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Notes */}
+        {deal.notes && (
+          <div className="border-t pt-3">
+            <p className="text-xs text-gray-600 mb-1">Notes</p>
+            <p className="text-sm text-gray-700 line-clamp-2">{deal.notes}</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEditDeal(deal)}
+            className="flex-1"
+          >
+            Edit Deal
+          </Button>
+          {deal.stage === 'DD' && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onOpenDD(deal)}
+              className="flex-1 flex items-center gap-1"
+            >
+              <FileText className="h-3 w-3" />
+              DD Form
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

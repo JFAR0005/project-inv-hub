@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,6 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import CompanyForm from '@/components/companies/CompanyForm';
 import { Plus } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
+
+type Deal = Database['public']['Tables']['deals']['Row'] & {
+  companies?: Database['public']['Tables']['companies']['Row'];
+  users?: Database['public']['Tables']['users']['Row'];
+};
 
 // Define the form schema with proper string-to-number transformation
 const formSchema = z.object({
@@ -37,23 +43,19 @@ type FormValues = {
   stage: 'Discovery' | 'DD' | 'IC' | 'Funded' | 'Rejected';
   status: string;
   source: string;
-  valuation_expectation: string; // Keep as string for the form input
+  valuation_expectation: string;
   lead_partner: string;
   notes: string;
-};
-
-// Define the transformed values after Zod processing
-type TransformedFormValues = Omit<FormValues, 'valuation_expectation'> & {
-  valuation_expectation: number | null;
 };
 
 interface DealFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDealCreated: () => void;
+  editingDeal?: Deal | null;
 }
 
-export default function DealForm({ open, onOpenChange, onDealCreated }: DealFormProps) {
+export default function DealForm({ open, onOpenChange, onDealCreated, editingDeal }: DealFormProps) {
   const { toast } = useToast();
   const [companyFormOpen, setCompanyFormOpen] = useState(false);
   
@@ -63,11 +65,35 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
       stage: 'Discovery',
       status: 'Active',
       source: '',
-      valuation_expectation: '', // This is correct as a string for the form input
+      valuation_expectation: '',
       lead_partner: '',
       notes: '',
     },
   });
+
+  // Reset form when editing deal changes
+  useEffect(() => {
+    if (editingDeal) {
+      form.reset({
+        company_id: editingDeal.company_id || '',
+        stage: editingDeal.stage,
+        status: editingDeal.status || 'Active',
+        source: editingDeal.source || '',
+        valuation_expectation: editingDeal.valuation_expectation?.toString() || '',
+        lead_partner: editingDeal.lead_partner || '',
+        notes: editingDeal.notes || '',
+      });
+    } else {
+      form.reset({
+        stage: 'Discovery',
+        status: 'Active',
+        source: '',
+        valuation_expectation: '',
+        lead_partner: '',
+        notes: '',
+      });
+    }
+  }, [editingDeal, form]);
 
   // Fetch companies for the dropdown
   const { data: companies = [], isLoading: isLoadingCompanies, refetch: refetchCompanies } = useQuery({
@@ -99,37 +125,54 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
 
   const onSubmit = async (values: FormValues) => {
     try {
-      // Cast to the transformed type that matches our database schema
-      const transformedValues = values as unknown as TransformedFormValues;
+      const dealData = {
+        company_id: values.company_id,
+        stage: values.stage,
+        status: values.status,
+        source: values.source || null,
+        valuation_expectation: values.valuation_expectation ? Number(values.valuation_expectation) : null,
+        lead_partner: values.lead_partner || null,
+        notes: values.notes || null,
+      };
 
-      const { error } = await supabase
-        .from('deals')
-        .insert({
-          company_id: values.company_id,
-          stage: values.stage,
-          status: values.status,
-          source: values.source || null,
-          // Now we can safely use the transformed value which is number | null
-          valuation_expectation: transformedValues.valuation_expectation,
-          lead_partner: values.lead_partner || null,
-          notes: values.notes || null,
+      if (editingDeal) {
+        // Update existing deal
+        const { error } = await supabase
+          .from('deals')
+          .update({
+            ...dealData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editingDeal.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Deal updated",
+          description: "The deal has been updated successfully.",
         });
+      } else {
+        // Create new deal
+        const { error } = await supabase
+          .from('deals')
+          .insert(dealData);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Deal created",
-        description: "The deal has been created successfully.",
-      });
+        toast({
+          title: "Deal created",
+          description: "The deal has been created successfully.",
+        });
+      }
 
       form.reset();
       onOpenChange(false);
       onDealCreated();
     } catch (error) {
-      console.error('Error creating deal:', error);
+      console.error('Error saving deal:', error);
       toast({
         title: "Error",
-        description: "Failed to create deal. Please try again.",
+        description: `Failed to ${editingDeal ? 'update' : 'create'} deal. Please try again.`,
         variant: "destructive",
       });
     }
@@ -153,9 +196,9 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Create New Deal</DialogTitle>
+            <DialogTitle>{editingDeal ? 'Edit Deal' : 'Create New Deal'}</DialogTitle>
             <DialogDescription>
-              Add a new deal to the pipeline. Fill out the details below.
+              {editingDeal ? 'Update the deal information below.' : 'Add a new deal to the pipeline. Fill out the details below.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -190,15 +233,17 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setCompanyFormOpen(true)}
-                        title="Create new company"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      {!editingDeal && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setCompanyFormOpen(true)}
+                          title="Create new company"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     <FormMessage />
                   </FormItem>
@@ -212,7 +257,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Stage</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a stage" />
@@ -237,7 +282,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a status" />
@@ -299,6 +344,7 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="">No lead partner</SelectItem>
                         {isLoadingUsers ? (
                           <SelectItem value="loading" disabled>Loading users...</SelectItem>
                         ) : (
@@ -333,18 +379,22 @@ export default function DealForm({ open, onOpenChange, onDealCreated }: DealForm
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Create Deal</Button>
+                <Button type="submit">
+                  {editingDeal ? 'Update Deal' : 'Create Deal'}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      <CompanyForm 
-        open={companyFormOpen} 
-        onOpenChange={setCompanyFormOpen}
-        onCompanyCreated={handleCompanyCreated}
-      />
+      {!editingDeal && (
+        <CompanyForm 
+          open={companyFormOpen} 
+          onOpenChange={setCompanyFormOpen}
+          onCompanyCreated={handleCompanyCreated}
+        />
+      )}
     </>
   );
 }
