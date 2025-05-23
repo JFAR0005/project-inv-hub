@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -16,12 +17,12 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMenu }) => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
       toast({
         title: "Signed out",
         description: "You have been successfully signed out.",
@@ -66,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMe
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name} />
+                <AvatarImage src="" alt={user?.name} />
                 <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
             </Button>
@@ -74,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMe
           <DropdownMenuContent align="end">
             <div className="grid gap-2 px-2 py-1">
               <div className="grid gap-0.5">
-                <p className="text-sm font-medium text-foreground">{user?.user_metadata?.full_name}</p>
+                <p className="text-sm font-medium text-foreground">{user?.name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
             </div>

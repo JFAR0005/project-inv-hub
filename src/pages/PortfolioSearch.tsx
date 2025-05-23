@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -113,10 +112,6 @@ const PortfolioSearch: React.FC = () => {
         case 'arr':
           valueA = a.latest_update?.arr || a.arr || 0;
           valueB = b.latest_update?.arr || b.arr || 0;
-          break;
-        case 'growth':
-          valueA = a.latest_update?.growth || 0;
-          valueB = b.latest_update?.growth || 0;
           break;
         case 'runway':
           valueA = a.latest_update?.runway || 0;
