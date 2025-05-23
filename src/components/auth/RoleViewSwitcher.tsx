@@ -2,10 +2,8 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/context/AuthContext';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Label } from '@/components/ui/label';
 import {
   Popover,
   PopoverContent,
