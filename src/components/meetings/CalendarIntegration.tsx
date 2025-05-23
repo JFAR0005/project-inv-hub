@@ -47,7 +47,6 @@ const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({ onSuccess }) 
     if (!calendlyUrl) {
       toast("Missing Calendly URL", {
         description: "Please enter your Calendly URL to continue.",
-        variant: "destructive"
       });
       return;
     }
@@ -70,10 +69,8 @@ const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({ onSuccess }) 
 
   const handleZapierTest = async () => {
     if (!zapierWebhookUrl) {
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Please enter your Zapier webhook URL",
-        variant: "destructive",
       });
       return;
     }
@@ -92,16 +89,13 @@ const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({ onSuccess }) 
         }),
       });
 
-      toast({
-        title: "Request Sent",
+      toast("Request Sent", {
         description: "The test event was sent to Zapier. Please check your Zap's history to confirm it was triggered.",
       });
     } catch (error) {
       console.error("Error triggering webhook:", error);
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to trigger the Zapier webhook. Please check the URL and try again.",
-        variant: "destructive",
       });
     }
   };
