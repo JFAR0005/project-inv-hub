@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
+import { supabase, cleanupAuthState } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 // Define user roles as per specification
