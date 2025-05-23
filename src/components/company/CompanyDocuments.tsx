@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Download, Upload, Trash2, ExternalLink } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FileText, Download, Upload, Trash2, ExternalLink, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,6 +23,7 @@ interface CompanyFile {
   uploaded_at: string;
   uploader_id: string | null;
   uploader_name?: string;
+  file_size?: number;
 }
 
 const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing }) => {
@@ -38,6 +40,8 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
   const fetchFiles = async () => {
     try {
       setIsLoading(true);
+      
+      // Fetch files from company_files table
       const { data, error } = await supabase
         .from('company_files')
         .select('*')
@@ -46,18 +50,18 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
 
       if (error) throw error;
 
-      // Get uploader names
+      // Get uploader names for each file
       const filesWithUploaderNames = await Promise.all((data || []).map(async (file) => {
         if (file.uploader_id) {
           const { data: userData } = await supabase
             .from('users')
-            .select('name')
+            .select('name, email')
             .eq('id', file.uploader_id)
             .single();
           
           return {
             ...file,
-            uploader_name: userData?.name || 'Unknown User'
+            uploader_name: userData?.name || userData?.email || 'Unknown User'
           };
         }
         return {
@@ -83,6 +87,18 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
     if (!e.target.files || e.target.files.length === 0) return;
     
     const file = e.target.files[0];
+    
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please select a file smaller than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
     const filePath = `${company.id}/${fileName}`;
@@ -90,7 +106,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
     setUploading(true);
     
     try {
-      // Upload file to storage
+      // Upload file to storage bucket
       const { error: uploadError } = await supabase.storage
         .from('company_files')
         .upload(filePath, file);
@@ -136,16 +152,22 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
   };
 
   const handleFileDelete = async (fileId: string, filePath: string) => {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
     try {
-      // Extract the path from the URL
-      const path = filePath.split('/').slice(-2).join('/');
+      // Extract the storage path from the URL
+      const urlParts = filePath.split('/');
+      const path = urlParts.slice(-2).join('/'); // company_id/filename
       
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('company_files')
         .remove([path]);
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        console.warn('Storage deletion error:', storageError);
+        // Continue with database deletion even if storage deletion fails
+      }
 
       // Delete from database
       const { error: dbError } = await supabase
@@ -172,13 +194,24 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
     }
   };
 
+  const handleViewFile = (fileUrl: string) => {
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return 'Unknown size';
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-12 w-full" />
-        <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-24 w-full" />
+            <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
       </div>
@@ -190,8 +223,11 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Company Documents</CardTitle>
-            <CardDescription>Files and documents related to {company.name}</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Company Documents
+            </CardTitle>
+            <CardDescription>Files and documents for {company.name}</CardDescription>
           </div>
           {isEditing && (
             <div className="flex items-center">
@@ -201,6 +237,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
                 className="hidden"
                 onChange={handleFileUpload}
                 disabled={uploading}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif"
               />
               <label htmlFor="file-upload">
                 <Button variant="outline" className="cursor-pointer" disabled={uploading} asChild>
@@ -215,54 +252,84 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing 
         </CardHeader>
         <CardContent>
           {files.length > 0 ? (
-            <div className="space-y-4">
-              {files.map(file => (
-                <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 flex-1">
-                    <FileText className="h-8 w-8 text-primary/70" />
-                    <div className="overflow-hidden">
-                      <h4 className="font-medium text-sm truncate">{file.file_name}</h4>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>Uploaded: {format(new Date(file.uploaded_at), 'MMM d, yyyy')}</span>
-                        <span>•</span>
-                        <span>By: {file.uploader_name}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={file.file_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                        <span className="sr-only">View</span>
-                      </a>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={file.file_url} download={file.file_name}>
-                        <Download className="h-4 w-4" />
-                        <span className="sr-only">Download</span>
-                      </a>
-                    </Button>
-                    {isEditing && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleFileDelete(file.id, file.file_url)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>File Name</TableHead>
+                    <TableHead>Uploaded By</TableHead>
+                    <TableHead>Upload Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {files.map(file => (
+                    <TableRow key={file.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="truncate max-w-[200px]" title={file.file_name}>
+                            {file.file_name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {file.uploader_name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {format(new Date(file.uploaded_at), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewFile(file.file_url)}
+                            title="View file"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            asChild
+                            title="Download file"
+                          >
+                            <a href={file.file_url} download={file.file_name}>
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => window.open(file.file_url, '_blank')}
+                            title="Open in new tab"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                          {isEditing && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleFileDelete(file.id, file.file_url)}
+                              title="Delete file"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
-            <div className="text-center py-10 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No documents yet</h3>
-              <p>
+              <h3 className="text-lg font-medium mb-2">No documents uploaded</h3>
+              <p className="text-sm">
                 {isEditing 
                   ? "Upload your first document using the button above." 
                   : "This company hasn't uploaded any documents yet."}
