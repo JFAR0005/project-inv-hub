@@ -1,29 +1,25 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatDistanceToNow, subDays, parseISO } from 'date-fns';
+import { Eye, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Company {
   id: string;
   name: string;
-  sector: string;
-  stage: string;
-  location: string;
-  arr: number;
-  growth: number;
-  headcount: number;
-  riskLevel: 'Low' | 'Medium' | 'High';
-  website?: string;
-  logo_url?: string;
-  description?: string;
-  burn_rate?: number;
-  runway?: number;
-  churn_rate?: number;
-  mrr?: number;
+  sector?: string;
+  stage?: string;
+  arr?: number;
+  latest_update?: {
+    submitted_at: string;
+    arr?: number;
+    mrr?: number;
+    raise_status?: string;
+  };
 }
 
 interface PortfolioTableProps {
@@ -31,130 +27,265 @@ interface PortfolioTableProps {
 }
 
 const PortfolioTable: React.FC<PortfolioTableProps> = ({ companies }) => {
-  const { user } = useAuth();
-  const showSensitiveData = user?.role === 'admin' || user?.role === 'partner';
-
-  const formatCurrency = (value: number | null) => {
-    if (value === null || value === undefined) return 'N/A';
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(1)}K`;
+  const navigate = useNavigate();
+  const [sortedCompanies, setSortedCompanies] = useState<Company[]>([]);
+  const [sortConfig, setSortConfig] = useState({
+    key: 'name',
+    direction: 'asc' as 'asc' | 'desc'
+  });
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [showNeedsUpdate, setShowNeedsUpdate] = useState(false);
+  
+  useEffect(() => {
+    const sorted = [...companies].sort((a, b) => {
+      let valA, valB;
+      
+      if (sortConfig.key === 'update_age') {
+        valA = a.latest_update?.submitted_at ? new Date(a.latest_update.submitted_at).getTime() : 0;
+        valB = b.latest_update?.submitted_at ? new Date(b.latest_update.submitted_at).getTime() : 0;
+      } else if (sortConfig.key === 'arr') {
+        valA = a.latest_update?.arr || a.arr || 0;
+        valB = b.latest_update?.arr || b.arr || 0;
+      } else if (sortConfig.key === 'raise_status') {
+        valA = a.latest_update?.raise_status || '';
+        valB = b.latest_update?.raise_status || '';
+      } else {
+        valA = a[sortConfig.key as keyof Company] || '';
+        valB = b[sortConfig.key as keyof Company] || '';
+      }
+      
+      if (valA < valB) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (valA > valB) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+    
+    // Apply "needs update" filter if enabled
+    if (showNeedsUpdate) {
+      const filtered = sorted.filter(company => {
+        if (!company.latest_update?.submitted_at) return true;
+        const updateDate = new Date(company.latest_update.submitted_at);
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        return updateDate < thirtyDaysAgo;
+      });
+      setSortedCompanies(filtered);
+    } else {
+      setSortedCompanies(sorted);
     }
-    return `$${value.toFixed(0)}`;
+  }, [companies, sortConfig, showNeedsUpdate]);
+  
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
   };
-
-  const getRiskBadgeVariant = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'High': return 'destructive';
-      case 'Medium': return 'secondary';
-      case 'Low': return 'outline';
-      default: return 'outline';
+  
+  const formatCurrency = (value: number | undefined) => {
+    if (value === undefined) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+  
+  const getUpdateFreshness = (date: string | undefined) => {
+    if (!date) return <Badge variant="destructive">No Updates</Badge>;
+    
+    const updateDate = parseISO(date);
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    
+    if (updateDate < thirtyDaysAgo) {
+      return (
+        <div className="flex items-center">
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {formatDistanceToNow(updateDate, { addSuffix: true })}
+          </Badge>
+        </div>
+      );
+    }
+    
+    return (
+      <Badge variant="secondary">
+        {formatDistanceToNow(updateDate, { addSuffix: true })}
+      </Badge>
+    );
+  };
+  
+  const getRaiseStatusBadge = (status: string | undefined) => {
+    if (!status) return <span className="text-muted-foreground">Not specified</span>;
+    
+    if (status.toLowerCase().includes('active') || status.toLowerCase().includes('raising')) {
+      return <Badge variant="success">{status}</Badge>;
+    } else if (status.toLowerCase().includes('planned')) {
+      return <Badge variant="warning">{status}</Badge>;
+    } else {
+      return <Badge variant="outline">{status}</Badge>;
     }
   };
-
+  
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedCompanies(sortedCompanies.map(c => c.id));
+    } else {
+      setSelectedCompanies([]);
+    }
+  };
+  
+  const handleSelectCompany = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCompanies(prev => [...prev, id]);
+    } else {
+      setSelectedCompanies(prev => prev.filter(companyId => companyId !== id));
+    }
+  };
+  
+  const getRowClassName = (company: Company) => {
+    if (company.latest_update?.raise_status?.toLowerCase().includes('active') || 
+        company.latest_update?.raise_status?.toLowerCase().includes('raising')) {
+      return "bg-green-50 dark:bg-green-900/10";
+    }
+    
+    if (!company.latest_update?.submitted_at) {
+      return "bg-red-50 dark:bg-red-900/10";
+    }
+    
+    const updateDate = company.latest_update?.submitted_at ? parseISO(company.latest_update.submitted_at) : null;
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    
+    if (updateDate && updateDate < thirtyDaysAgo) {
+      return "bg-red-50 dark:bg-red-900/10";
+    }
+    
+    return "";
+  };
+  
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Company</TableHead>
-            <TableHead>Sector</TableHead>
-            <TableHead>Stage</TableHead>
-            <TableHead>Location</TableHead>
-            {showSensitiveData && (
-              <>
-                <TableHead>ARR</TableHead>
-                <TableHead>MRR</TableHead>
-                <TableHead>Burn Rate</TableHead>
-                <TableHead>Runway</TableHead>
-              </>
-            )}
-            <TableHead>Headcount</TableHead>
-            <TableHead>Growth</TableHead>
-            <TableHead>Risk Level</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {companies.length === 0 ? (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Checkbox 
+            id="needsUpdate"
+            checked={showNeedsUpdate}
+            onCheckedChange={() => setShowNeedsUpdate(!showNeedsUpdate)}
+          />
+          <label htmlFor="needsUpdate" className="text-sm font-medium">
+            Show only companies needing updates
+          </label>
+        </div>
+        
+        <div className="text-sm text-muted-foreground">
+          {selectedCompanies.length} of {sortedCompanies.length} selected
+        </div>
+      </div>
+      
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={showSensitiveData ? 12 : 8} className="text-center py-8 text-muted-foreground">
-                No companies match your current filters.
-              </TableCell>
+              <TableHead className="w-[30px]">
+                <Checkbox 
+                  checked={selectedCompanies.length === sortedCompanies.length && sortedCompanies.length > 0}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('name')} className="px-0 font-medium flex items-center">
+                  Company
+                  {sortConfig.key === 'name' && (
+                    <ArrowUpDown className={`ml-1 h-4 w-4 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('sector')} className="px-0 font-medium flex items-center">
+                  Sector
+                  {sortConfig.key === 'sector' && (
+                    <ArrowUpDown className={`ml-1 h-4 w-4 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('stage')} className="px-0 font-medium flex items-center">
+                  Stage
+                  {sortConfig.key === 'stage' && (
+                    <ArrowUpDown className={`ml-1 h-4 w-4 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('arr')} className="px-0 font-medium flex items-center">
+                  ARR
+                  {sortConfig.key === 'arr' && (
+                    <ArrowUpDown className={`ml-1 h-4 w-4 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('raise_status')} className="px-0 font-medium flex items-center">
+                  Raise Status
+                  {sortConfig.key === 'raise_status' && (
+                    <ArrowUpDown className={`ml-1 h-4 w-4 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('update_age')} className="px-0 font-medium flex items-center">
+                  Last Update
+                  {sortConfig.key === 'update_age' && (
+                    <ArrowUpDown className={`ml-1 h-4 w-4 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ) : (
-            companies.map((company) => (
-              <TableRow key={company.id}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center space-x-2">
-                    {company.logo_url && (
-                      <img
-                        src={company.logo_url}
-                        alt={`${company.name} logo`}
-                        className="h-6 w-6 rounded"
-                      />
-                    )}
-                    <span>{company.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {company.sector && (
-                    <Badge variant="outline">{company.sector}</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {company.stage && (
-                    <Badge variant="secondary">{company.stage}</Badge>
-                  )}
-                </TableCell>
-                <TableCell>{company.location || 'N/A'}</TableCell>
-                {showSensitiveData && (
-                  <>
-                    <TableCell>{formatCurrency(company.arr)}</TableCell>
-                    <TableCell>{formatCurrency(company.mrr)}</TableCell>
-                    <TableCell>{formatCurrency(company.burn_rate)}</TableCell>
-                    <TableCell>
-                      {company.runway ? `${company.runway} months` : 'N/A'}
-                    </TableCell>
-                  </>
-                )}
-                <TableCell>{company.headcount || 'N/A'}</TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-1">
-                    {company.growth !== null && company.growth !== undefined ? (
-                      <>
-                        {company.growth >= 0 ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className={company.growth >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {company.growth}%
-                        </span>
-                      </>
-                    ) : (
-                      <span>N/A</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getRiskBadgeVariant(company.riskLevel)}>
-                    {company.riskLevel}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/companies/${company.id}`}>
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
-                  </Button>
+          </TableHeader>
+          <TableBody>
+            {sortedCompanies.length > 0 ? (
+              sortedCompanies.map((company) => (
+                <TableRow key={company.id} className={getRowClassName(company)}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedCompanies.includes(company.id)}
+                      onCheckedChange={(checked) => handleSelectCompany(company.id, checked as boolean)}
+                      aria-label={`Select ${company.name}`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{company.name}</TableCell>
+                  <TableCell>{company.sector || 'N/A'}</TableCell>
+                  <TableCell>{company.stage || 'N/A'}</TableCell>
+                  <TableCell>{formatCurrency(company.latest_update?.arr || company.arr)}</TableCell>
+                  <TableCell>{getRaiseStatusBadge(company.latest_update?.raise_status)}</TableCell>
+                  <TableCell>{getUpdateFreshness(company.latest_update?.submitted_at)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigate(`/company/${company.id}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  No companies found.
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };

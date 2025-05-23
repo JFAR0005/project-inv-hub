@@ -1,176 +1,298 @@
 
-import React, { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { z } from 'zod';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { CalendarIcon, CheckIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase'; 
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
 
-interface MeetingScheduleFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onMeetingCreated?: () => void;
-}
+const MAX_PARTICIPANTS = 20;
 
-// Create form schema
-const meetingSchema = z.object({
-  title: z.string().min(3, { message: "Title is required" }),
+const formSchema = z.object({
+  title: z.string().min(1, {
+    message: "Title is required.",
+  }),
   description: z.string().optional(),
-  date: z.string().min(1, { message: "Date is required" }),
-  time: z.string().min(1, { message: "Time is required" }),
-  duration: z.string().min(1, { message: "Duration is required" }),
-  company_id: z.string().optional(),
+  date: z.date({
+    required_error: "Please select a date.",
+  }),
+  startTime: z.string().min(1, {
+    message: "Start time is required.",
+  }),
+  endTime: z.string().min(1, {
+    message: "End time is required.",
+  }),
   location: z.string().optional(),
+  companyId: z.string().optional(),
+  participants: z.array(z.string()).optional(),
 });
 
-type MeetingFormValues = z.infer<typeof meetingSchema>;
+type FormData = z.infer<typeof formSchema>;
 
-const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({ 
-  open, 
-  onOpenChange,
-  onMeetingCreated
-}) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+interface MeetingScheduleFormProps {
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+  initialData?: any;
+  isEditMode?: boolean;
+  participants?: any[];
+}
+
+export default function MeetingScheduleForm({
+  onSubmit,
+  onCancel,
+  initialData,
+  isEditMode = false,
+  participants = [],
+}: MeetingScheduleFormProps) {
+  const [availableParticipants, setAvailableParticipants] = useState<any[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Fetch companies on open
-  React.useEffect(() => {
-    if (open) {
-      fetchCompanies();
-    }
-  }, [open]);
-  
-  const fetchCompanies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      setCompanies(data || []);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load companies"
-      });
-    }
-  };
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { notifyMeetingScheduled } = useNotificationTrigger();
 
-  // Initialize form
-  const form = useForm<MeetingFormValues>({
-    resolver: zodResolver(meetingSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      duration: "60",
-      company_id: "",
-      location: "",
-    },
+  // Initialize the form
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: initialData ? {
+      ...initialData,
+      date: new Date(initialData.date || initialData.start_time),
+      startTime: initialData.start_time ? format(new Date(initialData.start_time), 'HH:mm') : '',
+      endTime: initialData.end_time ? format(new Date(initialData.end_time), 'HH:mm') : '',
+    } : {
+      title: '',
+      description: '',
+      date: new Date(),
+      startTime: '09:00',
+      endTime: '10:00',
+      location: '',
+      companyId: '',
+      participants: [],
+    }
   });
 
-  const onSubmit = async (data: MeetingFormValues) => {
-    if (!user) return;
+  useEffect(() => {
+    // Fetch users who can be added as participants
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email, role');
+        
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+      
+      setAvailableParticipants(data || []);
+    };
+    
+    // Fetch companies for dropdown
+    const fetchCompanies = async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name');
+        
+      if (error) {
+        console.error('Error fetching companies:', error);
+        return;
+      }
+      
+      setCompanies(data || []);
+    };
+    
+    fetchUsers();
+    fetchCompanies();
+    
+    // Set selected participants if in edit mode
+    if (isEditMode && participants.length > 0) {
+      setSelectedParticipants(participants);
+    }
+  }, [isEditMode, participants]);
+  
+  const handleSubmitForm = async (formData: FormData) => {
+    if (selectedParticipants.length === 0) {
+      toast({
+        title: 'No participants selected',
+        description: 'Please select at least one participant for the meeting.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setIsLoading(true);
     
     try {
-      // Create start and end datetime strings
-      const startDateTime = `${data.date}T${data.time}:00`;
-      const startTime = new Date(startDateTime);
-      const endTime = new Date(startTime.getTime() + parseInt(data.duration) * 60000);
+      // Format date and time properly for database
+      const startDateTime = new Date(formData.date);
+      const [startHours, startMinutes] = formData.startTime.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes);
       
-      // Create meeting in database using correct schema
-      const { data: meeting, error } = await supabase
-        .from('meetings')
-        .insert({
-          title: data.title,
-          description: data.description || null,
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
-          company_id: data.company_id || null,
-          location: data.location || null,
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      const endDateTime = new Date(formData.date);
+      const [endHours, endMinutes] = formData.endTime.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes);
       
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: `Meeting "${data.title}" has been scheduled for ${data.date} at ${data.time}`
-      });
-      
-      // Reset form and close dialog
-      form.reset();
-      onOpenChange(false);
-      
-      // Refresh meetings list
-      if (onMeetingCreated) {
-        onMeetingCreated();
+      // Check if end time is after start time
+      if (endDateTime <= startDateTime) {
+        toast({
+          title: 'Invalid time range',
+          description: 'End time must be after start time.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
       }
       
+      // Prepare data for submission
+      const meetingData = {
+        title: formData.title,
+        description: formData.description,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        location: formData.location,
+        company_id: formData.companyId || null,
+        created_by: user?.id,
+        participants: selectedParticipants.map(p => p.id),
+      };
+      
+      // Submit the data
+      const result = await onSubmit(meetingData);
+      
+      // If successful, send notification to participants
+      if (result && result.id) {
+        const participantEmails = selectedParticipants.map(p => p.email);
+        
+        await notifyMeetingScheduled(
+          formData.companyId || 'general',
+          formData.title,
+          format(startDateTime, 'PPP'),
+          format(startDateTime, 'h:mm a'),
+          participantEmails
+        );
+      }
     } catch (error) {
       console.error('Error scheduling meeting:', error);
       toast({
-        title: "Error",
-        description: "Failed to schedule meeting. Please try again.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to schedule the meeting. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
+  
+  const toggleParticipant = (participant: any) => {
+    const isSelected = selectedParticipants.some(p => p.id === participant.id);
+    
+    if (isSelected) {
+      setSelectedParticipants(selectedParticipants.filter(p => p.id !== participant.id));
+    } else {
+      if (selectedParticipants.length >= MAX_PARTICIPANTS) {
+        toast({
+          title: 'Too many participants',
+          description: `You cannot add more than ${MAX_PARTICIPANTS} participants.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSelectedParticipants([...selectedParticipants, participant]);
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Schedule Meeting</DialogTitle>
-          <DialogDescription>
-            Fill in the details to schedule a new meeting
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmitForm)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Meeting Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="Meeting Title" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="title"
+              name="date"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Meeting Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Strategy Meeting" {...field} />
-                  </FormControl>
+                <FormItem className="flex flex-col">
+                  <FormLabel>Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               <FormField
                 control={form.control}
-                name="date"
+                name="startTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date</FormLabel>
+                    <FormLabel>Start Time</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -179,10 +301,10 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
               
               <FormField
                 control={form.control}
-                name="time"
+                name="endTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Time</FormLabel>
+                    <FormLabel>End Time</FormLabel>
                     <FormControl>
                       <Input type="time" {...field} />
                     </FormControl>
@@ -191,66 +313,9 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
                 )}
               />
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration (mins)</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select duration" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="15">15 minutes</SelectItem>
-                        <SelectItem value="30">30 minutes</SelectItem>
-                        <SelectItem value="60">60 minutes</SelectItem>
-                        <SelectItem value="90">90 minutes</SelectItem>
-                        <SelectItem value="120">2 hours</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="company_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Related Company</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select company" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">None</SelectItem>
-                        {companies.map(company => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="location"
@@ -258,7 +323,7 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
-                    <Input placeholder="Office / Zoom URL" {...field} />
+                    <Input placeholder="Zoom / Office / etc." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -267,28 +332,111 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
             
             <FormField
               control={form.control}
-              name="description"
+              name="companyId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Related Company</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Meeting agenda and details..." {...field} />
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      {...field}
+                    >
+                      <option value="">None</option>
+                      {companies.map((company) => (
+                        <option key={company.id} value={company.id}>
+                          {company.name}
+                        </option>
+                      ))}
+                    </select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Scheduling...' : 'Schedule Meeting'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          </div>
+          
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Meeting details, agenda, etc."
+                    className="resize-none"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <div>
+            <FormLabel>Participants</FormLabel>
+            <div className="border rounded-md p-4 mt-2">
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Selected: {selectedParticipants.length}/{MAX_PARTICIPANTS}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedParticipants.map(participant => (
+                    <div 
+                      key={participant.id}
+                      className="flex items-center gap-1 bg-primary/10 rounded px-2 py-1 text-sm"
+                    >
+                      <span>{participant.name}</span>
+                      <Button 
+                        type="button"
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0"
+                        onClick={() => toggleParticipant(participant)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="max-h-48 overflow-y-auto">
+                <div className="space-y-2">
+                  {availableParticipants.map(participant => (
+                    <div 
+                      key={participant.id}
+                      className="flex items-center space-x-2"
+                    >
+                      <Checkbox 
+                        id={`participant-${participant.id}`}
+                        checked={selectedParticipants.some(p => p.id === participant.id)}
+                        onCheckedChange={() => toggleParticipant(participant)}
+                      />
+                      <label 
+                        htmlFor={`participant-${participant.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex justify-between w-full"
+                      >
+                        <span>{participant.name}</span>
+                        <span className="text-muted-foreground">{participant.email}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between pt-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Schedule Meeting'}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
-};
-
-export default MeetingScheduleForm;
+}
