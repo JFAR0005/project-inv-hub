@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, FileText, Edit2, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, FileText, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Note {
@@ -16,12 +16,12 @@ interface Note {
   title: string;
   content: string;
   company_id?: string;
-  visibility: string;
+  visibility: 'private' | 'team' | 'shared';
   author_id: string;
   created_at: string;
   updated_at: string;
   companies?: { name: string };
-  users?: { name: string };
+  author_name?: string;
 }
 
 interface Company {
@@ -53,19 +53,36 @@ const NotesView: React.FC<NotesViewProps> = ({ onCreateNote, onEditNote }) => {
     if (!user) return;
 
     try {
-      let query = supabase
+      // First, fetch notes with company information
+      const { data: notesData, error: notesError } = await supabase
         .from('notes')
         .select(`
           *,
-          companies(name),
-          users(name)
+          companies(name)
         `)
         .order('updated_at', { ascending: false });
 
-      const { data, error } = await query;
+      if (notesError) throw notesError;
 
-      if (error) throw error;
-      setNotes(data || []);
+      // Then, fetch user information separately
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name');
+
+      if (usersError) throw usersError;
+
+      // Create a map for quick user lookup
+      const userMap = new Map();
+      usersData?.forEach(u => userMap.set(u.id, u.name));
+
+      // Combine the data
+      const notesWithAuthors: Note[] = (notesData || []).map(note => ({
+        ...note,
+        author_name: userMap.get(note.author_id) || 'Unknown User',
+        visibility: note.visibility as 'private' | 'team' | 'shared'
+      }));
+
+      setNotes(notesWithAuthors);
     } catch (error) {
       console.error('Error fetching notes:', error);
       toast({
@@ -249,7 +266,7 @@ const NotesView: React.FC<NotesViewProps> = ({ onCreateNote, onEditNote }) => {
               
               <div className="flex justify-between items-center">
                 <div className="text-xs text-muted-foreground">
-                  <p>By {note.users?.name}</p>
+                  <p>By {note.author_name}</p>
                   <p>{format(new Date(note.updated_at), 'MMM d, yyyy')}</p>
                 </div>
                 
