@@ -101,6 +101,7 @@ const AdvancedSearchFilters = ({ onApplyFilters }: AdvancedSearchFiltersProps) =
   
   const handleReset = () => {
     const resetFilters: SearchFilters = {
+      types: ['company', 'note', 'meeting', 'deal'], // Include the required types property
       query: '',
       sectors: [],
       stages: [],

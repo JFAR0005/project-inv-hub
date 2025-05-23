@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -227,6 +228,7 @@ const PortfolioSearch: React.FC = () => {
               onClick={() => {
                 setSearchQuery('');
                 setFilters({
+                  types: ['company', 'note', 'meeting', 'deal'], // Add the required types property
                   query: '',
                   sectors: [],
                   stages: [],
