@@ -82,7 +82,7 @@ export const useGlobalSearch = () => {
         const { data: meetings } = await supabase
           .from('meetings')
           .select(`
-            id, title, description, meeting_date,
+            id, title, description, start_time, end_time,
             companies!inner(id, name)
           `)
           .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
@@ -96,7 +96,8 @@ export const useGlobalSearch = () => {
             subtitle: meeting.companies?.name || 'Unknown Company',
             description: meeting.description || '',
             metadata: { 
-              meeting_date: meeting.meeting_date,
+              start_time: meeting.start_time,
+              end_time: meeting.end_time,
               company: meeting.companies?.name 
             },
             url: `/meetings?meetingId=${meeting.id}`,

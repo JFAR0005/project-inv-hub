@@ -22,6 +22,17 @@ export interface SearchFilters {
   tags?: string[];
   authors?: string[];
   companies?: string[];
+  // Additional filter properties for portfolio search
+  query?: string;
+  metrics?: {
+    arr?: {
+      min?: number;
+      max?: number;
+    };
+    [key: string]: any;
+  };
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface SearchOptions {
