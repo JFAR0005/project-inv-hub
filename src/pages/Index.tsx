@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Layout from '@/components/layout/Layout';
 import Dashboard from '@/components/dashboard/Dashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { Search, Bookmark, Filter, BarChart3, Bell, Webhook } from 'lucide-react
 
 const Index = () => {
   return (
-    <Layout>
+    <>
       <Dashboard />
       
       {/* New Features Section */}
@@ -83,7 +82,7 @@ const Index = () => {
           </Card>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 
