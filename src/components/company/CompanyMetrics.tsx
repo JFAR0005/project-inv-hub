@@ -1,17 +1,32 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { TrendingUp, Clock, Users, DollarSign, Target, AlertTriangle } from 'lucide-react';
-import { Database } from '@/integrations/supabase/types';
-
-type Company = Database['public']['Tables']['companies']['Row'];
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Users, DollarSign, AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 interface CompanyMetricsProps {
-  company: Company;
+  company: any;
   isEditing: boolean;
-  formData: Partial<Company>;
+  formData: any;
   onNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+interface Metric {
+  id: string;
+  company_id: string;
+  metric_name: string;
+  value: number;
+  date: string;
+}
+
+interface ChartData {
+  date: string;
+  value: number;
+  formattedDate: string;
 }
 
 const CompanyMetrics: React.FC<CompanyMetricsProps> = ({
@@ -20,170 +35,299 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({
   formData,
   onNumberChange
 }) => {
-  const formatCurrency = (value?: number) => {
-    if (value === undefined || value === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, [company.id]);
+
+  const fetchMetrics = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('metrics')
+        .select('*')
+        .eq('company_id', company.id)
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      setMetrics(data || []);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load metrics data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const getRunwayStatus = (runway?: number) => {
-    if (!runway) return { color: 'text-gray-500', icon: Clock };
-    if (runway < 6) return { color: 'text-red-500', icon: AlertTriangle };
-    if (runway < 12) return { color: 'text-yellow-500', icon: Clock };
-    return { color: 'text-green-500', icon: Clock };
+  const formatChartData = (metricName: string): ChartData[] => {
+    return metrics
+      .filter(m => m.metric_name.toLowerCase() === metricName.toLowerCase())
+      .map(m => ({
+        date: m.date,
+        value: m.value,
+        formattedDate: new Date(m.date).toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        })
+      }));
   };
 
-  const runwayStatus = getRunwayStatus(company.runway);
+  const getLatestMetric = (metricName: string): number => {
+    const filteredMetrics = metrics
+      .filter(m => m.metric_name.toLowerCase() === metricName.toLowerCase())
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    return filteredMetrics.length > 0 ? filteredMetrics[0].value : 0;
+  };
 
-  if (isEditing) {
+  const calculateBurnMultiple = (): number => {
+    const latestARR = getLatestMetric('arr');
+    const latestBurnRate = getLatestMetric('burn_rate');
+    
+    if (latestARR > 0 && latestBurnRate > 0) {
+      return latestBurnRate / (latestARR / 12); // Monthly burn / Monthly ARR
+    }
+    return 0;
+  };
+
+  const arrData = formatChartData('arr');
+  const headcountData = formatChartData('headcount');
+  const burnMultiple = calculateBurnMultiple();
+
+  if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="arr" className="text-sm font-medium">ARR</label>
-          <Input 
-            id="arr" 
-            name="arr" 
-            type="number" 
-            value={formData.arr || ''} 
-            onChange={onNumberChange} 
-            placeholder="Annual Recurring Revenue"
-          />
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+              </CardHeader>
+            </Card>
+          ))}
         </div>
-        <div className="space-y-2">
-          <label htmlFor="mrr" className="text-sm font-medium">MRR</label>
-          <Input 
-            id="mrr" 
-            name="mrr" 
-            type="number" 
-            value={formData.mrr || ''} 
-            onChange={onNumberChange} 
-            placeholder="Monthly Recurring Revenue"
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="burn_rate" className="text-sm font-medium">Burn Rate (monthly)</label>
-          <Input 
-            id="burn_rate" 
-            name="burn_rate" 
-            type="number" 
-            value={formData.burn_rate || ''} 
-            onChange={onNumberChange} 
-            placeholder="Monthly burn rate"
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="runway" className="text-sm font-medium">Runway (months)</label>
-          <Input 
-            id="runway" 
-            name="runway" 
-            type="number" 
-            value={formData.runway || ''} 
-            onChange={onNumberChange} 
-            placeholder="Runway in months"
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="churn_rate" className="text-sm font-medium">Churn Rate (%)</label>
-          <Input 
-            id="churn_rate" 
-            name="churn_rate" 
-            type="number" 
-            step="0.1" 
-            value={formData.churn_rate || ''} 
-            onChange={onNumberChange} 
-            placeholder="Monthly churn rate"
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="headcount" className="text-sm font-medium">Headcount</label>
-          <Input 
-            id="headcount" 
-            name="headcount" 
-            type="number" 
-            value={formData.headcount || ''} 
-            onChange={onNumberChange} 
-            placeholder="Total employees"
-          />
-        </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              <h3 className="text-sm font-medium text-green-800">Revenue</h3>
+    <div className="space-y-6">
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Latest ARR</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${(getLatestMetric('arr') || company.arr || 0).toLocaleString()}
             </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl font-bold text-green-900">
-              {formatCurrency(company.arr)}
-            </div>
-            <p className="text-xs text-green-700 mt-1">
-              ARR • MRR: {formatCurrency(company.mrr)}
+            <p className="text-xs text-muted-foreground">
+              {arrData.length > 0 ? `Last updated: ${arrData[arrData.length - 1]?.formattedDate}` : 'No data available'}
             </p>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card className={`bg-gradient-to-br ${
-        company.runway && company.runway < 6 
-          ? 'from-red-50 to-red-100 border-red-200' 
-          : company.runway && company.runway < 12
-          ? 'from-yellow-50 to-yellow-100 border-yellow-200'
-          : 'from-blue-50 to-blue-100 border-blue-200'
-      }`}>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <runwayStatus.icon className={`h-5 w-5 ${runwayStatus.color}`} />
-              <h3 className={`text-sm font-medium ${runwayStatus.color.replace('text-', 'text-').replace('-500', '-800')}`}>
-                Runway
-              </h3>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Current Headcount</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {getLatestMetric('headcount') || company.headcount || 0}
             </div>
-          </div>
-          <div className="mt-2">
-            <div className={`text-2xl font-bold ${runwayStatus.color.replace('text-', 'text-').replace('-500', '-900')}`}>
-              {company.runway !== undefined && company.runway !== null 
-                ? `${company.runway} months` 
-                : 'N/A'}
-            </div>
-            <p className={`text-xs mt-1 ${runwayStatus.color.replace('text-', 'text-').replace('-500', '-700')}`}>
-              Burn: {formatCurrency(company.burn_rate)}/mo
+            <p className="text-xs text-muted-foreground">
+              {headcountData.length > 0 ? `Last updated: ${headcountData[headcountData.length - 1]?.formattedDate}` : 'No data available'}
             </p>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-purple-600" />
-              <h3 className="text-sm font-medium text-purple-800">Team</h3>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Burn Multiple</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {burnMultiple > 0 ? burnMultiple.toFixed(1) + 'x' : 'N/A'}
             </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl font-bold text-purple-900">
-              {company.headcount !== undefined && company.headcount !== null 
-                ? company.headcount 
-                : 'N/A'}
-            </div>
-            <p className="text-xs text-purple-700 mt-1">
-              Churn: {company.churn_rate !== undefined && company.churn_rate !== null 
-                ? `${company.churn_rate}%` 
-                : 'N/A'}
+            <p className="text-xs text-muted-foreground">
+              {burnMultiple > 3 && (
+                <span className="flex items-center gap-1 text-orange-600">
+                  <AlertTriangle className="h-3 w-3" />
+                  High burn multiple
+                </span>
+              )}
             </p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ARR Over Time */}
+        <Card>
+          <CardHeader>
+            <CardTitle>ARR Growth</CardTitle>
+            <CardDescription>Annual Recurring Revenue over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {arrData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={arrData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="formattedDate" 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'ARR']}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="#8884d8" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No ARR data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Headcount Over Time */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Team Growth</CardTitle>
+            <CardDescription>Headcount over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {headcountData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={headcountData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="formattedDate" 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [value, 'Headcount']}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#82ca9d" 
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No headcount data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Editable Metrics Form (when editing) */}
+      {isEditing && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Update Current Metrics</CardTitle>
+            <CardDescription>
+              These values will be saved to the company profile
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">Current ARR ($)</label>
+              <input
+                type="number"
+                name="arr"
+                value={formData.arr || ''}
+                onChange={onNumberChange}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Current MRR ($)</label>
+              <input
+                type="number"
+                name="mrr"
+                value={formData.mrr || ''}
+                onChange={onNumberChange}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Headcount</label>
+              <input
+                type="number"
+                name="headcount"
+                value={formData.headcount || ''}
+                onChange={onNumberChange}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Monthly Burn Rate ($)</label>
+              <input
+                type="number"
+                name="burn_rate"
+                value={formData.burn_rate || ''}
+                onChange={onNumberChange}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Runway (months)</label>
+              <input
+                type="number"
+                name="runway"
+                value={formData.runway || ''}
+                onChange={onNumberChange}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Churn Rate (%)</label>
+              <input
+                type="number"
+                name="churn_rate"
+                value={formData.churn_rate || ''}
+                onChange={onNumberChange}
+                step="0.1"
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
