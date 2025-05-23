@@ -44,6 +44,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: Permission) => boolean;
+  originalRole: UserRole | null;
+  setTemporaryRole: (role: UserRole) => void;
+  clearTemporaryRole: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -120,6 +123,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
 
   // Check for existing session on mount
@@ -182,6 +186,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     checkSession();
   }, []);
+
+  // Set temporary role for admin users
+  const setTemporaryRole = (role: UserRole) => {
+    if (!user || user.role !== 'admin') return;
+    
+    // Store the original role if this is the first role change
+    if (!originalRole) {
+      setOriginalRole(user.role);
+    }
+    
+    // Create a new user object with the temporary role
+    const tempUser: User = {
+      ...user,
+      role: role,
+    };
+    
+    setUser(tempUser);
+  };
+  
+  // Reset back to original role
+  const clearTemporaryRole = () => {
+    if (!originalRole || !user) return;
+    
+    const resetUser: User = {
+      ...user,
+      role: originalRole,
+    };
+    
+    setUser(resetUser);
+    setOriginalRole(null);
+  };
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
@@ -287,6 +322,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     hasPermission,
+    originalRole,
+    setTemporaryRole,
+    clearTemporaryRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
