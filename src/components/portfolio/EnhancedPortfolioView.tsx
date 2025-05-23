@@ -1,20 +1,22 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
 import SmartSuggestions from './SmartSuggestions';
 import PortfolioGrid from './PortfolioGrid';
 import PortfolioTable from './PortfolioTable';
+import PortfolioSkeleton from './PortfolioSkeleton';
+import PortfolioError from './PortfolioError';
+import PortfolioEmpty from './PortfolioEmpty';
 import { 
   LayoutGrid, 
   List, 
-  BarChart3,
   Download,
   Settings,
   Eye,
@@ -41,62 +43,62 @@ interface Company {
 }
 
 const EnhancedPortfolioView: React.FC = () => {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  // Fetch companies and their latest updates
-  const { data: companies = [], isLoading, refetch } = useQuery({
-    queryKey: ['enhanced-portfolio'],
+  // Fetch companies and their latest updates with optimized query
+  const { 
+    data: companies = [], 
+    isLoading, 
+    error,
+    refetch 
+  } = useQuery({
+    queryKey: ['enhanced-portfolio', user?.id],
     queryFn: async () => {
+      console.log('Fetching portfolio data...');
+      
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('*')
         .order('name');
 
-      if (companiesError) throw companiesError;
+      if (companiesError) {
+        console.error('Error fetching companies:', companiesError);
+        throw companiesError;
+      }
 
       const { data: updates, error: updatesError } = await supabase
         .from('founder_updates')
         .select('*')
         .order('submitted_at', { ascending: false });
 
-      if (updatesError) throw updatesError;
+      if (updatesError) {
+        console.error('Error fetching updates:', updatesError);
+        throw updatesError;
+      }
 
-      // Get latest update for each company
-      const updatesByCompany = updates.reduce((acc: Record<string, any>, update) => {
-        if (!acc[update.company_id] || new Date(update.submitted_at) > new Date(acc[update.company_id].submitted_at)) {
-          acc[update.company_id] = update;
+      // Get latest update for each company - optimized with Map
+      const updatesByCompany = new Map();
+      updates.forEach(update => {
+        if (!updatesByCompany.has(update.company_id)) {
+          updatesByCompany.set(update.company_id, update);
         }
-        return acc;
-      }, {});
+      });
 
-      // Transform companies data for filtering
+      // Transform companies data with memoized calculations
       return companiesData.map(company => {
-        const latestUpdate = updatesByCompany[company.id];
+        const latestUpdate = updatesByCompany.get(company.id);
         const arr = latestUpdate?.arr || company.arr || 0;
         const growth = latestUpdate?.growth || 0;
         const headcount = latestUpdate?.headcount || company.headcount || 0;
         const burnRate = latestUpdate?.burn_rate || company.burn_rate || 0;
         const runway = latestUpdate?.runway || company.runway || 0;
 
-        // Calculate risk level based on multiple factors
-        let riskScore = 0;
-        if (growth < 0) riskScore += 2;
-        else if (growth < 10) riskScore += 1;
-        
-        if (runway && runway < 6) riskScore += 2;
-        else if (runway && runway < 12) riskScore += 1;
-        
-        if (burnRate > 0 && arr > 0) {
-          const burnMultiple = burnRate / (arr / 12);
-          if (burnMultiple > 4) riskScore += 2;
-          else if (burnMultiple > 2) riskScore += 1;
-        }
-
-        const riskLevel: 'Low' | 'Medium' | 'High' = 
-          riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
+        // Optimized risk calculation
+        const riskLevel = calculateRiskLevel(growth, runway, burnRate, arr);
 
         return {
           id: company.id,
@@ -118,43 +120,48 @@ const EnhancedPortfolioView: React.FC = () => {
         };
       });
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    enabled: !!user
   });
 
-  const handleSuggestionClick = (suggestion: string) => {
-    // Parse suggestion and apply corresponding filters
-    const filters: Partial<SearchFilters> = {};
+  // Memoized risk calculation function
+  const calculateRiskLevel = useCallback((growth: number, runway: number, burnRate: number, arr: number): 'Low' | 'Medium' | 'High' => {
+    let riskScore = 0;
     
-    if (suggestion.includes('high-growth')) {
-      filters.growthRange = [50, 200];
-    } else if (suggestion.includes('at-risk')) {
-      filters.riskLevels = ['High'];
-    } else if (suggestion.includes('enterprise')) {
-      filters.arrRange = [5000000, 50000000];
-    } else if (suggestion.includes('scaling')) {
-      filters.headcountRange = [100, 1000];
-    } else if (suggestion.includes('declining')) {
-      filters.growthRange = [-50, 0];
-    } else if (suggestion.includes('breakout')) {
-      filters.stages = ['Seed', 'Series A'];
-      filters.growthRange = [100, 200];
+    if (growth < 0) riskScore += 2;
+    else if (growth < 10) riskScore += 1;
+    
+    if (runway && runway < 6) riskScore += 2;
+    else if (runway && runway < 12) riskScore += 1;
+    
+    if (burnRate > 0 && arr > 0) {
+      const burnMultiple = burnRate / (arr / 12);
+      if (burnMultiple > 4) riskScore += 2;
+      else if (burnMultiple > 2) riskScore += 1;
     }
 
-    // Apply the filter by updating the search component
-    // This would typically trigger a re-render with new filters
-    console.log('Applying suggestion filter:', suggestion, filters);
-  };
+    return riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
+  }, []);
 
-  const exportData = () => {
+  // Memoized suggestion handler
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    console.log('Applying suggestion filter:', suggestion);
+    // This would typically trigger filter updates in the AdvancedSearch component
+  }, []);
+
+  // Optimized export function
+  const exportData = useCallback(() => {
     const csvContent = [
       ['Company', 'Sector', 'Stage', 'Location', 'ARR', 'Growth Rate', 'Headcount', 'Risk Level', 'Burn Rate', 'Runway'].join(','),
       ...filteredCompanies.map(company => [
-        company.name,
-        company.sector,
-        company.stage,
-        company.location,
-        company.arr,
-        company.growth,
-        company.headcount,
+        `"${company.name}"`,
+        `"${company.sector}"`,
+        `"${company.stage}"`,
+        `"${company.location}"`,
+        company.arr || 0,
+        company.growth || 0,
+        company.headcount || 0,
         company.riskLevel,
         company.burn_rate || 0,
         company.runway || 0
@@ -165,20 +172,65 @@ const EnhancedPortfolioView: React.FC = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'portfolio-companies.csv';
+    a.download = `portfolio-companies-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [filteredCompanies]);
 
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Portfolio</h1>
+            <p className="text-gray-600 mt-1">Advanced portfolio management and insights</p>
+          </div>
+        </div>
+        <PortfolioError error={error as Error} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-16 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Portfolio</h1>
+            <p className="text-gray-600 mt-1">Advanced portfolio management and insights</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled>
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" disabled>
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button variant="outline" size="sm" disabled>
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
+        <PortfolioSkeleton viewMode={viewMode} />
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!companies.length) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Portfolio</h1>
+            <p className="text-gray-600 mt-1">Advanced portfolio management and insights</p>
+          </div>
+        </div>
+        <PortfolioEmpty showAddButton={user?.role === 'admin'} />
       </div>
     );
   }
@@ -254,14 +306,18 @@ const EnhancedPortfolioView: React.FC = () => {
           </div>
 
           {/* Portfolio Content */}
-          <Tabs value={viewMode} className="w-full">
-            <TabsContent value="grid" className="mt-0">
-              <PortfolioGrid companies={filteredCompanies} />
-            </TabsContent>
-            <TabsContent value="table" className="mt-0">
-              <PortfolioTable companies={filteredCompanies} />
-            </TabsContent>
-          </Tabs>
+          {filteredCompanies.length === 0 ? (
+            <PortfolioEmpty />
+          ) : (
+            <Tabs value={viewMode} className="w-full">
+              <TabsContent value="grid" className="mt-0">
+                <PortfolioGrid companies={filteredCompanies} />
+              </TabsContent>
+              <TabsContent value="table" className="mt-0">
+                <PortfolioTable companies={filteredCompanies} />
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
 
         {/* Sidebar */}
