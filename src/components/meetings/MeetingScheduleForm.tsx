@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useNotifications } from '@/hooks/useNotifications';
 import { supabase } from '@/lib/supabase';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -12,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/components/ui/sonner';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 interface MeetingScheduleFormProps {
@@ -40,7 +39,7 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
   onMeetingCreated
 }) => {
   const { user } = useAuth();
-  const { sendNotification } = useNotifications();
+  const { toast } = useToast();
   const [companies, setCompanies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -62,7 +61,10 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
       setCompanies(data || []);
     } catch (error) {
       console.error('Error fetching companies:', error);
-      toast('Failed to load companies');
+      toast({
+        title: "Error",
+        description: "Failed to load companies"
+      });
     }
   };
 
@@ -86,68 +88,31 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
     setIsLoading(true);
     
     try {
-      // Create meeting in database
+      // Create start and end datetime strings
+      const startDateTime = `${data.date}T${data.time}:00`;
+      const startTime = new Date(startDateTime);
+      const endTime = new Date(startTime.getTime() + parseInt(data.duration) * 60000);
+      
+      // Create meeting in database using correct schema
       const { data: meeting, error } = await supabase
         .from('meetings')
         .insert({
           title: data.title,
           description: data.description || null,
-          date: data.date,
-          time: data.time,
-          duration: parseInt(data.duration),
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
           company_id: data.company_id || null,
           location: data.location || null,
-          organizer_id: user.id,
+          created_by: user.id,
         })
         .select()
         .single();
       
       if (error) throw error;
       
-      // Get company info if applicable
-      let companyName = 'N/A';
-      if (data.company_id) {
-        const { data: company } = await supabase
-          .from('companies')
-          .select('name')
-          .eq('id', data.company_id)
-          .single();
-        
-        if (company) {
-          companyName = company.name;
-        }
-      }
-      
-      // Get participants (simplified - would normally have attendee selection)
-      const recipients = [user.email];
-      
-      if (data.company_id) {
-        // Get company founders
-        const { data: founders } = await supabase
-          .from('users')
-          .select('email')
-          .eq('company_id', data.company_id);
-        
-        if (founders) {
-          recipients.push(...founders.map(f => f.email));
-        }
-      }
-      
-      // Send notification
-      await sendNotification({
-        type: 'meeting_scheduled',
-        company_id: data.company_id || user.id, // Use user ID if no company
-        data: {
-          meeting_title: data.title,
-          meeting_date: format(new Date(data.date), 'MMMM d, yyyy'),
-          meeting_time: data.time,
-          participants: recipients,
-        },
-        recipients
-      });
-      
-      toast('Meeting scheduled successfully', {
-        description: `${data.title} has been scheduled for ${data.date} at ${data.time}`
+      toast({
+        title: "Success",
+        description: `Meeting "${data.title}" has been scheduled for ${data.date} at ${data.time}`
       });
       
       // Reset form and close dialog
@@ -161,8 +126,10 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
       
     } catch (error) {
       console.error('Error scheduling meeting:', error);
-      toast('Failed to schedule meeting', {
-        variant: 'destructive'
+      toast({
+        title: "Error",
+        description: "Failed to schedule meeting. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);

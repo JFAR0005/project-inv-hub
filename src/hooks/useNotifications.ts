@@ -1,5 +1,4 @@
 
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 // Notification types
@@ -38,29 +37,35 @@ export const useNotifications = () => {
 
   const sendNotification = async (notification: NotificationRequest) => {
     try {
-      // Insert notification into database for tracking
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert({
-          type: notification.type,
-          company_id: notification.company_id,
-          data: notification.data,
-          recipients: notification.recipients || []
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      // For now, just show a local toast notification
+      // In the future, this could call a Supabase Edge Function to send emails/Slack messages
+      let title = '';
+      let description = '';
       
-      // Call the Supabase Edge Function to send the notification
-      // This will handle the actual sending via Slack, email, etc.
-      const { error: fnError } = await supabase.functions.invoke('send-notifications', {
-        body: { notification: data }
+      switch (notification.type) {
+        case 'update_submitted':
+          title = 'Update Submitted';
+          description = `${notification.data.company_name} has submitted a new update`;
+          break;
+        case 'meeting_scheduled':
+          title = 'Meeting Scheduled';
+          description = `${notification.data.meeting_title} scheduled for ${notification.data.meeting_date}`;
+          break;
+        case 'update_overdue':
+          title = 'Update Overdue';
+          description = `${notification.data.company_name} hasn't submitted an update in ${notification.data.days_overdue} days`;
+          break;
+      }
+      
+      toast({
+        title,
+        description,
       });
       
-      if (fnError) throw fnError;
+      // TODO: Implement actual notification sending via Supabase Edge Function
+      console.log('Notification sent:', notification);
       
-      return data;
+      return { success: true };
     } catch (error) {
       console.error('Error sending notification:', error);
       toast({
@@ -73,108 +78,4 @@ export const useNotifications = () => {
   };
 
   return { sendNotification };
-};
-
-// Schedule for automated notifications (30+ days without update)
-// This would be handled by a scheduled edge function
-export const checkOverdueUpdates = async () => {
-  try {
-    // Get all companies
-    const { data: companies, error: companiesError } = await supabase
-      .from('companies')
-      .select('id, name');
-    
-    if (companiesError) throw companiesError;
-    
-    const today = new Date();
-    
-    // For each company, check last update
-    for (const company of companies || []) {
-      // Get most recent update
-      const { data: updates, error: updatesError } = await supabase
-        .from('founder_updates')
-        .select('submitted_at')
-        .eq('company_id', company.id)
-        .order('submitted_at', { ascending: false })
-        .limit(1);
-      
-      if (updatesError) continue;
-      
-      // If no updates or last update > 30 days ago
-      if (!updates || updates.length === 0) {
-        // Company has never submitted an update
-        await sendOverdueNotification(company.id, company.name, null);
-      } else {
-        const lastUpdate = new Date(updates[0].submitted_at);
-        const daysSince = Math.floor((today.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24));
-        
-        if (daysSince > 30) {
-          await sendOverdueNotification(company.id, company.name, lastUpdate, daysSince);
-        }
-      }
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error checking overdue updates:', error);
-    return { success: false, error };
-  }
-};
-
-const sendOverdueNotification = async (
-  companyId: string,
-  companyName: string,
-  lastUpdateDate: Date | null,
-  daysOverdue: number = 30
-) => {
-  try {
-    // Get associated founders and partners
-    const { data: companyUsers, error: usersError } = await supabase
-      .from('users')
-      .select('id, email, role')
-      .eq('company_id', companyId)
-      .or('role.eq.founder,role.eq.partner');
-    
-    if (usersError) throw usersError;
-    
-    // Create notification recipients list
-    const recipients = companyUsers?.map(user => user.email) || [];
-    
-    // Insert notification
-    const { error } = await supabase
-      .from('notifications')
-      .insert({
-        type: 'update_overdue' as NotificationType,
-        company_id: companyId,
-        data: {
-          company_name: companyName,
-          days_overdue: daysOverdue,
-          last_update_date: lastUpdateDate ? lastUpdateDate.toISOString() : null
-        },
-        recipients
-      });
-    
-    if (error) throw error;
-    
-    // Call edge function to send notifications
-    await supabase.functions.invoke('send-notifications', {
-      body: {
-        notification: {
-          type: 'update_overdue',
-          company_id: companyId,
-          data: {
-            company_name: companyName,
-            days_overdue: daysOverdue,
-            last_update_date: lastUpdateDate ? lastUpdateDate.toISOString() : null
-          },
-          recipients
-        }
-      }
-    });
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending overdue notification:', error);
-    return { success: false, error };
-  }
 };
