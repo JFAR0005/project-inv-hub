@@ -8,9 +8,7 @@ import Layout from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
-import PortfolioGrid from '@/components/portfolio/PortfolioGrid';
 import PortfolioList from '@/components/portfolio/PortfolioList';
-import PortfolioTable from '@/components/portfolio/PortfolioTable';
 import { BarChart3, Grid3X3, List, TrendingUp, Activity } from 'lucide-react';
 
 export default function Portfolio() {
@@ -49,7 +47,7 @@ export default function Portfolio() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
@@ -57,10 +55,6 @@ export default function Portfolio() {
             <TabsTrigger value="health" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               Health Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="cards" className="flex items-center gap-2">
-              <Grid3X3 className="h-4 w-4" />
-              Cards
             </TabsTrigger>
             <TabsTrigger value="list" className="flex items-center gap-2">
               <List className="h-4 w-4" />
@@ -77,19 +71,15 @@ export default function Portfolio() {
           </TabsContent>
 
           <TabsContent value="health" className="space-y-6">
-            <PortfolioTable />
-          </TabsContent>
-
-          <TabsContent value="cards" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Portfolio Companies</CardTitle>
+                <CardTitle>Company Health Dashboard</CardTitle>
                 <CardDescription>
-                  Browse your portfolio companies in a card layout with key metrics and status
+                  Monitor the health and performance of your portfolio companies
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <PortfolioGrid />
+                <PortfolioList />
               </CardContent>
             </Card>
           </TabsContent>
