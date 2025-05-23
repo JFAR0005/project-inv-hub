@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Edit, Save, ExternalLink, Globe, FileText, Users, Activity, BarChart3 } from 'lucide-react';
 import CompanyOverview from './CompanyOverview';
 import CompanyMetrics from './CompanyMetrics';
+import CompanyDocuments from './CompanyDocuments';
 
 type Company = Database['public']['Tables']['companies']['Row'];
 
@@ -219,7 +220,7 @@ const CompanyProfile = () => {
 
       {/* Content Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Overview
@@ -227,6 +228,10 @@ const CompanyProfile = () => {
           <TabsTrigger value="metrics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Metrics
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Documents
           </TabsTrigger>
           <TabsTrigger value="team" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -258,6 +263,19 @@ const CompanyProfile = () => {
               isEditing={isEditing}
               formData={formData}
               onNumberChange={handleNumberChange}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Documents</h2>
+              <p className="text-muted-foreground">Files and resources related to {company?.name}</p>
+            </div>
+            <CompanyDocuments
+              company={company}
+              isEditing={isEditing}
             />
           </div>
         </TabsContent>
