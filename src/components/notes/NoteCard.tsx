@@ -21,9 +21,10 @@ interface Note {
 
 interface NoteCardProps {
   note: Note;
+  onClick: (note: Note) => void;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
+const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
   // Get badge color for visibility
   const getVisibilityColor = (visibility: string) => {
     switch (visibility) {
@@ -35,7 +36,10 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
   };
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card 
+      className="h-full flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => onClick(note)}
+    >
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <CardTitle className="leading-tight">{note.title}</CardTitle>

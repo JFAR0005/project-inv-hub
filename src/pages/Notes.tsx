@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Layout from '@/components/layout/Layout';
 import NoteList from '@/components/notes/NoteList';
 import { PlusCircle } from 'lucide-react';
@@ -9,6 +9,17 @@ import NoteForm from '@/components/notes/NoteForm';
 
 const Notes = () => {
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const noteListRef = useRef<{ fetchNotes: () => void } | null>(null);
+  
+  // Function to handle successful note creation
+  const handleNoteSuccess = () => {
+    setIsNoteDialogOpen(false);
+    
+    // Refresh the note list
+    if (noteListRef.current) {
+      noteListRef.current.fetchNotes();
+    }
+  };
   
   return (
     <Layout>
@@ -25,7 +36,7 @@ const Notes = () => {
           </Button>
         </div>
         
-        <NoteList />
+        <NoteList ref={noteListRef} />
         
         {/* Create Note Dialog */}
         <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
@@ -33,7 +44,7 @@ const Notes = () => {
             <DialogHeader>
               <DialogTitle>Create New Note</DialogTitle>
             </DialogHeader>
-            <NoteForm onSuccess={() => setIsNoteDialogOpen(false)} />
+            <NoteForm onSuccess={handleNoteSuccess} />
           </DialogContent>
         </Dialog>
       </div>

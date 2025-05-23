@@ -1,17 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, Search, FileText } from 'lucide-react';
-import { format } from 'date-fns';
-import NoteCard from './NoteCard'; 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Pencil, Search } from 'lucide-react';
+import NoteCard from './NoteCard';
+import NoteDetail from './NoteDetail';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface Note {
   id: string;
@@ -27,7 +25,12 @@ interface Note {
   updated_at?: string;
 }
 
-const NoteList: React.FC = () => {
+// Define the component's ref type
+export interface NoteListRef {
+  fetchNotes: () => Promise<void>;
+}
+
+const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -37,6 +40,13 @@ const NoteList: React.FC = () => {
   const [visibilityFilter, setVisibilityFilter] = useState<string>('');
   const [companyFilter, setCompanyFilter] = useState<string>('');
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Expose the fetchNotes function via ref
+  useImperativeHandle(ref, () => ({
+    fetchNotes,
+  }));
 
   // Determine what notes the current user can access
   const fetchNotes = async () => {
@@ -159,14 +169,13 @@ const NoteList: React.FC = () => {
     setFilteredNotes(filtered);
   }, [notes, searchTerm, visibilityFilter, companyFilter]);
 
-  // Get badge color for visibility
-  const getVisibilityColor = (visibility: string) => {
-    switch (visibility) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'partner': return 'bg-blue-100 text-blue-800';
-      case 'founder': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const handleNoteClick = (note: Note) => {
+    setSelectedNote(note);
+    setIsDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
   };
 
   return (
@@ -224,7 +233,11 @@ const NoteList: React.FC = () => {
       ) : filteredNotes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredNotes.map(note => (
-            <NoteCard key={note.id} note={note} />
+            <NoteCard 
+              key={note.id} 
+              note={note} 
+              onClick={handleNoteClick}
+            />
           ))}
         </div>
       ) : (
@@ -240,8 +253,19 @@ const NoteList: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Note Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="sm:max-w-[700px] overflow-y-auto max-h-[90vh]">
+          {selectedNote && (
+            <NoteDetail note={selectedNote} onClose={handleCloseDetail} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
+});
+
+NoteList.displayName = 'NoteList';
 
 export default NoteList;

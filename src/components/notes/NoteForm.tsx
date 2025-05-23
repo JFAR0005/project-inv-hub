@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { FileText, Loader2, X } from 'lucide-react';
 
 // Define form validation schema
 const formSchema = z.object({
@@ -32,6 +33,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Setup form with default values
   const form = useForm<FormValues>({
@@ -74,6 +76,16 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
     setSelectedFile(file);
   };
 
+  // Clear selected file
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    // Also clear the file input
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
   // Form submission handler
   const onSubmit = async (values: FormValues) => {
     if (!user) {
@@ -92,6 +104,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
       
       // Upload file if selected
       if (selectedFile && values.company_id) {
+        setIsUploading(true);
         const fileName = `${Date.now()}_${selectedFile.name}`;
         const filePath = `${values.company_id}/notes/${fileName}`;
         
@@ -106,6 +119,8 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
           .storage
           .from('company_files')
           .getPublicUrl(filePath).data.publicUrl;
+          
+        setIsUploading(false);
       }
       
       // Insert note into database
@@ -142,6 +157,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
       });
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -236,24 +252,53 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
         />
         
         <div className="space-y-2">
-          <FormLabel>Attachment</FormLabel>
-          <Input 
-            type="file" 
-            onChange={handleFileChange}
-          />
+          <FormLabel htmlFor="file-upload">Attachment</FormLabel>
+          <div className="flex items-center space-x-2">
+            <Input 
+              id="file-upload"
+              type="file" 
+              onChange={handleFileChange}
+              className={selectedFile ? "rounded-r-none" : ""}
+            />
+            {selectedFile && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="icon" 
+                className="h-10 rounded-l-none"
+                onClick={clearSelectedFile}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Clear file</span>
+              </Button>
+            )}
+          </div>
           <FormDescription>
             Optional. Upload a file to attach to this note.
           </FormDescription>
           {selectedFile && (
-            <div className="text-sm text-green-600">
-              File selected: {selectedFile.name}
+            <div className="flex items-center space-x-1 p-2 bg-blue-50 text-blue-700 rounded border border-blue-200">
+              <FileText className="h-4 w-4" />
+              <span className="text-sm">{selectedFile.name}</span>
+              <span className="text-xs text-blue-500">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+            </div>
+          )}
+          {isUploading && (
+            <div className="flex items-center space-x-2 text-amber-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Uploading file...</span>
             </div>
           )}
         </div>
         
         <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Note"}
+          <Button type="submit" disabled={isSubmitting || isUploading}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : "Create Note"}
           </Button>
         </div>
       </form>
