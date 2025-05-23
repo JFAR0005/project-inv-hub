@@ -20,6 +20,7 @@ import CompanyDetails from "./pages/CompanyDetails";
 import CompanyProfile from "./pages/CompanyProfile";
 import Dealflow from "./pages/Dealflow";
 import SubmitUpdate from "./pages/SubmitUpdate";
+import Integrations from "./pages/Integrations";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,14 @@ const App = () => (
               <ProtectedRoute>
                 <RoleGuard allowedRoles={['admin', 'partner', 'founder']}>
                   <Meetings />
+                </RoleGuard>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/integrations" element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['admin', 'partner']}>
+                  <Integrations />
                 </RoleGuard>
               </ProtectedRoute>
             } />

@@ -1,171 +1,150 @@
 
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { cn } from "@/lib/utils";
-import {
-  Briefcase,
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
+import { 
+  BarChart3, 
+  Building2, 
   Calendar,
   FileText,
-  FolderOpen,
+  Home,
+  TrendingUp,
   Users,
-  BarChart2,
-  BookOpen,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+  Settings,
+  LogOut,
+  Briefcase
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-interface SidebarProps {
-  className?: string;
-}
-
-interface NavItem {
-  label: string;
-  icon: React.ReactNode;
-  href: string;
-  adminOnly?: boolean;
-  partnerAccess?: boolean;
-  founderAccess?: boolean;
-}
-
-export function Sidebar({ className }: SidebarProps) {
-  const { user } = useAuth();
+const Sidebar = () => {
+  const { user, signOut } = useAuth();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const { toast } = useToast();
 
-  const navItems: NavItem[] = [
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        description: "There was a problem signing out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const navigationItems = [
     {
-      label: "Dashboard",
-      icon: <BarChart2 size={20} />,
-      href: "/",
-      partnerAccess: true,
-      founderAccess: true,
+      name: 'Dashboard',
+      href: '/',
+      icon: Home,
+      roles: ['admin', 'partner', 'founder', 'lp']
     },
     {
-      label: "Portfolio",
-      icon: <Briefcase size={20} />,
-      href: "/portfolio",
-      partnerAccess: true,
-      founderAccess: true,
+      name: 'Portfolio',
+      href: '/portfolio',
+      icon: Building2,
+      roles: ['admin', 'partner', 'lp']
     },
     {
-      label: "Notes",
-      icon: <FileText size={20} />,
-      href: "/notes",
-      partnerAccess: true,
+      name: 'Dealflow',
+      href: '/dealflow',
+      icon: TrendingUp,
+      roles: ['admin', 'partner']
     },
     {
-      label: "Deals",
-      icon: <FolderOpen size={20} />,
-      href: "/deals",
+      name: 'Deals',
+      href: '/deals',
+      icon: Briefcase,
+      roles: ['admin', 'partner']
     },
     {
-      label: "Meetings",
-      icon: <Calendar size={20} />,
-      href: "/meetings",
-      partnerAccess: true,
-      founderAccess: true,
+      name: 'Meetings',
+      href: '/meetings',
+      icon: Calendar,
+      roles: ['admin', 'partner', 'founder']
     },
     {
-      label: "Voting",
-      icon: <Check size={20} />,
-      href: "/voting",
-      adminOnly: true,
+      name: 'Notes',
+      href: '/notes',
+      icon: FileText,
+      roles: ['admin', 'partner', 'founder']
     },
     {
-      label: "Team",
-      icon: <Users size={20} />,
-      href: "/team",
-      partnerAccess: true,
-      founderAccess: true,
-    },
-    {
-      label: "Knowledge Base",
-      icon: <BookOpen size={20} />,
-      href: "/knowledge",
-      partnerAccess: true,
-    },
+      name: 'Integrations',
+      href: '/integrations',
+      icon: Settings,
+      roles: ['admin', 'partner']
+    }
   ];
 
-  // Filter nav items based on user role
-  const filteredNavItems = navItems.filter(item => {
-    if (!user) return false;
-    
-    if (user.role === 'admin') return true;
-    if (user.role === 'partner' && (item.partnerAccess || !item.adminOnly)) return true;
-    if (user.role === 'founder' && item.founderAccess) return true;
-    
-    return false;
-  });
+  // Filter navigation items based on user role
+  const visibleItems = navigationItems.filter(item => 
+    user && item.roles.includes(user.role)
+  );
 
   return (
-    <div
-      className={cn(
-        "bg-gradient-blacknova text-white h-screen flex flex-col transition-all duration-300 ease-in-out",
-        collapsed ? "w-16" : "w-64",
-        className
-      )}
-    >
-      <div className="flex items-center justify-between p-4">
-        {!collapsed && (
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-white">Black Nova</span>
-          </Link>
-        )}
-        {collapsed && (
-          <div className="mx-auto">
-            <span className="text-xl font-bold text-white">BN</span>
-          </div>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-white hover:bg-blacknova-dark/50"
-        >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </Button>
+    <div className="flex h-full w-64 flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-16 shrink-0 items-center px-6">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+          Black Nova
+        </h1>
       </div>
-
-      <Separator className="bg-blacknova-dark/50 my-2" />
-
-      <div className="flex-1 overflow-y-auto py-4">
-        <nav className="space-y-1 px-2">
-          {filteredNavItems.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                  isActive
-                    ? "bg-blacknova-blue text-white"
-                    : "text-white/80 hover:bg-blacknova-dark/50 hover:text-white"
-                )}
-              >
-                {item.icon}
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {!collapsed && (
-        <div className="p-4">
-          <div className="rounded-md bg-blacknova-dark/50 p-3">
-            <div className="text-sm font-medium mb-1">Logged in as:</div>
-            <div className="text-xs opacity-80">{user?.name}</div>
-            <div className="text-xs opacity-80">{user?.role}</div>
+      
+      <nav className="flex-1 space-y-1 px-3 py-4">
+        {visibleItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.href;
+          
+          return (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+              )}
+            >
+              <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+              {item.name}
+            </Link>
+          );
+        })}
+      </nav>
+      
+      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex items-center">
+          <div className="ml-3">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {user?.email}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+              {user?.role}
+            </p>
           </div>
         </div>
-      )}
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleSignOut}
+          className="mt-3 w-full justify-start"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign out
+        </Button>
+      </div>
     </div>
   );
-}
+};
 
 export default Sidebar;
