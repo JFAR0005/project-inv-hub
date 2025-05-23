@@ -1,6 +1,4 @@
 
-import { Meeting } from '@/pages/Meetings';
-
 export interface MeetingFormValues {
   title: string;
   start_time: Date;
@@ -21,6 +19,20 @@ export interface MeetingParticipant {
 export interface Company {
   id: string;
   name: string;
+}
+
+export interface Meeting {
+  id: string;
+  title: string;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+  company_id?: string;
+  company_name?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CalendarEvent {

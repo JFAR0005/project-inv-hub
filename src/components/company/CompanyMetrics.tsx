@@ -14,15 +14,15 @@ interface CompanyMetricsProps {
   companyId: string;
 }
 
-interface Metric {
+interface FounderUpdate {
   id: string;
   company_id: string;
-  arr: number;
-  mrr: number;
-  headcount: number;
-  burn_rate: number;
-  runway_months: number;
-  date: string;
+  arr: number | null;
+  mrr: number | null;
+  headcount: number | null;
+  burn_rate: number | null;
+  runway: number | null;
+  submitted_at: string;
 }
 
 const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
@@ -53,34 +53,34 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   
   const { startDate } = getDateRange();
   
-  const { data: metrics, isLoading, error, refetch } = useQuery({
-    queryKey: ['company-metrics', companyId, timeRange],
+  const { data: updates, isLoading, error, refetch } = useQuery({
+    queryKey: ['founder-updates-metrics', companyId, timeRange],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('metrics')
-        .select('*')
+        .from('founder_updates')
+        .select('id, company_id, arr, mrr, headcount, burn_rate, runway, submitted_at')
         .eq('company_id', companyId)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .order('date', { ascending: true });
+        .gte('submitted_at', startDate.toISOString())
+        .order('submitted_at', { ascending: true });
       
       if (error) throw error;
-      return data as Metric[];
+      return data as FounderUpdate[];
     },
     enabled: !!companyId,
   });
   
-  // Format metrics data for recharts
+  // Format updates data for recharts
   const getChartData = () => {
-    if (!metrics || metrics.length === 0) return [];
+    if (!updates || updates.length === 0) return [];
     
-    return metrics.map(metric => ({
-      date: format(new Date(metric.date), 'MMM yyyy'),
-      arr: metric.arr,
-      mrr: metric.mrr,
-      headcount: metric.headcount,
-      burnRate: metric.burn_rate,
-      runway: metric.runway_months,
-      burnMultiple: metric.arr > 0 ? (metric.burn_rate / (metric.arr / 12)).toFixed(2) : 0
+    return updates.map(update => ({
+      date: format(new Date(update.submitted_at), 'MMM yyyy'),
+      arr: update.arr || 0,
+      mrr: update.mrr || 0,
+      headcount: update.headcount || 0,
+      burnRate: update.burn_rate || 0,
+      runway: update.runway || 0,
+      burnMultiple: update.arr && update.arr > 0 ? ((update.burn_rate || 0) / (update.arr / 12)).toFixed(2) : 0
     }));
   };
   
@@ -88,18 +88,18 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   
   // Calculate current metrics from latest data point
   const getLatestMetrics = () => {
-    if (!metrics || metrics.length === 0) return null;
+    if (!updates || updates.length === 0) return null;
     
-    return metrics[metrics.length - 1];
+    return updates[updates.length - 1];
   };
   
   const latestMetrics = getLatestMetrics();
   
   // Calculate burn multiple
   const calculateBurnMultiple = () => {
-    if (!latestMetrics || latestMetrics.arr === 0) return 0;
+    if (!latestMetrics || !latestMetrics.arr || latestMetrics.arr === 0) return 0;
     
-    return (latestMetrics.burn_rate / (latestMetrics.arr / 12)).toFixed(2);
+    return ((latestMetrics.burn_rate || 0) / (latestMetrics.arr / 12)).toFixed(2);
   };
   
   if (isLoading) {
@@ -124,7 +124,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
     );
   }
   
-  if (!metrics || metrics.length === 0) {
+  if (!updates || updates.length === 0) {
     return (
       <Card>
         <CardContent className="py-6 text-center">
@@ -149,7 +149,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">ARR</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${latestMetrics?.arr.toLocaleString()}
+                  ${latestMetrics?.arr?.toLocaleString() || '0'}
                 </p>
               </div>
             </div>
@@ -163,7 +163,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Monthly Burn</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${latestMetrics?.burn_rate.toLocaleString()}
+                  ${latestMetrics?.burn_rate?.toLocaleString() || '0'}
                 </p>
               </div>
             </div>
@@ -177,7 +177,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Headcount</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {latestMetrics?.headcount}
+                  {latestMetrics?.headcount || '0'}
                 </p>
               </div>
             </div>

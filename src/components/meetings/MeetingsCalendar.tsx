@@ -4,8 +4,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Card } from '@/components/ui/card';
-import { Meeting } from '@/pages/Meetings';
-import { mapMeetingToCalendarEvent } from './types';
+import { Meeting, mapMeetingToCalendarEvent } from './types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Setup the localizer

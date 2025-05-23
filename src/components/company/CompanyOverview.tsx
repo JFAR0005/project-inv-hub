@@ -52,6 +52,14 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
     }
   };
 
+  const handleViewAllUpdates = () => {
+    // Find the Updates tab and click it programmatically
+    const updatesTab = document.querySelector('[data-value="updates"]') as HTMLElement;
+    if (updatesTab) {
+      updatesTab.click();
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Company Info */}
@@ -217,7 +225,7 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
                 ))}
                 
                 <div className="flex justify-end pt-2">
-                  <Button variant="outline" size="sm" className="flex items-center" onClick={() => document.querySelectorAll('[role="tab"]')[3].click()}>
+                  <Button variant="outline" size="sm" className="flex items-center" onClick={handleViewAllUpdates}>
                     View All Updates
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>

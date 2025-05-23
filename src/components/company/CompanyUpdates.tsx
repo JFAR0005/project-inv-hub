@@ -33,7 +33,7 @@ interface Update {
     id: string;
     name: string;
     email: string;
-  };
+  } | null;
 }
 
 const CompanyUpdates: React.FC<CompanyUpdatesProps> = ({ companyId }) => {
@@ -50,7 +50,14 @@ const CompanyUpdates: React.FC<CompanyUpdatesProps> = ({ companyId }) => {
         .order('submitted_at', { ascending: false });
       
       if (error) throw error;
-      return data as Update[];
+      
+      // Transform the data to handle the nested user object properly
+      const transformedData = data?.map(update => ({
+        ...update,
+        user: Array.isArray(update.user) && update.user.length > 0 ? update.user[0] : null
+      })) || [];
+      
+      return transformedData as Update[];
     },
     enabled: !!companyId,
   });

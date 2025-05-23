@@ -19,12 +19,8 @@ type FileObject = {
   created_at: string;
   updated_at: string;
   last_accessed_at: string;
-  metadata: {
-    size: number;
-    mimetype: string;
-    uploadedBy?: string;
-    uploadedById?: string;
-  };
+  metadata: Record<string, any>;
+  url?: string;
 };
 
 const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
@@ -66,7 +62,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
         })
       );
       
-      setFiles(filesWithMetadata as FileObject[]);
+      setFiles(filesWithMetadata);
     } catch (err) {
       console.error('Error fetching company files:', err);
       setError('Failed to load company documents. Please try again.');

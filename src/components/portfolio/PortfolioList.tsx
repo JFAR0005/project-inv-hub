@@ -17,9 +17,9 @@ export interface Company {
   name: string;
   sector: string;
   location: string;
-  investment_date: string;
-  investment_amount: number;
-  status: string;
+  investment_date?: string;
+  investment_amount?: number;
+  stage?: string;
   latest_update?: {
     submitted_at: string;
     arr: number;
@@ -99,7 +99,7 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
     return 'recent';
   };
   
-  // Filter companies based on search, status and update status
+  // Filter companies based on search, stage and update status
   const filteredCompanies = displayCompanies
     .filter(company => {
       // Search filter
@@ -109,8 +109,8 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
         company.sector.toLowerCase().includes(searchLower) ||
         company.location.toLowerCase().includes(searchLower);
       
-      // Status filter
-      const matchesStatus = filterStatus === 'all' || company.status === filterStatus;
+      // Stage filter (using stage instead of status)
+      const matchesStage = filterStatus === 'all' || company.stage === filterStatus;
       
       // Update status filter
       const updateStatus = getUpdateStatus(company.latest_update);
@@ -119,7 +119,7 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
         (filterUpdateStatus === 'needs-update' && updateStatus === 'overdue') ||
         (filterUpdateStatus === 'updated' && updateStatus === 'recent');
       
-      return matchesSearch && matchesStatus && matchesUpdateStatus;
+      return matchesSearch && matchesStage && matchesUpdateStatus;
     });
   
   // Sort companies
@@ -152,12 +152,13 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
     return 0;
   });
   
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Exited': return 'bg-blue-100 text-blue-800';
-      case 'Acquired': return 'bg-purple-100 text-purple-800';
-      case 'Closed': return 'bg-red-100 text-red-800';
+  const getStageColor = (stage: string | undefined) => {
+    switch (stage) {
+      case 'Seed': return 'bg-green-100 text-green-800';
+      case 'Series A': return 'bg-blue-100 text-blue-800';
+      case 'Series B': return 'bg-purple-100 text-purple-800';
+      case 'Series C+': return 'bg-orange-100 text-orange-800';
+      case 'Exited': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -199,14 +200,15 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
         <div className="flex gap-2 flex-wrap">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Stage" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
+              <SelectItem value="all">All Stages</SelectItem>
+              <SelectItem value="Seed">Seed</SelectItem>
+              <SelectItem value="Series A">Series A</SelectItem>
+              <SelectItem value="Series B">Series B</SelectItem>
+              <SelectItem value="Series C+">Series C+</SelectItem>
               <SelectItem value="Exited">Exited</SelectItem>
-              <SelectItem value="Acquired">Acquired</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
             </SelectContent>
           </Select>
           
@@ -248,10 +250,10 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('status')}
+                onClick={() => handleSort('stage')}
               >
                 <div className="flex items-center gap-1">
-                  Status
+                  Stage
                   <ArrowUpDown className="h-3 w-3" />
                 </div>
               </TableHead>
@@ -302,8 +304,8 @@ const PortfolioList: React.FC<PortfolioListProps> = ({ companies: initialCompani
                     </TableCell>
                     <TableCell>{company.sector}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(company.status)}>
-                        {company.status}
+                      <Badge className={getStageColor(company.stage)}>
+                        {company.stage || 'Unknown'}
                       </Badge>
                     </TableCell>
                     <TableCell>

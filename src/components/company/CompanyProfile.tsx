@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +15,7 @@ import { Edit, Save, ExternalLink, Globe, FileText, Users, Activity, BarChart3 }
 import CompanyOverview from './CompanyOverview';
 import CompanyMetrics from './CompanyMetrics';
 import CompanyDocuments from './CompanyDocuments';
+import CompanyUpdates from './CompanyUpdates';
 
 type Company = Database['public']['Tables']['companies']['Row'];
 
@@ -233,23 +235,18 @@ const CompanyProfile = () => {
             <FileText className="h-4 w-4" />
             Documents
           </TabsTrigger>
+          <TabsTrigger value="updates" data-value="updates" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Updates
+          </TabsTrigger>
           <TabsTrigger value="team" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Team
           </TabsTrigger>
-          <TabsTrigger value="activity" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Activity
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          <CompanyOverview
-            company={company}
-            isEditing={isEditing}
-            formData={formData}
-            onInputChange={handleInputChange}
-          />
+          <CompanyOverview company={company} />
         </TabsContent>
 
         <TabsContent value="metrics" className="mt-6">
@@ -258,12 +255,7 @@ const CompanyProfile = () => {
               <h2 className="text-2xl font-bold mb-2">Key Metrics</h2>
               <p className="text-muted-foreground">Financial and operational performance indicators</p>
             </div>
-            <CompanyMetrics
-              company={company}
-              isEditing={isEditing}
-              formData={formData}
-              onNumberChange={handleNumberChange}
-            />
+            <CompanyMetrics companyId={id!} />
           </div>
         </TabsContent>
 
@@ -273,10 +265,17 @@ const CompanyProfile = () => {
               <h2 className="text-2xl font-bold mb-2">Documents</h2>
               <p className="text-muted-foreground">Files and resources related to {company?.name}</p>
             </div>
-            <CompanyDocuments
-              company={company}
-              isEditing={isEditing}
-            />
+            <CompanyDocuments companyId={id!} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="updates" className="mt-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Founder Updates</h2>
+              <p className="text-muted-foreground">Regular updates from the company founders</p>
+            </div>
+            <CompanyUpdates companyId={id!} />
           </div>
         </TabsContent>
 
@@ -285,14 +284,6 @@ const CompanyProfile = () => {
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-medium mb-2">Team Management</h3>
             <p>Team member management will be available soon</p>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="activity" className="mt-6">
-          <div className="text-center py-12 text-muted-foreground">
-            <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Activity Timeline</h3>
-            <p>Company activity and updates timeline will be available soon</p>
           </div>
         </TabsContent>
       </Tabs>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Calendar } from '@/components/ui/calendar';
@@ -8,12 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import MeetingsList from './MeetingsList';
 import IntegrationsPanel from '../integrations/IntegrationsPanel';
-import { Meeting } from '@/pages/Meetings';
+import { Meeting } from './types';
 
 const MeetingScheduler = () => {
   const { user } = useAuth();
@@ -47,9 +48,7 @@ const MeetingScheduler = () => {
     }
 
     // In a real app, this would connect to calendar APIs and send invites
-    toast("Meeting Scheduled", {
-      description: `Your meeting "${title}" has been scheduled for ${format(date, 'PPPP')} at ${selectedTime}`,
-    });
+    toast.success(`Meeting "${title}" has been scheduled for ${format(date, 'PPPP')} at ${selectedTime}`);
 
     // Reset form
     setTitle('');
@@ -68,7 +67,7 @@ const MeetingScheduler = () => {
 
   const handleEditMeeting = (meeting: Meeting) => {
     // In a real implementation, this would open a modal or form to edit the meeting
-    toast(`Editing meeting: ${meeting.title}`);
+    toast.success(`Editing meeting: ${meeting.title}`);
   };
 
   return (
