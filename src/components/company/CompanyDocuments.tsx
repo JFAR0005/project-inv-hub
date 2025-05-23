@@ -83,8 +83,8 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           if (!metaError && metaData?.uploader) {
             const uploaderData = metaData.uploader;
             
-            // Check if uploaderData is a valid object with a name property
-            if (uploaderData && typeof uploaderData === 'object' && 'name' in uploaderData) {
+            // Add explicit null check and type narrowing
+            if (uploaderData !== null && uploaderData !== undefined && typeof uploaderData === 'object' && 'name' in uploaderData) {
               const nameValue = uploaderData.name;
               if (typeof nameValue === 'string' && nameValue.trim()) {
                 uploaderName = nameValue.trim();
