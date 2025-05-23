@@ -5,7 +5,7 @@ import Layout from '@/components/layout/Layout';
 import Dashboard from '@/components/dashboard/Dashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Bookmark, Filter, BarChart3 } from 'lucide-react';
+import { Search, Bookmark, Filter, BarChart3, Bell, Webhook } from 'lucide-react';
 
 const Index = () => {
   return (
@@ -63,21 +63,21 @@ const Index = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bookmark className="h-5 w-5" />
-                Saved Searches
+                <Webhook className="h-5 w-5" />
+                Integration Hub
               </CardTitle>
               <CardDescription>
-                Save and reuse your common searches
+                Connect and manage third-party services
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Save your frequently used search filters for quick access in the future.
+                Set up webhooks, integrate with Slack/Teams, and monitor API usage all in one place.
               </p>
             </CardContent>
             <CardFooter>
               <Button asChild variant="outline" className="w-full">
-                <Link to="/search">Create Saved Searches</Link>
+                <Link to="/integration-hub">Open Integration Hub</Link>
               </Button>
             </CardFooter>
           </Card>

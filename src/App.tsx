@@ -1,56 +1,126 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from './context/AuthContext';
+import { SearchProvider } from './context/SearchContext';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-import Login from './pages/Login';
+// Import pages
 import Index from './pages/Index';
+import Login from './pages/Login';
 import Portfolio from './pages/Portfolio';
 import EnhancedPortfolio from './pages/EnhancedPortfolio';
+import PortfolioSearch from './pages/PortfolioSearch';
+import CompanyDetails from './pages/CompanyDetails';
 import CompanyProfile from './pages/CompanyProfile';
-import SubmitUpdate from './pages/SubmitUpdate';
-import Meetings from './pages/Meetings';
-import Analytics from './pages/Analytics';
 import Notes from './pages/Notes';
+import Meetings from './pages/Meetings';
 import Deals from './pages/Deals';
 import Dealflow from './pages/Dealflow';
+import Analytics from './pages/Analytics';
+import SubmitUpdate from './pages/SubmitUpdate';
 import Integrations from './pages/Integrations';
+import IntegrationHub from './pages/IntegrationHub';
 import NotFound from './pages/NotFound';
-import { SearchProvider } from './context/SearchContext';
+
+const queryClient = new QueryClient();
 
 function App() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SearchProvider>
-          <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-            <Router>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/portfolio" element={<Portfolio />} />
-                <Route path="/enhanced-portfolio" element={<EnhancedPortfolio />} />
-                <Route path="/companies/:id" element={<CompanyProfile />} />
-                <Route path="/submit-update" element={<SubmitUpdate />} />
-                <Route path="/meetings" element={<Meetings />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/notes" element={<Notes />} />
-                <Route path="/deals" element={<Deals />} />
-                <Route path="/dealflow" element={<Dealflow />} />
-                <Route path="/integrations" element={<Integrations />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Router>
+    <ThemeProvider
+      defaultTheme="system"
+      storageKey="supabase-dashboard-theme"
+    >
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SearchProvider>
+            {isMounted ? (
+              <RouterProvider router={router} />
+            ) : (
+              <div>Loading...</div>
+            )}
             <Toaster />
-          </ThemeProvider>
-        </SearchProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+          </SearchProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
+
+// Define routes
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Index />,
+  },
+  {
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/portfolio",
+    element: <Portfolio />,
+  },
+  {
+    path: "/enhanced-portfolio",
+    element: <EnhancedPortfolio />,
+  },
+  {
+    path: "/portfolio-search",
+    element: <PortfolioSearch />,
+  },
+  {
+    path: "/company/:id",
+    element: <CompanyDetails />,
+  },
+  {
+    path: "/company-profile/:id",
+    element: <CompanyProfile />,
+  },
+  {
+    path: "/notes",
+    element: <Notes />,
+  },
+  {
+    path: "/meetings",
+    element: <Meetings />,
+  },
+  {
+    path: "/deals",
+    element: <Deals />,
+  },
+  {
+    path: "/dealflow",
+    element: <Dealflow />,
+  },
+  {
+    path: "/analytics",
+    element: <Analytics />,
+  },
+  {
+    path: "/submit-update",
+    element: <SubmitUpdate />,
+  },
+  {
+    path: "/integrations",
+    element: <Integrations />,
+  },
+  {
+    path: "/integration-hub",
+    element: <IntegrationHub />,
+  },
+  {
+    path: "*",
+    element: <NotFound />,
+  },
+]);
 
 export default App;
