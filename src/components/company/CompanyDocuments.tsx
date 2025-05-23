@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -73,17 +72,19 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           // Get file metadata from company_files table if available
           const { data: metaData, error: metaError } = await supabase
             .from('company_files')
-            .select('*, uploader:uploader_id(name)')
+            .select('*, uploader:uploader_id(*)')
             .eq('company_id', companyId)
             .eq('file_name', file.name)
             .single();
           
           let uploaderName = 'Unknown';
           
-          // Fix: Handle the case where uploader data is available
-          if (!metaError && metaData?.uploader) {
-            // Safely access the name property from uploader object
-            uploaderName = metaData.uploader.name || 'Unknown';
+          // Fix: Improved handling for uploader data
+          if (!metaError && metaData && metaData.uploader) {
+            // Check if uploader exists and has a name property
+            uploaderName = typeof metaData.uploader === 'object' && metaData.uploader !== null && 'name' in metaData.uploader 
+              ? (metaData.uploader.name as string) || 'Unknown'
+              : 'Unknown';
           }
           
           return {
