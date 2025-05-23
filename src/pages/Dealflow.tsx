@@ -49,43 +49,39 @@ const Dealflow = () => {
   // Show loading state while checking authentication
   if (isLoading) {
     return (
-      
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
   // Only admins and partners can access this page
   if (!user || !['admin', 'partner'].includes(user.role)) {
     return (
-      
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <Shield className="h-12 w-12 text-destructive" />
-              </div>
-              <CardTitle className="flex items-center justify-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Access Denied
-              </CardTitle>
-              <CardDescription>
-                You don't have permission to access the dealflow page.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Your role: <span className="font-medium capitalize">{user?.role || 'Unknown'}</span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Required roles: Admin, Partner
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Shield className="h-12 w-12 text-destructive" />
+            </div>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Access Denied
+            </CardTitle>
+            <CardDescription>
+              You don't have permission to access the dealflow page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Your role: <span className="font-medium capitalize">{user?.role || 'Unknown'}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Required roles: Admin, Partner
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
