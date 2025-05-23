@@ -1,53 +1,86 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
-import NoteList, { NoteListRef } from '@/components/notes/NoteList';
-import { PlusCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import NoteForm from '@/components/notes/NoteForm';
+import NoteEditor from '@/components/notes/NoteEditor';
+import NotesView from '@/components/notes/NotesView';
+import { supabase } from '@/lib/supabase';
+
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  company_id?: string;
+  visibility: string;
+  author_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 const Notes = () => {
-  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
-  const noteListRef = useRef<NoteListRef>(null);
-  
-  // Function to handle successful note creation
-  const handleNoteSuccess = async () => {
-    setIsNoteDialogOpen(false);
-    
-    // Refresh the note list
-    if (noteListRef.current) {
-      await noteListRef.current.fetchNotes();
+  const [currentView, setCurrentView] = useState<'list' | 'create' | 'edit'>('list');
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
     }
   };
-  
+
+  const handleCreateNote = () => {
+    setEditingNote(null);
+    setCurrentView('create');
+  };
+
+  const handleEditNote = (note: Note) => {
+    setEditingNote(note);
+    setCurrentView('edit');
+  };
+
+  const handleSaveNote = () => {
+    setCurrentView('list');
+    setEditingNote(null);
+  };
+
+  const handleCancel = () => {
+    setCurrentView('list');
+    setEditingNote(null);
+  };
+
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Notes</h1>
-            <p className="text-muted-foreground mt-1">
-              Create, manage, and share notes about companies and deals
-            </p>
-          </div>
-          <Button onClick={() => setIsNoteDialogOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" /> New Note
-          </Button>
-        </div>
-        
-        <NoteList ref={noteListRef} />
-        
-        {/* Create Note Dialog */}
-        <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
-          <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Create New Note</DialogTitle>
-            </DialogHeader>
-            <NoteForm onSuccess={handleNoteSuccess} />
-          </DialogContent>
-        </Dialog>
-      </div>
+      {currentView === 'list' && (
+        <NotesView
+          onCreateNote={handleCreateNote}
+          onEditNote={handleEditNote}
+        />
+      )}
+      
+      {(currentView === 'create' || currentView === 'edit') && (
+        <NoteEditor
+          note={editingNote || undefined}
+          companies={companies}
+          onSave={handleSaveNote}
+          onCancel={handleCancel}
+        />
+      )}
     </Layout>
   );
 };
