@@ -253,7 +253,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             </CardHeader>
             <CardContent className="h-80">
               <MetricsCharts 
-                data={chartData} 
+                chartData={chartData} 
                 type="line"
                 dataKey="arr"
                 color="#3b82f6" 
@@ -274,7 +274,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             </CardHeader>
             <CardContent className="h-80">
               <MetricsCharts 
-                data={chartData} 
+                chartData={chartData} 
                 type="line"
                 dataKey="burnRate"
                 color="#ef4444" 
@@ -293,7 +293,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             </CardHeader>
             <CardContent className="h-80">
               <MetricsCharts 
-                data={chartData} 
+                chartData={chartData} 
                 type="line"
                 dataKey="runway"
                 color="#8b5cf6" 
@@ -314,7 +314,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             </CardHeader>
             <CardContent className="h-80">
               <MetricsCharts 
-                data={chartData} 
+                chartData={chartData} 
                 type="bar"
                 dataKey="headcount"
                 color="#6366f1" 
@@ -335,7 +335,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             </CardHeader>
             <CardContent className="h-80">
               <MetricsCharts 
-                data={chartData} 
+                chartData={chartData} 
                 type="bar"
                 dataKey="burnMultiple"
                 color="#f97316" 

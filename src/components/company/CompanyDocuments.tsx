@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -73,7 +72,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           // Get file metadata from company_files table if available
           const { data: metaData } = await supabase
             .from('company_files')
-            .select('*, users(name)')
+            .select('*, uploader:uploader_id(name)')
             .eq('company_id', companyId)
             .eq('file_name', file.name)
             .single();
@@ -82,7 +81,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
             ...file,
             url: fileData.publicUrl,
             size: file.metadata?.size || 0,
-            uploader: metaData?.users?.name || 'Unknown',
+            uploader: metaData?.uploader?.name || 'Unknown',
           };
         })
       );

@@ -38,7 +38,9 @@ export const useNotificationTrigger = () => {
 
   const triggerNotification = async (payload: NotificationPayload): Promise<boolean> => {
     try {
-      const functionUrl = `${supabase.supabaseUrl}/functions/v1/send-notifications`;
+      // Get the Supabase URL from the environment or the lib/supabase.ts file
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://guikdtwcpagcpyqieftm.supabase.co';
+      const functionUrl = `${supabaseUrl}/functions/v1/send-notifications`;
       
       // Get a fresh Supabase token for authentication
       const { data: { session } } = await supabase.auth.getSession();

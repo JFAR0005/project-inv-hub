@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -122,9 +121,9 @@ const PortfolioTable: React.FC<PortfolioTableProps> = ({ companies }) => {
     if (!status) return <span className="text-muted-foreground">Not specified</span>;
     
     if (status.toLowerCase().includes('active') || status.toLowerCase().includes('raising')) {
-      return <Badge variant="success">{status}</Badge>;
+      return <Badge className="bg-green-500 text-white">{status}</Badge>;
     } else if (status.toLowerCase().includes('planned')) {
-      return <Badge variant="warning">{status}</Badge>;
+      return <Badge className="bg-yellow-500 text-white">{status}</Badge>;
     } else {
       return <Badge variant="outline">{status}</Badge>;
     }

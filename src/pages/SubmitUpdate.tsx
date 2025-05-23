@@ -1,13 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -17,215 +15,220 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
-import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleDollarSign, Loader2 } from 'lucide-react';
 import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
 
 // Create schema for form validation
 const updateFormSchema = z.object({
-  arr: z.string().min(1, 'ARR is required').transform(val => parseFloat(val)),
-  mrr: z.string().min(1, 'MRR is required').transform(val => parseFloat(val)),
-  burn_rate: z.string().min(1, 'Burn rate is required').transform(val => parseFloat(val)),
-  runway: z.string().min(1, 'Runway is required').transform(val => parseFloat(val)),
-  headcount: z.string().min(1, 'Headcount is required').transform(val => parseInt(val, 10)),
-  churn: z.string().nullable().transform(val => val ? parseFloat(val) : null),
-  raise_status: z.string().nullable(),
-  raise_target_amount: z.string().nullable().transform(val => val ? parseFloat(val) : null),
-  deck_url: z.string().nullable().url('Please enter a valid URL').or(z.literal('')),
-  requested_intros: z.string().nullable(),
-  comments: z.string().nullable(),
+  arr: z.coerce.number().min(0, {
+    message: "ARR must be a positive number",
+  }).optional(),
+  mrr: z.coerce.number().min(0, {
+    message: "MRR must be a positive number",
+  }).optional(),
+  burn_rate: z.coerce.number().min(0, {
+    message: "Burn rate must be a positive number",
+  }).optional(),
+  runway: z.coerce.number().min(0, {
+    message: "Runway must be a positive number",
+  }).optional(),
+  headcount: z.coerce.number().int().min(0, {
+    message: "Headcount must be a positive integer",
+  }).optional(),
+  churn: z.coerce.number().min(0).max(100, {
+    message: "Churn must be between 0-100%",
+  }).optional(),
+  raise_status: z.string().optional(),
+  raise_target_amount: z.coerce.number().min(0, {
+    message: "Target amount must be a positive number",
+  }).optional(),
+  deck_url: z.string().nullable().optional(),
+  requested_intros: z.string().optional(),
+  comments: z.string().optional(),
 });
 
 type UpdateFormValues = z.infer<typeof updateFormSchema>;
 
 export default function SubmitUpdate() {
   const { user } = useAuth();
-  const { canSubmitUpdate, userCompanyId } = useRoleAccess();
-  const { toast } = useToast();
   const navigate = useNavigate();
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   const { notifyUpdateSubmitted } = useNotificationTrigger();
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [company, setCompany] = useState<any>(null);
+  const [lastUpdate, setLastUpdate] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const form = useForm<UpdateFormValues>({
     resolver: zodResolver(updateFormSchema),
     defaultValues: {
-      arr: '',
-      mrr: '',
-      burn_rate: '',
-      runway: '',
-      headcount: '',
-      churn: '',
+      arr: 0,
+      mrr: 0,
+      burn_rate: 0,
+      runway: 0,
+      headcount: 0,
+      churn: 0,
       raise_status: '',
-      raise_target_amount: '',
+      raise_target_amount: 0,
       deck_url: '',
       requested_intros: '',
       comments: '',
     },
   });
 
+  // Fetch company data and last update
   useEffect(() => {
-    const fetchCompanyDetails = async () => {
+    const fetchData = async () => {
+      if (!user || !user.company_id) {
+        navigate('/');
+        return;
+      }
+
       try {
-        if (!userCompanyId) return;
-        
-        setCompanyId(userCompanyId);
-        
-        // Get latest update data to pre-fill the form
+        // Get company data
+        const { data: companyData, error: companyError } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', user.company_id)
+          .single();
+
+        if (companyError) throw companyError;
+        setCompany(companyData);
+
+        // Get the most recent update
         const { data: updates, error: updatesError } = await supabase
           .from('founder_updates')
           .select('*')
-          .eq('company_id', userCompanyId)
+          .eq('company_id', user.company_id)
           .order('submitted_at', { ascending: false })
           .limit(1);
-        
+
         if (updatesError) throw updatesError;
         
-        // Get company details
-        const { data: company, error: companyError } = await supabase
-          .from('companies')
-          .select('name, arr, mrr, burn_rate, runway, headcount, churn_rate')
-          .eq('id', userCompanyId)
-          .single();
-        
-        if (companyError) throw companyError;
-        
-        if (company) {
-          setCompanyName(company.name);
-        }
-        
-        // Pre-fill form with latest update data or company data
         if (updates && updates.length > 0) {
-          const latestUpdate = updates[0];
+          setLastUpdate(updates[0]);
+          
+          // Pre-fill form with last update data
+          const lastUpdateData = updates[0];
           form.reset({
-            arr: latestUpdate.arr?.toString() || '',
-            mrr: latestUpdate.mrr?.toString() || '',
-            burn_rate: latestUpdate.burn_rate?.toString() || '',
-            runway: latestUpdate.runway?.toString() || '',
-            headcount: latestUpdate.headcount?.toString() || '',
-            churn: latestUpdate.churn?.toString() || '',
-            raise_status: latestUpdate.raise_status || '',
-            raise_target_amount: latestUpdate.raise_target_amount?.toString() || '',
-            deck_url: latestUpdate.deck_url || '',
-            requested_intros: latestUpdate.requested_intros || '',
-            comments: '',
-          });
-        } else if (company) {
-          // Fall back to company data if no updates
-          form.reset({
-            arr: company.arr?.toString() || '',
-            mrr: company.mrr?.toString() || '',
-            burn_rate: company.burn_rate?.toString() || '',
-            runway: company.runway?.toString() || '',
-            headcount: company.headcount?.toString() || '',
-            churn: company.churn_rate?.toString() || '',
-            raise_status: '',
-            raise_target_amount: '',
-            deck_url: '',
-            requested_intros: '',
+            arr: lastUpdateData.arr || 0,
+            mrr: lastUpdateData.mrr || 0,
+            burn_rate: lastUpdateData.burn_rate || 0,
+            runway: lastUpdateData.runway || 0,
+            headcount: lastUpdateData.headcount || 0,
+            churn: lastUpdateData.churn || 0,
+            raise_status: lastUpdateData.raise_status || '',
+            raise_target_amount: lastUpdateData.raise_target_amount || 0,
+            deck_url: lastUpdateData.deck_url || '',
+            requested_intros: lastUpdateData.requested_intros || '',
             comments: '',
           });
         }
-      } catch (err) {
-        console.error('Error fetching company data:', err);
-        setError('Failed to load company data. Please try again.');
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load company data. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchCompanyDetails();
-  }, [userCompanyId, form]);
+    fetchData();
+  }, [user, navigate, toast, form]);
 
-  const onSubmit = async (data: UpdateFormValues) => {
-    if (!user || !companyId) {
-      setError('User or company information is missing.');
+  const onSubmit = async (values: UpdateFormValues) => {
+    if (!user || !user.company_id || !company) {
+      toast({
+        title: 'Error',
+        description: 'Missing company information',
+        variant: 'destructive',
+      });
       return;
     }
-    
+
     setIsSubmitting(true);
-    setError(null);
-    
+
     try {
-      // Insert update into founder_updates table
-      const { data: newUpdate, error: insertError } = await supabase
+      const updateData = {
+        ...values,
+        company_id: user.company_id,
+        submitted_by: user.id,
+        submitted_at: new Date().toISOString(),
+      };
+
+      // Insert the update
+      const { data, error } = await supabase
         .from('founder_updates')
-        .insert({
-          company_id: companyId,
-          submitted_by: user.id,
-          arr: data.arr,
-          mrr: data.mrr,
-          burn_rate: data.burn_rate,
-          runway: data.runway,
-          headcount: data.headcount,
-          churn: data.churn,
-          raise_status: data.raise_status || null,
-          raise_target_amount: data.raise_target_amount || null,
-          deck_url: data.deck_url || null,
-          requested_intros: data.requested_intros || null,
-          comments: data.comments || null,
-        })
-        .select('id')
-        .single();
-        
-      if (insertError) throw insertError;
-      
-      // Update the company with new metrics
+        .insert([updateData]);
+
+      if (error) throw error;
+
+      // Send notification
+      await notifyUpdateSubmitted(
+        user.company_id,
+        company.name,
+        'latest-update' // Using a placeholder since we don't have the specific update ID
+      );
+
+      toast({
+        title: 'Update submitted',
+        description: 'Your update has been successfully submitted',
+      });
+
+      // Update the company data with the latest metrics
       const { error: updateError } = await supabase
         .from('companies')
         .update({
-          arr: data.arr,
-          mrr: data.mrr,
-          burn_rate: data.burn_rate,
-          runway: data.runway,
-          headcount: data.headcount,
-          churn_rate: data.churn,
+          arr: Number(values.arr),
+          mrr: Number(values.mrr),
+          burn_rate: Number(values.burn_rate),
+          runway: Number(values.runway),
+          headcount: Number(values.headcount),
+          churn_rate: Number(values.churn),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', companyId);
-        
+        .eq('id', user.company_id);
+
       if (updateError) throw updateError;
-      
-      // Send notification to partners
-      await notifyUpdateSubmitted(companyId, companyName, newUpdate.id);
-      
+
+      // Navigate to the company profile
+      navigate(`/company/${user.company_id}`);
+    } catch (error) {
+      console.error('Error submitting update:', error);
       toast({
-        title: 'Update submitted successfully',
-        description: 'Your company update has been recorded.',
+        title: 'Error',
+        description: 'Failed to submit update. Please try again.',
+        variant: 'destructive',
       });
-      
-      // Redirect to the company page
-      navigate(`/company/${companyId}`);
-    } catch (err) {
-      console.error('Error submitting update:', err);
-      setError('Failed to submit update. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!canSubmitUpdate()) {
+  if (isLoading) {
     return (
-      <ProtectedRoute requiredRoles={['founder']}>
-        <div className="container mx-auto py-12">
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              You don't have permission to submit updates.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </ProtectedRoute>
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute requiredRoles={['founder']} requiresOwnership={true} resourceOwnerId={userCompanyId}>
+    <ProtectedRoute requiredRoles={['founder']} requiresOwnership={true} resourceOwnerId={user.company_id}>
       <div className="container mx-auto py-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>

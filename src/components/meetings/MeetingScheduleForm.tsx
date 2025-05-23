@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,6 +50,11 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+interface MeetingResponse {
+  id: string;
+  [key: string]: any;
+}
 
 interface MeetingScheduleFormProps {
   onSubmit: (data: any) => void;
@@ -179,7 +183,7 @@ export default function MeetingScheduleForm({
       };
       
       // Submit the data
-      const result = await onSubmit(meetingData);
+      const result = await onSubmit(meetingData) as MeetingResponse | undefined;
       
       // If successful, send notification to participants
       if (result && result.id) {
