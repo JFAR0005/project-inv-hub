@@ -1,0 +1,281 @@
+
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
+import SmartSuggestions from './SmartSuggestions';
+import PortfolioGrid from './PortfolioGrid';
+import PortfolioTable from './PortfolioTable';
+import { 
+  LayoutGrid, 
+  List, 
+  BarChart3,
+  Download,
+  Settings,
+  Eye,
+  EyeOff
+} from 'lucide-react';
+
+interface Company {
+  id: string;
+  name: string;
+  sector: string;
+  stage: string;
+  location: string;
+  arr: number;
+  growth: number;
+  headcount: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+  website?: string;
+  logo_url?: string;
+  description?: string;
+  burn_rate?: number;
+  runway?: number;
+  churn_rate?: number;
+  mrr?: number;
+}
+
+const EnhancedPortfolioView: React.FC = () => {
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
+  const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+
+  // Fetch companies and their latest updates
+  const { data: companies = [], isLoading, refetch } = useQuery({
+    queryKey: ['enhanced-portfolio'],
+    queryFn: async () => {
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('*')
+        .order('name');
+
+      if (companiesError) throw companiesError;
+
+      const { data: updates, error: updatesError } = await supabase
+        .from('founder_updates')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+
+      if (updatesError) throw updatesError;
+
+      // Get latest update for each company
+      const updatesByCompany = updates.reduce((acc: Record<string, any>, update) => {
+        if (!acc[update.company_id] || new Date(update.submitted_at) > new Date(acc[update.company_id].submitted_at)) {
+          acc[update.company_id] = update;
+        }
+        return acc;
+      }, {});
+
+      // Transform companies data for filtering
+      return companiesData.map(company => {
+        const latestUpdate = updatesByCompany[company.id];
+        const arr = latestUpdate?.arr || company.arr || 0;
+        const growth = latestUpdate?.growth || 0;
+        const headcount = latestUpdate?.headcount || company.headcount || 0;
+        const burnRate = latestUpdate?.burn_rate || company.burn_rate || 0;
+        const runway = latestUpdate?.runway || company.runway || 0;
+
+        // Calculate risk level based on multiple factors
+        let riskScore = 0;
+        if (growth < 0) riskScore += 2;
+        else if (growth < 10) riskScore += 1;
+        
+        if (runway && runway < 6) riskScore += 2;
+        else if (runway && runway < 12) riskScore += 1;
+        
+        if (burnRate > 0 && arr > 0) {
+          const burnMultiple = burnRate / (arr / 12);
+          if (burnMultiple > 4) riskScore += 2;
+          else if (burnMultiple > 2) riskScore += 1;
+        }
+
+        const riskLevel: 'Low' | 'Medium' | 'High' = 
+          riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
+
+        return {
+          id: company.id,
+          name: company.name,
+          sector: company.sector || 'Other',
+          stage: company.stage || 'Unknown',
+          location: company.location || 'Unknown',
+          arr,
+          growth,
+          headcount,
+          riskLevel,
+          website: company.website,
+          logo_url: company.logo_url,
+          description: company.description,
+          burn_rate: burnRate,
+          runway,
+          churn_rate: latestUpdate?.churn || company.churn_rate,
+          mrr: latestUpdate?.mrr || company.mrr
+        };
+      });
+    },
+  });
+
+  const handleSuggestionClick = (suggestion: string) => {
+    // Parse suggestion and apply corresponding filters
+    const filters: Partial<SearchFilters> = {};
+    
+    if (suggestion.includes('high-growth')) {
+      filters.growthRange = [50, 200];
+    } else if (suggestion.includes('at-risk')) {
+      filters.riskLevels = ['High'];
+    } else if (suggestion.includes('enterprise')) {
+      filters.arrRange = [5000000, 50000000];
+    } else if (suggestion.includes('scaling')) {
+      filters.headcountRange = [100, 1000];
+    } else if (suggestion.includes('declining')) {
+      filters.growthRange = [-50, 0];
+    } else if (suggestion.includes('breakout')) {
+      filters.stages = ['Seed', 'Series A'];
+      filters.growthRange = [100, 200];
+    }
+
+    // Apply the filter by updating the search component
+    // This would typically trigger a re-render with new filters
+    console.log('Applying suggestion filter:', suggestion, filters);
+  };
+
+  const exportData = () => {
+    const csvContent = [
+      ['Company', 'Sector', 'Stage', 'Location', 'ARR', 'Growth Rate', 'Headcount', 'Risk Level', 'Burn Rate', 'Runway'].join(','),
+      ...filteredCompanies.map(company => [
+        company.name,
+        company.sector,
+        company.stage,
+        company.location,
+        company.arr,
+        company.growth,
+        company.headcount,
+        company.riskLevel,
+        company.burn_rate || 0,
+        company.runway || 0
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'portfolio-companies.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Portfolio</h1>
+          <p className="text-gray-600 mt-1">
+            Advanced portfolio management and insights
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSuggestions(!showSuggestions)}
+          >
+            {showSuggestions ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportData}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <AdvancedSearch
+        companies={companies}
+        onFiltersChange={setFilteredCompanies}
+        onFiltersUpdate={setCurrentFilters}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* View Controls */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                Grid
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                <List className="h-4 w-4 mr-2" />
+                Table
+              </Button>
+            </div>
+            
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <span>{filteredCompanies.length} companies</span>
+              {currentFilters && (
+                <Badge variant="secondary">
+                  Filtered
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Portfolio Content */}
+          <Tabs value={viewMode} className="w-full">
+            <TabsContent value="grid" className="mt-0">
+              <PortfolioGrid companies={filteredCompanies} />
+            </TabsContent>
+            <TabsContent value="table" className="mt-0">
+              <PortfolioTable companies={filteredCompanies} />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Sidebar */}
+        {showSuggestions && (
+          <div className="lg:col-span-1">
+            <SmartSuggestions
+              companies={filteredCompanies}
+              onSuggestionClick={handleSuggestionClick}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default EnhancedPortfolioView;

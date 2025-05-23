@@ -8,6 +8,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 import Login from './pages/Login';
 import Index from './pages/Index';
 import Portfolio from './pages/Portfolio';
+import EnhancedPortfolio from './pages/EnhancedPortfolio';
 import Analytics from './pages/Analytics';
 import CompanyProfile from './pages/CompanyProfile';
 import CompanyDetails from './pages/CompanyDetails';
@@ -37,6 +38,11 @@ const App = () => {
               <Route path="/portfolio" element={
                 <ProtectedRoute>
                   <Portfolio />
+                </ProtectedRoute>
+              } />
+              <Route path="/enhanced-portfolio" element={
+                <ProtectedRoute>
+                  <EnhancedPortfolio />
                 </ProtectedRoute>
               } />
               <Route path="/analytics" element={

@@ -11,7 +11,8 @@ import {
   Briefcase, 
   TrendingUp,
   Upload,
-  Settings
+  Settings,
+  Search
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -28,6 +29,12 @@ const Sidebar = () => {
       to: '/portfolio', 
       icon: Building2, 
       label: 'Portfolio',
+      roles: ['admin', 'partner', 'analyst', 'lp']
+    },
+    { 
+      to: '/enhanced-portfolio', 
+      icon: Search, 
+      label: 'Advanced Portfolio',
       roles: ['admin', 'partner', 'analyst', 'lp']
     },
     { 
