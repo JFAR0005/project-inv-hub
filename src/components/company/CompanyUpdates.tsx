@@ -90,7 +90,7 @@ const CompanyUpdates: React.FC<CompanyUpdatesProps> = ({ companyId }) => {
       case 'Raising':
         return <Badge variant="default">Raising</Badge>;
       case 'Closed':
-        return <Badge variant="success">Closed</Badge>;
+        return <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">Closed</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
