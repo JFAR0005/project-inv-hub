@@ -5,10 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import Layout from '@/components/layout/Layout';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -50,6 +50,7 @@ type FormValues = z.infer<typeof formSchema>;
 const SubmitUpdate = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -140,9 +141,11 @@ const SubmitUpdate = () => {
           throw new Error(`Error uploading file: ${uploadError.message}`);
         }
 
-        deckUrl = supabase.storage
+        const { data } = supabase.storage
           .from('company_files')
-          .getPublicUrl(filePath).data.publicUrl;
+          .getPublicUrl(filePath);
+        
+        deckUrl = data.publicUrl;
       }
 
       // Save the update to the database
