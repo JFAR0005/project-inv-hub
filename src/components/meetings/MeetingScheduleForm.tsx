@@ -3,215 +3,194 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format } from 'date-fns';
-import { CalendarIcon, Loader2 } from 'lucide-react';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Meeting } from '@/pages/Meetings';
-import { MeetingFormValues, MeetingParticipant, Company } from './types';
 
-// Define schema for form validation
-const formSchema = z.object({
+const meetingSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  start_time: z.date({ required_error: 'Start time is required' }),
-  end_time: z.date({ required_error: 'End time is required' }),
+  start_time: z.date(),
+  end_time: z.date(),
   location: z.string().optional(),
   description: z.string().optional(),
   company_id: z.string().optional(),
-  participants: z.array(z.string()).min(1, 'At least one participant is required'),
-}).refine((data) => data.end_time > data.start_time, {
-  message: "End time must be after start time",
-  path: ["end_time"],
+  participants: z.array(z.string()).optional(),
 });
+
+type MeetingFormValues = z.infer<typeof meetingSchema>;
+
+interface Company {
+  id: string;
+  name: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface MeetingScheduleFormProps {
   onSuccess: () => void;
   meeting?: Meeting | null;
 }
 
-const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
-  onSuccess,
-  meeting = null,
-}) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [users, setUsers] = useState<MeetingParticipant[]>([]);
+const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({ onSuccess, meeting }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    meeting ? new Date(meeting.start_time) : new Date()
+  );
 
-  const form = useForm<MeetingFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: '',
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<MeetingFormValues>({
+    resolver: zodResolver(meetingSchema),
+    defaultValues: meeting ? {
+      title: meeting.title,
+      start_time: new Date(meeting.start_time),
+      end_time: new Date(meeting.end_time),
+      location: meeting.location || '',
+      description: meeting.description || '',
+      company_id: meeting.company_id || '',
+      participants: meeting.participants || [],
+    } : {
       start_time: new Date(),
-      end_time: new Date(new Date().setHours(new Date().getHours() + 1)),
-      location: '',
-      description: '',
-      company_id: '',
-      participants: user ? [user.id] : [],
-    },
+      end_time: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
+      participants: [],
+    }
   });
 
-  // Fetch companies and users for dropdowns
+  const startTime = watch('start_time');
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch companies based on user role
-        let companiesQuery = supabase.from('companies').select('id, name');
-        
-        if (user?.role === 'founder' && user.companyId) {
-          // Founders can only select their own company
-          companiesQuery = companiesQuery.eq('id', user.companyId);
-        }
-        
-        const { data: companiesData, error: companiesError } = await companiesQuery.order('name', { ascending: true });
+    fetchCompanies();
+    fetchUsers();
+  }, []);
 
-        if (companiesError) {
-          console.error('Error fetching companies:', companiesError);
-        } else {
-          setCompanies(companiesData || []);
-        }
-
-        // Fetch users for participants
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id, name, email, role')
-          .order('name', { ascending: true });
-
-        if (usersError) {
-          console.error('Error fetching users:', usersError);
-        } else {
-          setUsers(usersData || []);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
-    fetchData();
-  }, [user]);
-
-  // Set form values if editing a meeting
   useEffect(() => {
-    if (meeting) {
-      const fetchParticipants = async () => {
-        try {
-          const { data: participantData, error: participantError } = await supabase
-            .from('meeting_participants')
-            .select('user_id')
-            .eq('meeting_id', meeting.id);
+    if (selectedDate) {
+      const currentStart = startTime || new Date();
+      const newStart = new Date(selectedDate);
+      newStart.setHours(currentStart.getHours(), currentStart.getMinutes());
+      
+      const newEnd = new Date(newStart);
+      newEnd.setHours(newStart.getHours() + 1);
+      
+      setValue('start_time', newStart);
+      setValue('end_time', newEnd);
+    }
+  }, [selectedDate, setValue]);
 
-          if (participantError) {
-            console.error('Error fetching participants:', participantError);
-            return;
-          }
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
 
-          const participantIds = participantData?.map(p => p.user_id) || [];
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
 
-          form.reset({
-            title: meeting.title,
-            start_time: new Date(meeting.start_time),
-            end_time: new Date(meeting.end_time),
-            location: meeting.location || '',
-            description: meeting.description || '',
-            company_id: meeting.company_id || '',
-            participants: participantIds,
-          });
-        } catch (error) {
-          console.error('Error setting form values:', error);
-        }
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email, role')
+        .order('name');
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const onSubmit = async (data: MeetingFormValues) => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      const meetingData = {
+        title: data.title,
+        start_time: data.start_time.toISOString(),
+        end_time: data.end_time.toISOString(),
+        location: data.location || null,
+        description: data.description || null,
+        company_id: data.company_id || null,
+        created_by: user.id,
       };
 
-      fetchParticipants();
-    }
-  }, [meeting, form]);
-
-  const onSubmit = async (values: MeetingFormValues) => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to schedule meetings",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
       let meetingId: string;
 
       if (meeting) {
         // Update existing meeting
-        const { data: updatedMeeting, error: updateError } = await supabase
+        const { error } = await supabase
           .from('meetings')
-          .update({
-            title: values.title,
-            start_time: values.start_time.toISOString(),
-            end_time: values.end_time.toISOString(),
-            location: values.location || null,
-            description: values.description || null,
-            company_id: values.company_id || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', meeting.id)
-          .select()
-          .single();
+          .update(meetingData)
+          .eq('id', meeting.id);
 
-        if (updateError) throw updateError;
+        if (error) throw error;
         meetingId = meeting.id;
-
-        // Delete existing participants
-        const { error: deleteParticipantsError } = await supabase
-          .from('meeting_participants')
-          .delete()
-          .eq('meeting_id', meeting.id);
-
-        if (deleteParticipantsError) throw deleteParticipantsError;
       } else {
-        // Insert new meeting
-        const { data: newMeeting, error: insertError } = await supabase
+        // Create new meeting
+        const { data: newMeeting, error } = await supabase
           .from('meetings')
-          .insert({
-            title: values.title,
-            start_time: values.start_time.toISOString(),
-            end_time: values.end_time.toISOString(),
-            location: values.location || null,
-            description: values.description || null,
-            company_id: values.company_id || null,
-            created_by: user.id,
-          })
+          .insert(meetingData)
           .select()
           .single();
 
-        if (insertError) throw insertError;
+        if (error) throw error;
         meetingId = newMeeting.id;
       }
 
-      // Insert participants
-      if (values.participants.length > 0) {
-        const participantsToInsert = values.participants.map(participantId => ({
+      // Handle participants
+      if (data.participants && data.participants.length > 0) {
+        // Delete existing participants
+        await supabase
+          .from('meeting_participants')
+          .delete()
+          .eq('meeting_id', meetingId);
+
+        // Add new participants
+        const participantData = data.participants.map(userId => ({
           meeting_id: meetingId,
-          user_id: participantId,
+          user_id: userId,
         }));
 
-        const { error: participantsError } = await supabase
+        const { error: participantError } = await supabase
           .from('meeting_participants')
-          .insert(participantsToInsert);
+          .insert(participantData);
 
-        if (participantsError) throw participantsError;
+        if (participantError) throw participantError;
       }
 
-      // TODO: Send notifications to participants (implement with edge function)
-      console.log('Meeting scheduled successfully. TODO: Send notifications to participants.');
+      toast({
+        title: "Success",
+        description: meeting ? "Meeting updated successfully" : "Meeting scheduled successfully",
+      });
 
       onSuccess();
     } catch (error) {
@@ -222,241 +201,160 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Meeting Title*</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter meeting title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="title">Meeting Title *</Label>
+        <Input
+          id="title"
+          placeholder="Enter meeting title"
+          {...register('title')}
         />
+        {errors.title && (
+          <p className="text-sm text-destructive">{errors.title.message}</p>
+        )}
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="start_time"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Start Time*</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className="pl-3 text-left font-normal flex justify-between items-center"
-                      >
-                        {field.value ? format(field.value, "PPP p") : <span>Pick a date</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                    <div className="p-3 border-t border-border">
-                      <Input
-                        type="time"
-                        value={field.value ? format(field.value, "HH:mm") : ""}
-                        onChange={(e) => {
-                          const [hours, minutes] = e.target.value.split(':').map(Number);
-                          const newDate = new Date(field.value);
-                          newDate.setHours(hours);
-                          newDate.setMinutes(minutes);
-                          field.onChange(newDate);
-                        }}
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="end_time"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>End Time*</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className="pl-3 text-left font-normal flex justify-between items-center"
-                      >
-                        {field.value ? format(field.value, "PPP p") : <span>Pick a date</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                    <div className="p-3 border-t border-border">
-                      <Input
-                        type="time"
-                        value={field.value ? format(field.value, "HH:mm") : ""}
-                        onChange={(e) => {
-                          const [hours, minutes] = e.target.value.split(':').map(Number);
-                          const newDate = new Date(field.value);
-                          newDate.setHours(hours);
-                          newDate.setMinutes(minutes);
-                          field.onChange(newDate);
-                        }}
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="company_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Company (Optional)</FormLabel>
-              <Select
-                value={field.value || ""}
-                onValueChange={field.onChange}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Date *</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
               >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a company" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="">No company</SelectItem>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Location (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter meeting location" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="participants"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Participants*</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <div className="border border-input rounded-md p-2 min-h-10">
-                    <div className="flex flex-wrap gap-1">
-                      {field.value.map(userId => {
-                        const selectedUser = users.find(u => u.id === userId);
-                        return selectedUser ? (
-                          <div key={userId} className="bg-primary/10 px-2 py-1 rounded-md flex items-center">
-                            <span className="text-sm">{selectedUser.name}</span>
-                            <button
-                              type="button"
-                              className="ml-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => {
-                                field.onChange(field.value.filter(id => id !== userId));
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ) : null;
-                      })}
-                      <select
-                        className="flex-grow min-w-[100px] border-0 focus:ring-0 focus:outline-none bg-transparent text-sm"
-                        onChange={(e) => {
-                          if (e.target.value && !field.value.includes(e.target.value)) {
-                            field.onChange([...field.value, e.target.value]);
-                          }
-                          e.target.value = '';
-                        }}
-                      >
-                        <option value="">Add participant...</option>
-                        {users
-                          .filter(user => !field.value.includes(user.id))
-                          .map(user => (
-                            <option key={user.id} value={user.id}>
-                              {user.name} ({user.role})
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Enter meeting details" className="min-h-[100px]" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" type="button" onClick={() => onSuccess()}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {meeting ? 'Update Meeting' : 'Schedule Meeting'}
-          </Button>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-      </form>
-    </Form>
+
+        <div className="space-y-2">
+          <Label htmlFor="start_time">Start Time *</Label>
+          <Input
+            id="start_time"
+            type="time"
+            {...register('start_time', {
+              setValueAs: (value) => {
+                if (!selectedDate) return new Date();
+                const [hours, minutes] = value.split(':');
+                const date = new Date(selectedDate);
+                date.setHours(parseInt(hours), parseInt(minutes));
+                return date;
+              }
+            })}
+            defaultValue={meeting ? format(new Date(meeting.start_time), 'HH:mm') : '09:00'}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="end_time">End Time *</Label>
+        <Input
+          id="end_time"
+          type="time"
+          {...register('end_time', {
+            setValueAs: (value) => {
+              if (!selectedDate) return new Date();
+              const [hours, minutes] = value.split(':');
+              const date = new Date(selectedDate);
+              date.setHours(parseInt(hours), parseInt(minutes));
+              return date;
+            }
+          })}
+          defaultValue={meeting ? format(new Date(meeting.end_time), 'HH:mm') : '10:00'}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="company_id">Company</Label>
+        <Select
+          value={watch('company_id') || ''}
+          onValueChange={(value) => setValue('company_id', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a company" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">No company</SelectItem>
+            {companies.map((company) => (
+              <SelectItem key={company.id} value={company.id}>
+                {company.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="location">Location</Label>
+        <Input
+          id="location"
+          placeholder="Meeting location or video call link"
+          {...register('location')}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          placeholder="Meeting agenda or notes"
+          {...register('description')}
+          className="min-h-[100px]"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Participants</Label>
+        <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+          {users.filter(u => u.id !== user?.id).map((userOption) => (
+            <div key={userOption.id} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`participant-${userOption.id}`}
+                checked={watch('participants')?.includes(userOption.id) || false}
+                onChange={(e) => {
+                  const participants = watch('participants') || [];
+                  if (e.target.checked) {
+                    setValue('participants', [...participants, userOption.id]);
+                  } else {
+                    setValue('participants', participants.filter(id => id !== userOption.id));
+                  }
+                }}
+                className="rounded"
+              />
+              <label
+                htmlFor={`participant-${userOption.id}`}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                {userOption.name} ({userOption.role})
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-2">
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? "Saving..." : meeting ? "Update Meeting" : "Schedule Meeting"}
+        </Button>
+      </div>
+    </form>
   );
 };
 
