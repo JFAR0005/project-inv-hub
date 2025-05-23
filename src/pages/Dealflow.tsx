@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -256,7 +257,8 @@ const Dealflow = () => {
                   </Button>
                 ))}
               </div>
-            </CardContent>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Deals Content */}
