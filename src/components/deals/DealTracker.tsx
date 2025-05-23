@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -62,9 +61,11 @@ const DealTracker = () => {
 
         if (error) throw error;
 
-        const formattedDeals = data?.map(deal => ({
+        // First, format deals with company information
+        const formattedDeals: Deal[] = data?.map(deal => ({
           ...deal,
-          company_name: deal.companies?.name || 'Unknown Company'
+          company_name: deal.companies?.name || 'Unknown Company',
+          due_diligence_status: undefined  // Initialize with undefined
         })) || [];
 
         // Fetch due diligence status for DD deals
