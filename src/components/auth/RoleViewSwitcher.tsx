@@ -57,6 +57,7 @@ const RoleViewSwitcher = () => {
             <h4 className="font-medium text-sm">View application as:</h4>
             <RadioGroup 
               defaultValue={user.role}
+              value={user.role}
               onValueChange={(value) => handleRoleChange(value as UserRole)}
             >
               <div className="flex items-center space-x-2">
