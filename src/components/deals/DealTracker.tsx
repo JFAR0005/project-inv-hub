@@ -24,7 +24,12 @@ type BoardColumn = {
   deals: Deal[];
 };
 
-const DealTracker = () => {
+// Add viewType prop to the component interface
+interface DealTrackerProps {
+  viewType?: 'table' | 'kanban';
+}
+
+const DealTracker: React.FC<DealTrackerProps> = ({ viewType = 'kanban' }) => {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -232,6 +237,7 @@ const DealTracker = () => {
     }
   };
 
+  // Render different views based on viewType prop
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -248,91 +254,141 @@ const DealTracker = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
-        {columns.map((column) => (
-          <div 
-            key={column.id}
-            className="min-w-[280px] bg-muted/40 rounded-lg p-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, column.id)}
-          >
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="font-medium">{column.title}</h3>
-              <Badge variant="outline">{column.deals.length}</Badge>
-            </div>
-
-            <div className="space-y-3">
-              {isLoading ? (
-                Array.from({ length: 2 }).map((_, index) => (
-                  <Card key={index} className="bg-card animate-pulse h-32" />
-                ))
-              ) : (
-                column.deals.map((deal) => (
-                  <Card
-                    key={deal.id}
-                    className={`bg-card cursor-pointer hover:shadow-md transition-shadow ${column.id === 'DD' ? 'border-l-4 border-l-blue-500' : ''}`}
-                    draggable={canEditDeals}
-                    onDragStart={(e) => handleDragStart(e, deal.id, column.id)}
-                    onClick={() => handleCardClick(deal)}
-                  >
-                    <CardHeader className="p-3 pb-1">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <Link 
-                          to={`/companies/${deal.company_id}`}
-                          className="hover:text-primary transition-colors"
-                          onClick={(e) => e.stopPropagation()} // Prevent card click when clicking link
-                        >
-                          {deal.company_name}
-                        </Link>
-                        {column.id === 'DD' && deal.due_diligence_status && (
-                          <Badge 
-                            variant="outline" 
-                            className={getDDStatusColor(deal.due_diligence_status)}
+      {viewType === 'table' ? (
+        <div className="bg-white rounded-lg shadow">
+          {/* Table view implementation placeholder - you can expand this later */}
+          <div className="p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-2 px-4 text-left">Company</th>
+                    <th className="py-2 px-4 text-left">Stage</th>
+                    <th className="py-2 px-4 text-left">Valuation</th>
+                    <th className="py-2 px-4 text-left">Lead</th>
+                    <th className="py-2 px-4 text-left">Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!isLoading && columns.flatMap(column => 
+                    column.deals.map(deal => (
+                      <tr key={deal.id} className="border-b hover:bg-gray-50">
+                        <td className="py-2 px-4">
+                          <Link 
+                            to={`/companies/${deal.company_id}`}
+                            className="text-blue-600 hover:underline"
                           >
-                            {deal.due_diligence_status}
-                          </Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0 pb-1">
-                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" />
-                          <span>{formatCurrency(deal.valuation_expectation)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span>{deal.lead_partner || 'Unassigned'}</span>
-                        </div>
-                      </div>
-                      {deal.source && (
-                        <div className="mt-2 text-xs">
-                          <span className="font-medium">Source:</span> {deal.source}
-                        </div>
-                      )}
-                      {deal.notes && (
-                        <p className="text-xs mt-1 line-clamp-2">{deal.notes}</p>
-                      )}
-                      {column.id === 'DD' && (
-                        <div className="flex items-center mt-2 text-xs text-blue-600">
-                          <FileText className="h-3 w-3 mr-1" />
-                          <span>View DD details</span>
-                        </div>
-                      )}
-                    </CardContent>
-                    <CardFooter className="p-3 pt-1 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>Updated {formatDate(deal.updated_at)}</span>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))
-              )}
+                            {deal.company_name}
+                          </Link>
+                        </td>
+                        <td className="py-2 px-4">
+                          <Badge variant="outline">{deal.stage}</Badge>
+                        </td>
+                        <td className="py-2 px-4">{formatCurrency(deal.valuation_expectation)}</td>
+                        <td className="py-2 px-4">{deal.lead_partner || 'Unassigned'}</td>
+                        <td className="py-2 px-4">{formatDate(deal.updated_at)}</td>
+                      </tr>
+                    ))
+                  )}
+                  {isLoading && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center">
+                        Loading deals...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
+          {columns.map((column) => (
+            <div 
+              key={column.id}
+              className="min-w-[280px] bg-muted/40 rounded-lg p-3"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, column.id)}
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium">{column.title}</h3>
+                <Badge variant="outline">{column.deals.length}</Badge>
+              </div>
+
+              <div className="space-y-3">
+                {isLoading ? (
+                  Array.from({ length: 2 }).map((_, index) => (
+                    <Card key={index} className="bg-card animate-pulse h-32" />
+                  ))
+                ) : (
+                  column.deals.map((deal) => (
+                    <Card
+                      key={deal.id}
+                      className={`bg-card cursor-pointer hover:shadow-md transition-shadow ${column.id === 'DD' ? 'border-l-4 border-l-blue-500' : ''}`}
+                      draggable={canEditDeals}
+                      onDragStart={(e) => handleDragStart(e, deal.id, column.id)}
+                      onClick={() => handleCardClick(deal)}
+                    >
+                      <CardHeader className="p-3 pb-1">
+                        <CardTitle className="text-base flex items-center justify-between">
+                          <Link 
+                            to={`/companies/${deal.company_id}`}
+                            className="hover:text-primary transition-colors"
+                            onClick={(e) => e.stopPropagation()} // Prevent card click when clicking link
+                          >
+                            {deal.company_name}
+                          </Link>
+                          {column.id === 'DD' && deal.due_diligence_status && (
+                            <Badge 
+                              variant="outline" 
+                              className={getDDStatusColor(deal.due_diligence_status)}
+                            >
+                              {deal.due_diligence_status}
+                            </Badge>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0 pb-1">
+                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />
+                            <span>{formatCurrency(deal.valuation_expectation)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            <span>{deal.lead_partner || 'Unassigned'}</span>
+                          </div>
+                        </div>
+                        {deal.source && (
+                          <div className="mt-2 text-xs">
+                            <span className="font-medium">Source:</span> {deal.source}
+                          </div>
+                        )}
+                        {deal.notes && (
+                          <p className="text-xs mt-1 line-clamp-2">{deal.notes}</p>
+                        )}
+                        {column.id === 'DD' && (
+                          <div className="flex items-center mt-2 text-xs text-blue-600">
+                            <FileText className="h-3 w-3 mr-1" />
+                            <span>View DD details</span>
+                          </div>
+                        )}
+                      </CardContent>
+                      <CardFooter className="p-3 pt-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>Updated {formatDate(deal.updated_at)}</span>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       
       {/* Deal creation form */}
       <DealForm 
