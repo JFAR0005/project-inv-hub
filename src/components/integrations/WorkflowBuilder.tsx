@@ -113,9 +113,7 @@ const WorkflowBuilder: React.FC = () => {
 
   const handleCreateWorkflow = () => {
     if (!newWorkflow.name) {
-      toast({
-        description: "Please provide a name for your workflow",
-      });
+      toast("Please provide a name for your workflow");
       return;
     }
 
@@ -133,9 +131,7 @@ const WorkflowBuilder: React.FC = () => {
     setIsCreating(false);
     setSelectedWorkflow(workflow);
 
-    toast({
-      description: `${workflow.name} has been created successfully`,
-    });
+    toast(`${workflow.name} has been created successfully`);
   };
 
   const handleToggleWorkflow = (id: string) => {
@@ -149,9 +145,7 @@ const WorkflowBuilder: React.FC = () => {
 
     const workflow = workflows.find(w => w.id === id);
     if (workflow) {
-      toast({
-        description: `${workflow.name} has been ${workflow.active ? 'deactivated' : 'activated'}`
-      });
+      toast(`${workflow.name} has been ${workflow.active ? 'deactivated' : 'activated'}`);
     }
   };
 
@@ -164,9 +158,7 @@ const WorkflowBuilder: React.FC = () => {
 
     const nodeType = nodeTypes.find(n => n.id === currentNodeType);
     if (!nodeType) {
-      toast({
-        description: "Please select a valid node type",
-      });
+      toast("Please select a valid node type");
       return;
     }
 
@@ -191,9 +183,7 @@ const WorkflowBuilder: React.FC = () => {
     setCurrentNodeType('');
     setNodeConfig({});
 
-    toast({
-      description: `${nodeType.name} has been added to the workflow`,
-    });
+    toast(`${nodeType.name} has been added to the workflow`);
   };
 
   const handleConfigChange = (key: string, value: string) => {
