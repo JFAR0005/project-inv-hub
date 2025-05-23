@@ -1,11 +1,10 @@
 
 import React from 'react';
 import { format } from 'date-fns';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { FileText, Download, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { FileText, Download } from 'lucide-react';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface Note {
   id: string;
@@ -38,63 +37,60 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, onClose }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold">{note.title}</h2>
-          {note.company_name && note.company_name !== 'No company' && (
-            <p className="text-muted-foreground">
-              Company: {note.company_name}
-            </p>
-          )}
+    <>
+      <DialogHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <DialogTitle className="mb-1">{note.title}</DialogTitle>
+            <DialogDescription className="flex items-center gap-2">
+              {note.company_name && note.company_name !== 'No company' && (
+                <span>Company: {note.company_name}</span>
+              )}
+              <Badge className={getVisibilityColor(note.visibility)}>
+                {note.visibility.charAt(0).toUpperCase() + note.visibility.slice(1)}
+              </Badge>
+            </DialogDescription>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <Badge className={getVisibilityColor(note.visibility)}>
-            {note.visibility.charAt(0).toUpperCase() + note.visibility.slice(1)}
-          </Badge>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Close
-          </Button>
+      </DialogHeader>
+      
+      <div className="mt-6">
+        <div className="whitespace-pre-wrap bg-muted/30 rounded-md p-4 min-h-[200px]">
+          {note.content}
         </div>
-      </div>
-      
-      <Separator />
-      
-      <div className="whitespace-pre-wrap">
-        {note.content}
       </div>
       
       {note.file_url && (
-        <div className="mt-4">
-          <h3 className="text-sm font-medium mb-2">Attached File</h3>
-          <div className="flex items-center space-x-2">
-            <FileText className="h-4 w-4" />
+        <div className="mt-6 border border-border rounded-md p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <FileText className="h-5 w-5 mr-2 text-blue-500" />
+              <span className="font-medium">Attachment</span>
+            </div>
             <a 
               href={note.file_url} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="text-blue-600 hover:underline flex items-center"
+              className="inline-flex items-center"
             >
-              View attachment <ExternalLink className="ml-1 h-3 w-3" />
-            </a>
-            <a 
-              href={note.file_url} 
-              download 
-              className="text-blue-600 hover:underline flex items-center"
-            >
-              Download <Download className="ml-1 h-3 w-3" />
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
             </a>
           </div>
         </div>
       )}
       
-      <div className="text-sm text-muted-foreground pt-4 border-t">
-        <div>Created by {note.author_name} on {format(new Date(note.created_at), 'PPP')}</div>
-        {note.updated_at && note.updated_at !== note.created_at && (
-          <div>Updated on {format(new Date(note.updated_at), 'PPP')}</div>
-        )}
+      <div className="mt-6 text-sm text-muted-foreground border-t pt-4">
+        <div className="flex justify-between">
+          <span>Created by {note.author_name} on {format(new Date(note.created_at), 'PPp')}</span>
+          {note.updated_at && note.updated_at !== note.created_at && (
+            <span>Last updated: {format(new Date(note.updated_at), 'PPp')}</span>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

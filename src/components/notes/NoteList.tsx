@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, Search } from 'lucide-react';
+import { Pencil, Search, Tag } from 'lucide-react';
 import NoteCard from './NoteCard';
 import NoteDetail from './NoteDetail';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 interface Note {
   id: string;
@@ -21,6 +22,7 @@ interface Note {
   author_name?: string;
   visibility: string;
   file_url?: string | null;
+  tags?: string[] | null;
   created_at: string;
   updated_at?: string;
 }
@@ -39,9 +41,11 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [visibilityFilter, setVisibilityFilter] = useState<string>('');
   const [companyFilter, setCompanyFilter] = useState<string>('');
+  const [tagFilter, setTagFilter] = useState<string>('');
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   // Expose the fetchNotes function via ref
   useImperativeHandle(ref, () => ({
@@ -66,7 +70,7 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
       const userMap = new Map();
       userData?.forEach(u => userMap.set(u.id, u.name));
       
-      // Now fetch notes
+      // Now fetch notes based on user role
       let query = supabase
         .from('notes')
         .select(`
@@ -82,8 +86,12 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
           .eq('visibility', 'founder');
       } else if (user?.role === 'partner') {
         // Partners can see notes with visibility = 'partner' or 'founder'
+        // and only for their assigned companies (could be implemented with a join)
         query = query
           .in('visibility', ['partner', 'founder']);
+          
+        // Ideally here we would add another condition for assigned companies
+        // But for now, we'll implement this in the frontend filtering
       }
       // Admins can see all notes (no additional filter)
       
@@ -99,6 +107,15 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
         author_name: userMap.get(note.author_id) || 'Unknown user',
       }));
       
+      // Extract all unique tags
+      const tagSet = new Set<string>();
+      formattedNotes.forEach(note => {
+        if (note.tags && Array.isArray(note.tags)) {
+          note.tags.forEach(tag => tagSet.add(tag));
+        }
+      });
+      
+      setAllTags(Array.from(tagSet));
       setNotes(formattedNotes);
       setFilteredNotes(formattedNotes);
     } catch (error) {
@@ -154,7 +171,8 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(note => 
         note.title.toLowerCase().includes(term) || 
-        note.content.toLowerCase().includes(term)
+        note.content.toLowerCase().includes(term) ||
+        (note.tags && note.tags.some(tag => tag.toLowerCase().includes(term)))
       );
     }
     
@@ -168,8 +186,15 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
       filtered = filtered.filter(note => note.company_id === companyFilter);
     }
     
+    // Apply tag filter
+    if (tagFilter) {
+      filtered = filtered.filter(note => 
+        note.tags && note.tags.includes(tagFilter)
+      );
+    }
+    
     setFilteredNotes(filtered);
-  }, [notes, searchTerm, visibilityFilter, companyFilter]);
+  }, [notes, searchTerm, visibilityFilter, companyFilter, tagFilter]);
 
   const handleNoteClick = (note: Note) => {
     setSelectedNote(note);
@@ -193,7 +218,7 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
           />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full md:w-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full md:w-auto">
           <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
             <SelectTrigger>
               <SelectValue placeholder="Visibility" />
@@ -215,6 +240,20 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
               {companies.map(company => (
                 <SelectItem key={company.id} value={company.id}>
                   {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={tagFilter} onValueChange={setTagFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Tags</SelectItem>
+              {allTags.map(tag => (
+                <SelectItem key={tag} value={tag}>
+                  {tag}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -248,7 +287,7 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
             <Pencil className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium">No notes found</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {searchTerm || visibilityFilter || companyFilter
+              {searchTerm || visibilityFilter || companyFilter || tagFilter
                 ? "Try adjusting your filters"
                 : "Create your first note to get started"}
             </p>

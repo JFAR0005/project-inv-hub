@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText } from 'lucide-react';
+import { FileText, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Note {
@@ -14,6 +14,7 @@ interface Note {
   author_id: string;
   author_name?: string;
   visibility: string;
+  tags?: string[] | null;
   file_url?: string | null;
   created_at: string;
   updated_at?: string;
@@ -58,6 +59,16 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, onClick }) => {
         <div className="text-sm line-clamp-6">
           {note.content}
         </div>
+        {note.tags && note.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {note.tags.map((tag, index) => (
+              <Badge key={index} variant="outline" className="flex items-center">
+                <Tag className="h-3 w-3 mr-1" />
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardContent>
       
       <CardFooter className="flex justify-between pt-2 text-xs text-muted-foreground border-t">

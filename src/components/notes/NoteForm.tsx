@@ -19,6 +19,7 @@ const formSchema = z.object({
   content: z.string().min(1, { message: 'Content is required' }),
   company_id: z.string().optional(),
   visibility: z.string({ required_error: 'Please select a visibility level' }),
+  tags: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -43,6 +44,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
       content: '',
       company_id: undefined,
       visibility: 'admin',
+      tags: '',
     },
   });
 
@@ -123,6 +125,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
         setIsUploading(false);
       }
       
+      // Process tags
+      const tagsList = values.tags 
+        ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        : [];
+      
       // Insert note into database
       const { data, error } = await supabase
         .from('notes')
@@ -133,6 +140,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
           author_id: user.id,
           visibility: values.visibility,
           file_url: fileUrl,
+          tags: tagsList.length > 0 ? tagsList : null,
         });
         
       if (error) throw error;
@@ -220,6 +228,23 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
                   {...field} 
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="tags"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tags</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter tags separated by commas" {...field} />
+              </FormControl>
+              <FormDescription>
+                Optional. Add tags to help organize your notes (e.g., meeting, funding, product)
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
