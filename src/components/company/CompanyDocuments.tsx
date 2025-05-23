@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -79,12 +80,12 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           
           let uploaderName = 'Unknown';
           
-          // Fix: Improved handling for uploader data
-          if (!metaError && metaData && metaData.uploader) {
+          // Fix: Proper null checking for uploader data
+          if (!metaError && metaData && metaData.uploader && metaData.uploader !== null) {
             // Check if uploader exists and has a name property
-            uploaderName = typeof metaData.uploader === 'object' && metaData.uploader !== null && 'name' in metaData.uploader 
-              ? (metaData.uploader.name as string) || 'Unknown'
-              : 'Unknown';
+            if (typeof metaData.uploader === 'object' && 'name' in metaData.uploader) {
+              uploaderName = (metaData.uploader.name as string) || 'Unknown';
+            }
           }
           
           return {
