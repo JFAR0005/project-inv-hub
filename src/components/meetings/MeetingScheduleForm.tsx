@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,7 +58,7 @@ interface MeetingResponse {
 }
 
 interface MeetingScheduleFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<MeetingResponse | undefined>; // Updated to reflect expected return type
   onCancel: () => void;
   initialData?: any;
   isEditMode?: boolean;
@@ -182,8 +183,8 @@ export default function MeetingScheduleForm({
         participants: selectedParticipants.map(p => p.id),
       };
       
-      // Submit the data
-      const result = await onSubmit(meetingData) as MeetingResponse | undefined;
+      // Submit the data and fix type conversion issue
+      const result = await onSubmit(meetingData);
       
       // If successful, send notification to participants
       if (result && result.id) {

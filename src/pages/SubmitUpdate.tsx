@@ -18,16 +18,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowRight, CheckCircle2, CircleDollarSign, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, CircleDollarSign, Loader2 } from 'lucide-react';
 import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
 
 // Create schema for form validation
 const updateFormSchema = z.object({
@@ -64,6 +62,7 @@ export default function SubmitUpdate() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { notifyUpdateSubmitted } = useNotificationTrigger();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [company, setCompany] = useState<any>(null);
@@ -90,7 +89,7 @@ export default function SubmitUpdate() {
   // Fetch company data and last update
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || !user.company_id) {
+      if (!user || !user.companyId) {
         navigate('/');
         return;
       }
@@ -100,7 +99,7 @@ export default function SubmitUpdate() {
         const { data: companyData, error: companyError } = await supabase
           .from('companies')
           .select('*')
-          .eq('id', user.company_id)
+          .eq('id', user.companyId)
           .single();
 
         if (companyError) throw companyError;
@@ -110,7 +109,7 @@ export default function SubmitUpdate() {
         const { data: updates, error: updatesError } = await supabase
           .from('founder_updates')
           .select('*')
-          .eq('company_id', user.company_id)
+          .eq('company_id', user.companyId)
           .order('submitted_at', { ascending: false })
           .limit(1);
 
@@ -151,7 +150,7 @@ export default function SubmitUpdate() {
   }, [user, navigate, toast, form]);
 
   const onSubmit = async (values: UpdateFormValues) => {
-    if (!user || !user.company_id || !company) {
+    if (!user || !user.companyId || !company) {
       toast({
         title: 'Error',
         description: 'Missing company information',
@@ -165,21 +164,21 @@ export default function SubmitUpdate() {
     try {
       const updateData = {
         ...values,
-        company_id: user.company_id,
+        company_id: user.companyId,
         submitted_by: user.id,
         submitted_at: new Date().toISOString(),
       };
 
       // Insert the update
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('founder_updates')
-        .insert([updateData]);
+        .insert(updateData);
 
       if (error) throw error;
 
       // Send notification
       await notifyUpdateSubmitted(
-        user.company_id,
+        user.companyId,
         company.name,
         'latest-update' // Using a placeholder since we don't have the specific update ID
       );
@@ -201,12 +200,12 @@ export default function SubmitUpdate() {
           churn_rate: Number(values.churn),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', user.company_id);
+        .eq('id', user.companyId);
 
       if (updateError) throw updateError;
 
       // Navigate to the company profile
-      navigate(`/company/${user.company_id}`);
+      navigate(`/company/${user.companyId}`);
     } catch (error) {
       console.error('Error submitting update:', error);
       toast({
@@ -228,7 +227,7 @@ export default function SubmitUpdate() {
   }
 
   return (
-    <ProtectedRoute requiredRoles={['founder']} requiresOwnership={true} resourceOwnerId={user.company_id}>
+    <ProtectedRoute requiredRoles={['founder']} requiresOwnership={true} resourceOwnerId={user?.companyId}>
       <div className="container mx-auto py-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -238,10 +237,10 @@ export default function SubmitUpdate() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {error && (
+            {errorMessage && (
               <Alert variant="destructive" className="mb-6">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{errorMessage}</AlertDescription>
               </Alert>
             )}
             

@@ -38,7 +38,7 @@ export const useNotificationTrigger = () => {
 
   const triggerNotification = async (payload: NotificationPayload): Promise<boolean> => {
     try {
-      // Get the Supabase URL from the environment or the lib/supabase.ts file
+      // Use the environment variable or hardcoded URL for Supabase
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://guikdtwcpagcpyqieftm.supabase.co';
       const functionUrl = `${supabaseUrl}/functions/v1/send-notifications`;
       
