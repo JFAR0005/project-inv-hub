@@ -13,9 +13,10 @@ import { useAuth } from '@/context/AuthContext';
 import { BarChart4, KanbanSquare, Plus } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
+// Update the Deal type to better match what Supabase returns
 type Deal = Database['public']['Tables']['deals']['Row'] & {
   companies?: Database['public']['Tables']['companies']['Row'] | null;
-  users?: Database['public']['Tables']['users']['Row'] | null;
+  users?: Partial<Database['public']['Tables']['users']['Row']> | null;
 };
 
 const Deals = () => {
@@ -35,7 +36,7 @@ const Deals = () => {
         .select(`
           *,
           companies (*),
-          users (
+          users:lead_partner (
             id,
             name,
             email,
@@ -49,12 +50,14 @@ const Deals = () => {
       
       if (error) throw error;
       
-      // Transform the data to handle potential null joins
-      const transformedData: Deal[] = (data || []).map(deal => ({
-        ...deal,
-        companies: deal.companies || null,
-        users: deal.users || null
-      }));
+      // Transform the data to handle potential null joins and type issues
+      const transformedData: Deal[] = (data || []).map(deal => {
+        return {
+          ...deal,
+          companies: deal.companies || null,
+          users: deal.users || null
+        };
+      });
       
       return transformedData;
     },
