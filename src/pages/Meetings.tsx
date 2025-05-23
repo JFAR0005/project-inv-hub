@@ -37,46 +37,59 @@ const Meetings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch meetings using React Query
+  // Fetch meetings using React Query with role-based filtering
   const { data: meetings, isLoading, isError, refetch } = useQuery({
-    queryKey: ['meetings'],
+    queryKey: ['meetings', user?.id],
     queryFn: async () => {
       if (!user) return [];
       
-      // Fetch meetings that include the current user
-      const { data: participantMeetings, error: participantError } = await supabase
-        .from('meeting_participants')
-        .select('meeting_id')
-        .eq('user_id', user.id);
+      let meetingsQuery;
       
-      if (participantError) {
-        throw new Error(participantError.message);
+      // Apply role-based filtering
+      if (user.role === 'admin') {
+        // Admins can see all meetings
+        meetingsQuery = supabase
+          .from('meetings')
+          .select(`
+            *,
+            companies (id, name),
+            meeting_participants (user_id)
+          `);
+      } else {
+        // VPs and Founders can only see meetings they're involved in
+        const { data: participantMeetings, error: participantError } = await supabase
+          .from('meeting_participants')
+          .select('meeting_id')
+          .eq('user_id', user.id);
+        
+        if (participantError) {
+          throw new Error(participantError.message);
+        }
+        
+        const meetingIds = participantMeetings?.map(pm => pm.meeting_id) || [];
+        
+        // Include meetings they created or are participants in
+        meetingsQuery = supabase
+          .from('meetings')
+          .select(`
+            *,
+            companies (id, name),
+            meeting_participants (user_id)
+          `)
+          .or(`created_by.eq.${user.id},id.in.(${meetingIds.join(',')})`);
       }
       
-      const meetingIds = participantMeetings?.map(pm => pm.meeting_id) || [];
-      
-      // If no meetings include this user, return empty array
-      if (meetingIds.length === 0) {
-        return [];
-      }
-      
-      // Get the actual meetings with company names
-      const { data, error } = await supabase
-        .from('meetings')
-        .select(`
-          *,
-          companies (id, name)
-        `)
-        .in('id', meetingIds);
+      const { data, error } = await meetingsQuery;
       
       if (error) {
         throw new Error(error.message);
       }
       
-      // Format the meetings
+      // Format the meetings with participant data
       return data.map(meeting => ({
         ...meeting,
         company_name: meeting.companies?.name || 'No company',
+        participants: meeting.meeting_participants?.map(p => p.user_id) || [],
       }));
     },
     enabled: !!user,
@@ -88,7 +101,7 @@ const Meetings = () => {
     refetch();
     toast({
       title: "Success",
-      description: "Meeting has been scheduled",
+      description: editingMeeting ? "Meeting has been updated" : "Meeting has been scheduled",
     });
   };
 
@@ -96,6 +109,14 @@ const Meetings = () => {
     setEditingMeeting(meeting);
     setIsScheduleDialogOpen(true);
   };
+
+  const handleCreateMeeting = () => {
+    setEditingMeeting(null);
+    setIsScheduleDialogOpen(true);
+  };
+
+  // Check permissions for meeting creation
+  const canCreateMeeting = user && ['admin', 'partner', 'founder'].includes(user.role);
 
   return (
     <Layout>
@@ -107,9 +128,11 @@ const Meetings = () => {
               Schedule and manage meetings with founders and team members
             </p>
           </div>
-          <Button onClick={() => setIsScheduleDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Schedule Meeting
-          </Button>
+          {canCreateMeeting && (
+            <Button onClick={handleCreateMeeting}>
+              <Plus className="mr-2 h-4 w-4" /> Schedule Meeting
+            </Button>
+          )}
         </div>
         
         <Tabs defaultValue="calendar" className="w-full">
@@ -158,6 +181,15 @@ const Meetings = () => {
             <CalendarIntegration />
           </TabsContent>
         </Tabs>
+
+        {isError && (
+          <div className="text-center py-8">
+            <p className="text-destructive">Failed to load meetings. Please try again.</p>
+            <Button variant="outline" onClick={() => refetch()} className="mt-2">
+              Retry
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Schedule Meeting Dialog */}

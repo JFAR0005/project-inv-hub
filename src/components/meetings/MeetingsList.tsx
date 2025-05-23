@@ -38,8 +38,22 @@ const MeetingsList: React.FC<MeetingsListProps> = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const handleDeleteMeeting = async (meetingId: string) => {
+  const handleDeleteMeeting = async (meetingId: string, meetingCreatedBy: string) => {
     if (!user) return;
+
+    // Check if user can delete this meeting (only creator or admin)
+    if (user.id !== meetingCreatedBy && user.role !== 'admin') {
+      toast({
+        title: "Error",
+        description: "You can only delete meetings you created",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this meeting?')) {
+      return;
+    }
 
     try {
       // First delete from meeting_participants
@@ -63,7 +77,7 @@ const MeetingsList: React.FC<MeetingsListProps> = ({
         description: "Meeting has been deleted",
       });
 
-      // Force reload of the page to refresh the meetings list
+      // Force reload to refresh the meetings list
       window.location.reload();
     } catch (error) {
       console.error('Error deleting meeting:', error);
@@ -73,6 +87,11 @@ const MeetingsList: React.FC<MeetingsListProps> = ({
         variant: "destructive",
       });
     }
+  };
+
+  const canEditMeeting = (meeting: Meeting) => {
+    if (!user) return false;
+    return user.id === meeting.created_by || user.role === 'admin';
   };
 
   if (isLoading) {
@@ -98,10 +117,21 @@ const MeetingsList: React.FC<MeetingsListProps> = ({
     );
   }
 
-  // Sort meetings by start time (ascending)
-  const sortedMeetings = [...meetings].sort((a, b) => 
-    new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  );
+  // Sort meetings by start time (ascending) and filter for upcoming meetings
+  const upcomingMeetings = meetings
+    .filter(meeting => new Date(meeting.start_time) >= new Date())
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+  if (upcomingMeetings.length === 0) {
+    return (
+      <Card className="p-6 text-center">
+        <h3 className="text-lg font-medium">No upcoming meetings</h3>
+        <p className="text-muted-foreground mt-2">
+          All your meetings are in the past. Click "Schedule Meeting" to create a new one.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <div className="rounded-md border">
@@ -117,9 +147,18 @@ const MeetingsList: React.FC<MeetingsListProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedMeetings.map((meeting) => (
+          {upcomingMeetings.map((meeting) => (
             <TableRow key={meeting.id}>
-              <TableCell className="font-medium">{meeting.title}</TableCell>
+              <TableCell className="font-medium">
+                <div>
+                  <div>{meeting.title}</div>
+                  {meeting.description && (
+                    <div className="text-sm text-muted-foreground truncate max-w-xs">
+                      {meeting.description}
+                    </div>
+                  )}
+                </div>
+              </TableCell>
               <TableCell>
                 <div className="flex items-center">
                   <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -152,17 +191,21 @@ const MeetingsList: React.FC<MeetingsListProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEditMeeting(meeting)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => handleDeleteMeeting(meeting.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
+                    {canEditMeeting(meeting) && (
+                      <DropdownMenuItem onClick={() => onEditMeeting(meeting)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+                    {canEditMeeting(meeting) && (
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => handleDeleteMeeting(meeting.id, meeting.created_by)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

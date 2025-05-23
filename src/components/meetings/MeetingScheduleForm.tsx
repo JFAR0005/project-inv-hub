@@ -12,7 +12,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MultiSelect } from '@/components/ui/multi-select';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +27,9 @@ const formSchema = z.object({
   description: z.string().optional(),
   company_id: z.string().optional(),
   participants: z.array(z.string()).min(1, 'At least one participant is required'),
+}).refine((data) => data.end_time > data.start_time, {
+  message: "End time must be after start time",
+  path: ["end_time"],
 });
 
 interface MeetingScheduleFormProps {
@@ -61,60 +63,71 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
   // Fetch companies and users for dropdowns
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch companies
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('companies')
-        .select('id, name')
-        .order('name', { ascending: true });
+      try {
+        // Fetch companies based on user role
+        let companiesQuery = supabase.from('companies').select('id, name');
+        
+        if (user?.role === 'founder' && user.companyId) {
+          // Founders can only select their own company
+          companiesQuery = companiesQuery.eq('id', user.companyId);
+        }
+        
+        const { data: companiesData, error: companiesError } = await companiesQuery.order('name', { ascending: true });
 
-      if (companiesError) {
-        console.error('Error fetching companies:', companiesError);
-      } else {
-        setCompanies(companiesData || []);
-      }
+        if (companiesError) {
+          console.error('Error fetching companies:', companiesError);
+        } else {
+          setCompanies(companiesData || []);
+        }
 
-      // Fetch users
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, name, email, role')
-        .order('name', { ascending: true });
+        // Fetch users for participants
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, email, role')
+          .order('name', { ascending: true });
 
-      if (usersError) {
-        console.error('Error fetching users:', usersError);
-      } else {
-        setUsers(usersData || []);
+        if (usersError) {
+          console.error('Error fetching users:', usersError);
+        } else {
+          setUsers(usersData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   // Set form values if editing a meeting
   useEffect(() => {
     if (meeting) {
-      // Fetch meeting participants
       const fetchParticipants = async () => {
-        const { data: participantData, error: participantError } = await supabase
-          .from('meeting_participants')
-          .select('user_id')
-          .eq('meeting_id', meeting.id);
+        try {
+          const { data: participantData, error: participantError } = await supabase
+            .from('meeting_participants')
+            .select('user_id')
+            .eq('meeting_id', meeting.id);
 
-        if (participantError) {
-          console.error('Error fetching participants:', participantError);
-          return;
+          if (participantError) {
+            console.error('Error fetching participants:', participantError);
+            return;
+          }
+
+          const participantIds = participantData?.map(p => p.user_id) || [];
+
+          form.reset({
+            title: meeting.title,
+            start_time: new Date(meeting.start_time),
+            end_time: new Date(meeting.end_time),
+            location: meeting.location || '',
+            description: meeting.description || '',
+            company_id: meeting.company_id || '',
+            participants: participantIds,
+          });
+        } catch (error) {
+          console.error('Error setting form values:', error);
         }
-
-        const participantIds = participantData?.map(p => p.user_id) || [];
-
-        form.reset({
-          title: meeting.title,
-          start_time: new Date(meeting.start_time),
-          end_time: new Date(meeting.end_time),
-          location: meeting.location || '',
-          description: meeting.description || '',
-          company_id: meeting.company_id || '',
-          participants: participantIds,
-        });
       };
 
       fetchParticipants();
@@ -184,16 +197,21 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
       }
 
       // Insert participants
-      const participantsToInsert = values.participants.map(participantId => ({
-        meeting_id: meetingId,
-        user_id: participantId,
-      }));
+      if (values.participants.length > 0) {
+        const participantsToInsert = values.participants.map(participantId => ({
+          meeting_id: meetingId,
+          user_id: participantId,
+        }));
 
-      const { error: participantsError } = await supabase
-        .from('meeting_participants')
-        .insert(participantsToInsert);
+        const { error: participantsError } = await supabase
+          .from('meeting_participants')
+          .insert(participantsToInsert);
 
-      if (participantsError) throw participantsError;
+        if (participantsError) throw participantsError;
+      }
+
+      // TODO: Send notifications to participants (implement with edge function)
+      console.log('Meeting scheduled successfully. TODO: Send notifications to participants.');
 
       onSuccess();
     } catch (error) {
@@ -368,19 +386,6 @@ const MeetingScheduleForm: React.FC<MeetingScheduleFormProps> = ({
               <FormLabel>Participants*</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <select
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                      field.onChange(selectedOptions);
-                    }}
-                    value={field.value}
-                  >
-                    {users.map(user => (
-                      <option key={user.id} value={user.id}>{user.name}</option>
-                    ))}
-                  </select>
                   <div className="border border-input rounded-md p-2 min-h-10">
                     <div className="flex flex-wrap gap-1">
                       {field.value.map(userId => {
