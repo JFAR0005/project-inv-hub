@@ -14,19 +14,25 @@ import DealTracker from '@/components/deals/DealTracker';
 import { Plus, Search, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
-// Update the Deal type to better match what Supabase returns
-type Deal = Database['public']['Tables']['deals']['Row'] & {
+// Define a local Deal type that matches what we're fetching
+type DealflowDeal = Database['public']['Tables']['deals']['Row'] & {
   companies?: Database['public']['Tables']['companies']['Row'] | null;
-  users?: Partial<Database['public']['Tables']['users']['Row']> | null;
+  lead_partner_data?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: string | null;
+    team: string | null;
+  } | null;
 };
 
 const Dealflow = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [ddFormOpen, setDDFormOpen] = useState(false);
-  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [selectedDeal, setSelectedDeal] = useState<DealflowDeal | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>('all');
-  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [editingDeal, setEditingDeal] = useState<DealflowDeal | null>(null);
 
   // Fetch deals with company information
   const { data: deals = [], isLoading, refetch } = useQuery({
@@ -36,31 +42,36 @@ const Dealflow = () => {
         .from('deals')
         .select(`
           *,
-          companies (*),
-          users:lead_partner (
-            id,
-            name,
-            email,
-            role,
-            team,
-            company_id,
-            created_at
-          )
+          companies (*)
         `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      // Transform the data to handle potential null joins and type issues
-      const transformedData: Deal[] = (data || []).map(deal => {
-        return {
-          ...deal,
-          companies: deal.companies || null,
-          users: deal.users || null
-        };
-      });
+      // Get lead partner data separately
+      const dealsWithPartners = await Promise.all(
+        (data || []).map(async (deal) => {
+          let lead_partner_data = null;
+          
+          if (deal.lead_partner) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id, name, email, role, team')
+              .eq('id', deal.lead_partner)
+              .single();
+            
+            lead_partner_data = userData;
+          }
+          
+          return {
+            ...deal,
+            companies: deal.companies || null,
+            lead_partner_data
+          };
+        })
+      );
       
-      return transformedData;
+      return dealsWithPartners as DealflowDeal[];
     },
   });
 
@@ -106,12 +117,12 @@ const Dealflow = () => {
     }
   };
 
-  const handleEditDeal = (deal: Deal) => {
+  const handleEditDeal = (deal: DealflowDeal) => {
     setEditingDeal(deal);
     setDealFormOpen(true);
   };
 
-  const handleDDFormOpen = (deal: Deal) => {
+  const handleDDFormOpen = (deal: DealflowDeal) => {
     setSelectedDeal(deal);
     setDDFormOpen(true);
   };
@@ -124,6 +135,21 @@ const Dealflow = () => {
     const matchesStage = selectedStage === 'all' || deal.stage === selectedStage;
     
     return matchesSearch && matchesStage;
+  });
+
+  // Convert DealflowDeal to the format expected by DealTracker
+  const convertDealForTracker = (deal: DealflowDeal) => ({
+    ...deal,
+    companies: deal.companies,
+    users: deal.lead_partner_data ? {
+      id: deal.lead_partner_data.id,
+      name: deal.lead_partner_data.name || '',
+      email: deal.lead_partner_data.email || '',
+      role: deal.lead_partner_data.role || '',
+      team: deal.lead_partner_data.team || '',
+      company_id: '',
+      created_at: ''
+    } : null
   });
 
   return (
@@ -302,9 +328,21 @@ const Dealflow = () => {
               {filteredDeals.map((deal) => (
                 <DealTracker
                   key={deal.id}
-                  deal={deal}
-                  onEditDeal={handleEditDeal}
-                  onOpenDD={handleDDFormOpen}
+                  deal={convertDealForTracker(deal)}
+                  onEditDeal={(convertedDeal) => {
+                    // Find the original deal
+                    const originalDeal = deals.find(d => d.id === convertedDeal.id);
+                    if (originalDeal) {
+                      handleEditDeal(originalDeal);
+                    }
+                  }}
+                  onOpenDD={(convertedDeal) => {
+                    // Find the original deal
+                    const originalDeal = deals.find(d => d.id === convertedDeal.id);
+                    if (originalDeal) {
+                      handleDDFormOpen(originalDeal);
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -372,7 +410,7 @@ const Dealflow = () => {
           }
         }}
         onDealCreated={refetch}
-        editingDeal={editingDeal}
+        editingDeal={editingDeal ? convertDealForTracker(editingDeal) : null}
       />
 
       {/* Due Diligence Form Modal */}
