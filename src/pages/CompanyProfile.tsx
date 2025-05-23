@@ -1,10 +1,8 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import { UserRole } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -58,59 +56,57 @@ const CompanyProfile = () => {
       requiresOwnership={user?.role === 'founder'}
       resourceOwnerId={id}
     >
-      <Layout>
-        <div className="container mx-auto py-8">
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-destructive">Error Loading Company</h2>
-              <p className="text-muted-foreground mt-2">Failed to load company details</p>
-            </div>
-          ) : company ? (
-            <>
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-                <div>
-                  <h1 className="text-3xl font-bold">{company.name}</h1>
-                  <p className="text-muted-foreground mt-1">{company.sector} • {company.location}</p>
-                </div>
+      <div className="container mx-auto py-8">
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-destructive">Error Loading Company</h2>
+            <p className="text-muted-foreground mt-2">Failed to load company details</p>
+          </div>
+        ) : company ? (
+          <>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+              <div>
+                <h1 className="text-3xl font-bold">{company.name}</h1>
+                <p className="text-muted-foreground mt-1">{company.sector} • {company.location}</p>
               </div>
-              
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList>
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="metrics">Metrics</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                  <TabsTrigger value="updates">Updates</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="overview">
-                  <CompanyOverview company={company} />
-                </TabsContent>
-                
-                <TabsContent value="metrics">
-                  <CompanyMetrics companyId={id} />
-                </TabsContent>
-                
-                <TabsContent value="documents">
-                  <CompanyDocuments companyId={id} />
-                </TabsContent>
-                
-                <TabsContent value="updates">
-                  <CompanyUpdates companyId={id} />
-                </TabsContent>
-              </Tabs>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold">Company Not Found</h2>
-              <p className="text-muted-foreground mt-2">The requested company could not be found</p>
             </div>
-          )}
-        </div>
-      </Layout>
+            
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="metrics">Metrics</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="updates">Updates</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="overview">
+                <CompanyOverview company={company} />
+              </TabsContent>
+              
+              <TabsContent value="metrics">
+                <CompanyMetrics companyId={id} />
+              </TabsContent>
+              
+              <TabsContent value="documents">
+                <CompanyDocuments companyId={id} />
+              </TabsContent>
+              
+              <TabsContent value="updates">
+                <CompanyUpdates companyId={id} />
+              </TabsContent>
+            </Tabs>
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold">Company Not Found</h2>
+            <p className="text-muted-foreground mt-2">The requested company could not be found</p>
+          </div>
+        )}
+      </div>
     </ProtectedRoute>
   );
 };
