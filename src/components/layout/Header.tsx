@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import RoleViewSwitcher from '@/components/auth/RoleViewSwitcher';
+import RoleBadge from '@/components/layout/RoleBadge';
 import { User } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -21,8 +22,8 @@ const Header: React.FC = () => {
 
   return (
     <header className="bg-background border-b border-border h-14 px-4 flex items-center justify-between">
-      <div>
-        {/* Left section, can be used for breadcrumbs or other navigation */}
+      <div className="flex items-center gap-4">
+        <RoleBadge />
       </div>
 
       <div className="flex items-center gap-4">

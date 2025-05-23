@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import Layout from '@/components/layout/Layout';
+import RoleGuard from '@/components/layout/RoleGuard';
 import DealTracker from '@/components/deals/DealTracker';
 import DealForm from '@/components/deals/DealForm';
 import DDForm from '@/components/deals/DDForm';
@@ -165,76 +165,78 @@ const Deals = () => {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Deal Pipeline</h1>
-            <p className="text-muted-foreground mt-1">
-              Track and manage all investment opportunities in the pipeline
-            </p>
+    <RoleGuard allowedRoles={['admin', 'partner']}>
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Deal Pipeline</h1>
+              <p className="text-muted-foreground mt-1">
+                Track and manage all investment opportunities in the pipeline
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button onClick={() => setDealFormOpen(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                New Deal
+              </Button>
+              
+              <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'kanban' | 'table')} className="w-[240px]">
+                <TabsList className="grid grid-cols-2">
+                  <TabsTrigger value="kanban" className="flex items-center gap-1">
+                    <KanbanSquare className="h-4 w-4" />
+                    <span>Kanban</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="table" className="flex items-center gap-1">
+                    <BarChart4 className="h-4 w-4" />
+                    <span>Cards</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
           
-          <div className="flex gap-2">
-            <Button onClick={() => setDealFormOpen(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New Deal
-            </Button>
-            
-            <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'kanban' | 'table')} className="w-[240px]">
-              <TabsList className="grid grid-cols-2">
-                <TabsTrigger value="kanban" className="flex items-center gap-1">
-                  <KanbanSquare className="h-4 w-4" />
-                  <span>Kanban</span>
-                </TabsTrigger>
-                <TabsTrigger value="table" className="flex items-center gap-1">
-                  <BarChart4 className="h-4 w-4" />
-                  <span>Cards</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+          <Card>
+            <CardHeader className="pb-0">
+              <CardTitle>Deal Management</CardTitle>
+              <CardDescription>
+                {activeView === 'kanban' 
+                  ? 'Drag and drop deals between stages in the pipeline' 
+                  : 'View all deals in a card format with filtering options'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {activeView === 'kanban' ? renderKanbanView() : renderTableView()}
+            </CardContent>
+          </Card>
         </div>
-        
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle>Deal Management</CardTitle>
-            <CardDescription>
-              {activeView === 'kanban' 
-                ? 'Drag and drop deals between stages in the pipeline' 
-                : 'View all deals in a card format with filtering options'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {activeView === 'kanban' ? renderKanbanView() : renderTableView()}
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Deal Form Modal */}
-      <DealForm 
-        open={dealFormOpen} 
-        onOpenChange={(open) => {
-          setDealFormOpen(open);
-          if (!open) {
-            setEditingDeal(null);
-          }
-        }}
-        onDealCreated={refetch}
-        editingDeal={editingDeal ? convertDealForTracker(editingDeal) : null}
-      />
-
-      {/* Due Diligence Form Modal */}
-      {selectedDeal && (
-        <DDForm
-          dealId={selectedDeal.id}
-          companyName={selectedDeal.companies?.name || 'Unknown Company'}
-          open={ddFormOpen}
-          onOpenChange={setDDFormOpen}
-          onDDDataUpdated={refetch}
+        {/* Deal Form Modal */}
+        <DealForm 
+          open={dealFormOpen} 
+          onOpenChange={(open) => {
+            setDealFormOpen(open);
+            if (!open) {
+              setEditingDeal(null);
+            }
+          }}
+          onDealCreated={refetch}
+          editingDeal={editingDeal ? convertDealForTracker(editingDeal) : null}
         />
-      )}
-    </Layout>
+
+        {/* Due Diligence Form Modal */}
+        {selectedDeal && (
+          <DDForm
+            dealId={selectedDeal.id}
+            companyName={selectedDeal.companies?.name || 'Unknown Company'}
+            open={ddFormOpen}
+            onOpenChange={setDDFormOpen}
+            onDDDataUpdated={refetch}
+          />
+        )}
+      </Layout>
+    </RoleGuard>
   );
 };
 

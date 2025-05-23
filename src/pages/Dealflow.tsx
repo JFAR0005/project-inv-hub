@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import Layout from '@/components/layout/Layout';
+import RoleGuard from '@/components/layout/RoleGuard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -153,277 +153,279 @@ const Dealflow = () => {
   });
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dealflow</h1>
-            <p className="text-gray-600 mt-1">Manage your investment pipeline and opportunities</p>
+    <RoleGuard allowedRoles={['admin', 'partner']}>
+      <Layout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Dealflow</h1>
+              <p className="text-gray-600 mt-1">Manage your investment pipeline and opportunities</p>
+            </div>
+            <Button onClick={() => setDealFormOpen(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New Deal
+            </Button>
           </div>
-          <Button onClick={() => setDealFormOpen(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Deal
-          </Button>
-        </div>
 
-        {/* Analytics Cards */}
-        {analytics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <TrendingUp className="h-8 w-8 text-blue-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Deals</p>
-                    <p className="text-2xl font-bold text-gray-900">{analytics.totalDeals}</p>
+          {/* Analytics Cards */}
+          {analytics && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center">
+                    <TrendingUp className="h-8 w-8 text-blue-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Total Deals</p>
+                      <p className="text-2xl font-bold text-gray-900">{analytics.totalDeals}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <Clock className="h-8 w-8 text-yellow-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Active Deals</p>
-                    <p className="text-2xl font-bold text-gray-900">{analytics.activeDeals}</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center">
+                    <Clock className="h-8 w-8 text-yellow-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Active Deals</p>
+                      <p className="text-2xl font-bold text-gray-900">{analytics.activeDeals}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Funded</p>
-                    <p className="text-2xl font-bold text-gray-900">{analytics.fundedDeals}</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center">
+                    <CheckCircle className="h-8 w-8 text-green-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Funded</p>
+                      <p className="text-2xl font-bold text-gray-900">{analytics.fundedDeals}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <XCircle className="h-8 w-8 text-red-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Conversion Rate</p>
-                    <p className="text-2xl font-bold text-gray-900">{analytics.conversionRate}%</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center">
+                    <XCircle className="h-8 w-8 text-red-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Conversion Rate</p>
+                      <p className="text-2xl font-bold text-gray-900">{analytics.conversionRate}%</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-        {/* Filters and Search */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <Input
-                  placeholder="Search companies or sectors..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant={selectedStage === 'all' ? 'default' : 'outline'}
-                  onClick={() => setSelectedStage('all')}
-                  size="sm"
-                >
-                  All
-                </Button>
-                {['Discovery', 'DD', 'IC', 'Funded', 'Rejected'].map((stage) => (
+          {/* Filters and Search */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                  <Input
+                    placeholder="Search companies or sectors..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
                   <Button
-                    key={stage}
-                    variant={selectedStage === stage ? 'default' : 'outline'}
-                    onClick={() => setSelectedStage(stage)}
+                    variant={selectedStage === 'all' ? 'default' : 'outline'}
+                    onClick={() => setSelectedStage('all')}
                     size="sm"
                   >
-                    {stage}
+                    All
                   </Button>
-                ))}
+                  {['Discovery', 'DD', 'IC', 'Funded', 'Rejected'].map((stage) => (
+                    <Button
+                      key={stage}
+                      variant={selectedStage === stage ? 'default' : 'outline'}
+                      onClick={() => setSelectedStage(stage)}
+                      size="sm"
+                    >
+                      {stage}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Deals Content */}
-        <Tabs defaultValue="pipeline" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="pipeline">Pipeline View</TabsTrigger>
-            <TabsTrigger value="cards">Card View</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+          {/* Deals Content */}
+          <Tabs defaultValue="pipeline" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="pipeline">Pipeline View</TabsTrigger>
+              <TabsTrigger value="cards">Card View</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="pipeline" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {['Discovery', 'DD', 'IC', 'Funded', 'Rejected'].map((stage) => (
-                <div key={stage} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">{stage}</h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {filteredDeals.filter(deal => deal.stage === stage).length}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2 min-h-[200px]">
-                    {filteredDeals
-                      .filter(deal => deal.stage === stage)
-                      .map((deal) => (
-                        <Card key={deal.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                          <CardContent className="p-3">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-sm truncate">{deal.companies?.name}</h4>
-                                <Badge className={`text-xs ${deal.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                                  {deal.status}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-gray-600 truncate">{deal.companies?.sector}</p>
-                              <p className="text-xs text-gray-500 truncate">{deal.companies?.location}</p>
-                              {deal.valuation_expectation && (
-                                <p className="text-xs font-medium">
-                                  ${(deal.valuation_expectation / 1000000).toFixed(1)}M
-                                </p>
-                              )}
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleEditDeal(deal)}
-                                  className="flex-1 text-xs py-1"
-                                >
-                                  Edit
-                                </Button>
-                                {stage === 'DD' && (
+            <TabsContent value="pipeline" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {['Discovery', 'DD', 'IC', 'Funded', 'Rejected'].map((stage) => (
+                  <div key={stage} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">{stage}</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        {filteredDeals.filter(deal => deal.stage === stage).length}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2 min-h-[200px]">
+                      {filteredDeals
+                        .filter(deal => deal.stage === stage)
+                        .map((deal) => (
+                          <Card key={deal.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                            <CardContent className="p-3">
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="font-medium text-sm truncate">{deal.companies?.name}</h4>
+                                  <Badge className={`text-xs ${deal.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                    {deal.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-gray-600 truncate">{deal.companies?.sector}</p>
+                                <p className="text-xs text-gray-500 truncate">{deal.companies?.location}</p>
+                                {deal.valuation_expectation && (
+                                  <p className="text-xs font-medium">
+                                    ${(deal.valuation_expectation / 1000000).toFixed(1)}M
+                                  </p>
+                                )}
+                                <div className="flex gap-1">
                                   <Button
                                     size="sm"
-                                    onClick={() => handleDDFormOpen(deal)}
+                                    variant="outline"
+                                    onClick={() => handleEditDeal(deal)}
                                     className="flex-1 text-xs py-1"
                                   >
-                                    DD
+                                    Edit
                                   </Button>
-                                )}
+                                  {stage === 'DD' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleDDFormOpen(deal)}
+                                      className="flex-1 text-xs py-1"
+                                    >
+                                      DD
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="cards" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDeals.map((deal) => (
-                <DealTracker
-                  key={deal.id}
-                  deal={convertDealForTracker(deal)}
-                  onEditDeal={(convertedDeal) => {
-                    // Find the original deal
-                    const originalDeal = deals.find(d => d.id === convertedDeal.id);
-                    if (originalDeal) {
-                      handleEditDeal(originalDeal);
-                    }
-                  }}
-                  onOpenDD={(convertedDeal) => {
-                    // Find the original deal
-                    const originalDeal = deals.find(d => d.id === convertedDeal.id);
-                    if (originalDeal) {
-                      handleDDFormOpen(originalDeal);
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4">
-            {analytics && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Stage Distribution</CardTitle>
-                    <CardDescription>Number of deals in each stage</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(analytics.stageDistribution).map(([stage, count]) => (
-                        <div key={stage} className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{stage}</span>
-                          <Badge className={getStageColor(stage)}>{count}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pipeline Health</CardTitle>
-                    <CardDescription>Key metrics and performance indicators</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Conversion Rate</span>
-                        <span className="text-lg font-bold text-green-600">{analytics.conversionRate}%</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Active Deals</span>
-                        <span className="text-lg font-bold">{analytics.activeDeals}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Success Rate</span>
-                        <span className="text-lg font-bold text-blue-600">
-                          {analytics.totalDeals > 0 ? 
-                            ((analytics.fundedDeals / (analytics.fundedDeals + analytics.rejectedDeals || 1)) * 100).toFixed(1) 
-                            : '0'}%
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                ))}
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            </TabsContent>
 
-      {/* Deal Form Modal */}
-      <DealForm 
-        open={dealFormOpen} 
-        onOpenChange={(open) => {
-          setDealFormOpen(open);
-          if (!open) {
-            setEditingDeal(null);
-          }
-        }}
-        onDealCreated={refetch}
-        editingDeal={editingDeal ? convertDealForTracker(editingDeal) : null}
-      />
+            <TabsContent value="cards" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDeals.map((deal) => (
+                  <DealTracker
+                    key={deal.id}
+                    deal={convertDealForTracker(deal)}
+                    onEditDeal={(convertedDeal) => {
+                      // Find the original deal
+                      const originalDeal = deals.find(d => d.id === convertedDeal.id);
+                      if (originalDeal) {
+                        handleEditDeal(originalDeal);
+                      }
+                    }}
+                    onOpenDD={(convertedDeal) => {
+                      // Find the original deal
+                      const originalDeal = deals.find(d => d.id === convertedDeal.id);
+                      if (originalDeal) {
+                        handleDDFormOpen(originalDeal);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </TabsContent>
 
-      {/* Due Diligence Form Modal */}
-      {selectedDeal && (
-        <DDForm
-          dealId={selectedDeal.id}
-          companyName={selectedDeal.companies?.name || 'Unknown Company'}
-          open={ddFormOpen}
-          onOpenChange={setDDFormOpen}
-          onDDDataUpdated={refetch}
+            <TabsContent value="analytics" className="space-y-4">
+              {analytics && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Stage Distribution</CardTitle>
+                      <CardDescription>Number of deals in each stage</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {Object.entries(analytics.stageDistribution).map(([stage, count]) => (
+                          <div key={stage} className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{stage}</span>
+                            <Badge className={getStageColor(stage)}>{count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Pipeline Health</CardTitle>
+                      <CardDescription>Key metrics and performance indicators</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Conversion Rate</span>
+                          <span className="text-lg font-bold text-green-600">{analytics.conversionRate}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Active Deals</span>
+                          <span className="text-lg font-bold">{analytics.activeDeals}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Success Rate</span>
+                          <span className="text-lg font-bold text-blue-600">
+                            {analytics.totalDeals > 0 ? 
+                              ((analytics.fundedDeals / (analytics.fundedDeals + analytics.rejectedDeals || 1)) * 100).toFixed(1) 
+                              : '0'}%
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Deal Form Modal */}
+        <DealForm 
+          open={dealFormOpen} 
+          onOpenChange={(open) => {
+            setDealFormOpen(open);
+            if (!open) {
+              setEditingDeal(null);
+            }
+          }}
+          onDealCreated={refetch}
+          editingDeal={editingDeal ? convertDealForTracker(editingDeal) : null}
         />
-      )}
-    </Layout>
+
+        {/* Due Diligence Form Modal */}
+        {selectedDeal && (
+          <DDForm
+            dealId={selectedDeal.id}
+            companyName={selectedDeal.companies?.name || 'Unknown Company'}
+            open={ddFormOpen}
+            onOpenChange={setDDFormOpen}
+            onDDDataUpdated={refetch}
+          />
+        )}
+      </Layout>
+    </RoleGuard>
   );
 };
 

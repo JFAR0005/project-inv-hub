@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import RoleGuard from "@/components/layout/RoleGuard";
 
 // Pages
 import Index from "./pages/Index";
@@ -40,32 +41,36 @@ const App = () => (
             } />
             
             <Route path="/portfolio" element={
-              <ProtectedRoute requiredRoles={['admin', 'partner', 'lp']}>
+              <ProtectedRoute>
                 <Portfolio />
               </ProtectedRoute>
             } />
             
             <Route path="/notes" element={
-              <ProtectedRoute requiredRoles={['admin', 'partner']}>
-                <Notes />
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['admin', 'partner', 'founder']}>
+                  <Notes />
+                </RoleGuard>
               </ProtectedRoute>
             } />
             
             <Route path="/deals" element={
-              <ProtectedRoute requiredRoles={['admin', 'partner']}>
+              <ProtectedRoute>
                 <Deals />
               </ProtectedRoute>
             } />
             
             <Route path="/dealflow" element={
-              <ProtectedRoute requiredRoles={['admin', 'partner']}>
+              <ProtectedRoute>
                 <Dealflow />
               </ProtectedRoute>
             } />
             
             <Route path="/meetings" element={
               <ProtectedRoute>
-                <Meetings />
+                <RoleGuard allowedRoles={['admin', 'partner', 'founder']}>
+                  <Meetings />
+                </RoleGuard>
               </ProtectedRoute>
             } />
             
@@ -76,8 +81,10 @@ const App = () => (
             } />
             
             <Route path="/submit-update" element={
-              <ProtectedRoute requiredRoles={['founder']}>
-                <SubmitUpdate />
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['founder']}>
+                  <SubmitUpdate />
+                </RoleGuard>
               </ProtectedRoute>
             } />
             

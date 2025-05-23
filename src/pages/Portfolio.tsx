@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/layout/Layout';
+import RoleGuard from '@/components/layout/RoleGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
@@ -34,84 +34,86 @@ export default function Portfolio() {
   }
 
   return (
-    <Layout>
-      <div className="container mx-auto py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Portfolio Management</h1>
-            <p className="text-muted-foreground mt-1">
-              Monitor and manage your portfolio companies
-            </p>
+    <RoleGuard allowedRoles={['admin', 'partner', 'lp']}>
+      <Layout>
+        <div className="container mx-auto py-8">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">Portfolio Management</h1>
+              <p className="text-muted-foreground mt-1">
+                Monitor and manage your portfolio companies
+              </p>
+            </div>
           </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="cards" className="flex items-center gap-2">
+                <Grid3X3 className="h-4 w-4" />
+                Cards
+              </TabsTrigger>
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                List
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Analytics
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              <PortfolioOverview />
+            </TabsContent>
+
+            <TabsContent value="cards" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio Companies</CardTitle>
+                  <CardDescription>
+                    Browse your portfolio companies in a card layout with key metrics and status
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PortfolioGrid />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="list" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio List View</CardTitle>
+                  <CardDescription>
+                    Detailed table view of all portfolio companies with filtering and sorting
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PortfolioList />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio Analytics</CardTitle>
+                  <CardDescription>
+                    Coming soon - Advanced analytics and reporting for your portfolio
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  Portfolio analytics dashboard will be available in the next update
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="cards" className="flex items-center gap-2">
-              <Grid3X3 className="h-4 w-4" />
-              Cards
-            </TabsTrigger>
-            <TabsTrigger value="list" className="flex items-center gap-2">
-              <List className="h-4 w-4" />
-              List
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Analytics
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <PortfolioOverview />
-          </TabsContent>
-
-          <TabsContent value="cards" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Portfolio Companies</CardTitle>
-                <CardDescription>
-                  Browse your portfolio companies in a card layout with key metrics and status
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PortfolioGrid />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="list" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Portfolio List View</CardTitle>
-                <CardDescription>
-                  Detailed table view of all portfolio companies with filtering and sorting
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PortfolioList />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Portfolio Analytics</CardTitle>
-                <CardDescription>
-                  Coming soon - Advanced analytics and reporting for your portfolio
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Portfolio analytics dashboard will be available in the next update
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </Layout>
+      </Layout>
+    </RoleGuard>
   );
 }

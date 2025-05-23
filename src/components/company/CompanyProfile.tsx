@@ -1,9 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/integrations/supabase/types';
+import RoleGuard from '@/components/layout/RoleGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ type Company = Database['public']['Tables']['companies']['Row'];
 const CompanyProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { user, hasPermission } = useAuth();
+  const { canViewCompany, canEditCompany } = useRoleAccess();
   const { toast } = useToast();
   const [company, setCompany] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,14 +27,20 @@ const CompanyProfile = () => {
   const [formData, setFormData] = useState<Partial<Company>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const canEdit = hasPermission('edit:all') || 
-    (hasPermission('edit:own:company') && user?.companyId === id);
+  const canView = id ? canViewCompany(id) : false;
+  const canEdit = id ? canEditCompany(id) : false;
 
   useEffect(() => {
     const fetchCompany = async () => {
       setIsLoading(true);
       try {
         if (!id) return;
+
+        // Check access before fetching
+        if (!canView) {
+          setCompany(null);
+          return;
+        }
 
         const { data, error } = await supabase
           .from('companies')
@@ -42,7 +50,6 @@ const CompanyProfile = () => {
 
         if (error) {
           if (error.code === 'PGRST116') {
-            // No data found
             setCompany(null);
           } else {
             throw error;
@@ -64,7 +71,7 @@ const CompanyProfile = () => {
     };
 
     fetchCompany();
-  }, [id, toast]);
+  }, [id, toast, canView]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -137,12 +144,14 @@ const CompanyProfile = () => {
     );
   }
 
-  if (!company) {
+  if (!canView || !company) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-800">Company not found</h2>
-        <p className="text-gray-600 mt-2">The company you're looking for doesn't exist or you don't have permission to view it.</p>
-      </div>
+      <RoleGuard resourceOwnerId={id}>
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold text-gray-800">Company not found</h2>
+          <p className="text-gray-600 mt-2">The company you're looking for doesn't exist or you don't have permission to view it.</p>
+        </div>
+      </RoleGuard>
     );
   }
 
