@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -10,12 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { Meeting } from '@/pages/Meetings';
 
 interface MeetingScheduleFormProps {
-  onMeetingCreated?: () => void;
+  onSuccess?: () => void;
+  meeting?: Meeting | null;
 }
 
-export default function MeetingScheduleForm({ onMeetingCreated }: MeetingScheduleFormProps) {
+export default function MeetingScheduleForm({ onSuccess, meeting }: MeetingScheduleFormProps) {
   const { user } = useAuth();
   const { sendNotification } = useNotifications();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +35,21 @@ export default function MeetingScheduleForm({ onMeetingCreated }: MeetingSchedul
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+
+  // Populate form data when editing a meeting
+  useEffect(() => {
+    if (meeting) {
+      setFormData({
+        title: meeting.title || '',
+        description: meeting.description || '',
+        start_time: meeting.start_time ? new Date(meeting.start_time).toISOString().slice(0, 16) : '',
+        end_time: meeting.end_time ? new Date(meeting.end_time).toISOString().slice(0, 16) : '',
+        location: meeting.location || '',
+        company_id: meeting.company_id || '',
+        participants: meeting.participants || []
+      });
+    }
+  }, [meeting]);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -75,94 +93,133 @@ export default function MeetingScheduleForm({ onMeetingCreated }: MeetingSchedul
     setIsSubmitting(true);
 
     try {
-      // Create the meeting
-      const { data: meetingData, error: meetingError } = await supabase
-        .from('meetings')
-        .insert({
-          title: formData.title,
-          description: formData.description,
-          start_time: formData.start_time,
-          end_time: formData.end_time,
-          location: formData.location,
-          company_id: formData.company_id || null,
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      if (meeting) {
+        // Update existing meeting
+        const { error: updateError } = await supabase
+          .from('meetings')
+          .update({
+            title: formData.title,
+            description: formData.description,
+            start_time: formData.start_time,
+            end_time: formData.end_time,
+            location: formData.location,
+            company_id: formData.company_id || null,
+          })
+          .eq('id', meeting.id);
 
-      if (meetingError) throw meetingError;
+        if (updateError) throw updateError;
 
-      // Add participants
-      if (formData.participants.length > 0) {
-        const participantInserts = formData.participants.map(participantId => ({
-          meeting_id: meetingData.id,
-          user_id: participantId
-        }));
-
-        const { error: participantError } = await supabase
+        // Delete existing participants
+        await supabase
           .from('meeting_participants')
-          .insert(participantInserts);
+          .delete()
+          .eq('meeting_id', meeting.id);
 
-        if (participantError) throw participantError;
-      }
+        // Add new participants
+        if (formData.participants.length > 0) {
+          const participantInserts = formData.participants.map(participantId => ({
+            meeting_id: meeting.id,
+            user_id: participantId
+          }));
 
-      // Get company name if selected
-      let companyName = 'General Meeting';
-      if (formData.company_id) {
-        const { data: company } = await supabase
-          .from('companies')
-          .select('name')
-          .eq('id', formData.company_id)
+          const { error: participantError } = await supabase
+            .from('meeting_participants')
+            .insert(participantInserts);
+
+          if (participantError) throw participantError;
+        }
+
+        toast('Meeting updated successfully!');
+      } else {
+        // Create new meeting
+        const { data: meetingData, error: meetingError } = await supabase
+          .from('meetings')
+          .insert({
+            title: formData.title,
+            description: formData.description,
+            start_time: formData.start_time,
+            end_time: formData.end_time,
+            location: formData.location,
+            company_id: formData.company_id || null,
+            created_by: user.id,
+          })
+          .select()
           .single();
-        
-        if (company) companyName = company.name;
+
+        if (meetingError) throw meetingError;
+
+        // Add participants
+        if (formData.participants.length > 0) {
+          const participantInserts = formData.participants.map(participantId => ({
+            meeting_id: meetingData.id,
+            user_id: participantId
+          }));
+
+          const { error: participantError } = await supabase
+            .from('meeting_participants')
+            .insert(participantInserts);
+
+          if (participantError) throw participantError;
+        }
+
+        // Get company name if selected
+        let companyName = 'General Meeting';
+        if (formData.company_id) {
+          const { data: company } = await supabase
+            .from('companies')
+            .select('name')
+            .eq('id', formData.company_id)
+            .single();
+          
+          if (company) companyName = company.name;
+        }
+
+        // Get participant names
+        const participantNames: string[] = [];
+        if (formData.participants.length > 0) {
+          const { data: users } = await supabase
+            .from('users')
+            .select('name, email')
+            .in('id', formData.participants);
+          
+          if (users) {
+            participantNames.push(...users.map(u => u.name || u.email || 'Unknown'));
+          }
+        }
+
+        // Send notification
+        await sendNotification({
+          type: 'meeting_scheduled',
+          company_id: formData.company_id || 'general',
+          data: {
+            company_name: companyName,
+            meeting_title: formData.title,
+            meeting_time: new Date(formData.start_time).toLocaleString(),
+            participants: participantNames,
+            meeting_link: `${window.location.origin}/meetings`
+          }
+        });
+
+        toast('Meeting scheduled successfully!', {
+          description: 'All participants have been notified.'
+        });
+
+        // Reset form
+        setFormData({
+          title: '',
+          description: '',
+          start_time: '',
+          end_time: '',
+          location: '',
+          company_id: '',
+          participants: []
+        });
       }
 
-      // Get participant names
-      const participantNames: string[] = [];
-      if (formData.participants.length > 0) {
-        const { data: users } = await supabase
-          .from('users')
-          .select('name, email')
-          .in('id', formData.participants);
-        
-        if (users) {
-          participantNames.push(...users.map(u => u.name || u.email || 'Unknown'));
-        }
-      }
-
-      // Send notification
-      await sendNotification({
-        type: 'meeting_scheduled',
-        company_id: formData.company_id || 'general',
-        data: {
-          company_name: companyName,
-          meeting_title: formData.title,
-          meeting_time: new Date(formData.start_time).toLocaleString(),
-          participants: participantNames,
-          meeting_link: `${window.location.origin}/meetings`
-        }
-      });
-
-      toast('Meeting scheduled successfully!', {
-        description: 'All participants have been notified.'
-      });
-
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        start_time: '',
-        end_time: '',
-        location: '',
-        company_id: '',
-        participants: []
-      });
-
-      onMeetingCreated?.();
+      onSuccess?.();
 
     } catch (error) {
-      console.error('Error creating meeting:', error);
+      console.error('Error creating/updating meeting:', error);
       toast('Failed to schedule meeting', {
         description: error.message || 'Please try again'
       });
@@ -171,15 +228,24 @@ export default function MeetingScheduleForm({ onMeetingCreated }: MeetingSchedul
     }
   };
 
+  const handleParticipantToggle = (participantId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      participants: prev.participants.includes(participantId)
+        ? prev.participants.filter(id => id !== participantId)
+        : [...prev.participants, participantId]
+    }));
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5" />
-          Schedule New Meeting
+          {meeting ? 'Edit Meeting' : 'Schedule New Meeting'}
         </CardTitle>
         <CardDescription>
-          Create a new meeting and invite participants
+          {meeting ? 'Update meeting details and participants' : 'Create a new meeting and invite participants'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -255,26 +321,31 @@ export default function MeetingScheduleForm({ onMeetingCreated }: MeetingSchedul
           </div>
 
           <div>
-            <Label htmlFor="participants">Participants</Label>
-            <Select
-              multiple
-              value={formData.participants}
-              onValueChange={(value) => setFormData({...formData, participants: value as string[]})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select participants" />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>{user.name || user.email}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Participants</Label>
+            <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+              {users.map(user => (
+                <div 
+                  key={user.id}
+                  className={`flex items-center space-x-2 p-2 rounded cursor-pointer ${
+                    formData.participants.includes(user.id) ? 'bg-primary/10' : 'hover:bg-muted'
+                  }`}
+                  onClick={() => handleParticipantToggle(user.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.participants.includes(user.id)}
+                    onChange={() => handleParticipantToggle(user.id)}
+                    className="rounded"
+                  />
+                  <span>{user.name || user.email}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex justify-end">
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Scheduling...' : 'Schedule Meeting'}
+              {isSubmitting ? (meeting ? 'Updating...' : 'Scheduling...') : (meeting ? 'Update Meeting' : 'Schedule Meeting')}
             </Button>
           </div>
         </form>
