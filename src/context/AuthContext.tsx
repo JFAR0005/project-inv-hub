@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -211,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const resetUser: User = {
       ...user,
-      role: originalRole,
+      role: originalRole as UserRole,
     };
     
     setUser(resetUser);
