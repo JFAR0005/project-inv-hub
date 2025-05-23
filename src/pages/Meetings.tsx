@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import MeetingsCalendar from '@/components/meetings/MeetingsCalendar';
 import MeetingsList from '@/components/meetings/MeetingsList';
+import CalendarIntegration from '@/components/meetings/CalendarIntegration';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -29,9 +30,10 @@ const Meetings = () => {
         </div>
         
         <Tabs defaultValue="calendar" className="w-full">
-          <TabsList className="grid w-full md:w-auto grid-cols-2">
+          <TabsList className="grid w-full md:w-auto grid-cols-3">
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="list">Upcoming Meetings</TabsTrigger>
+            <TabsTrigger value="integrations">Calendar Integrations</TabsTrigger>
           </TabsList>
           <TabsContent value="calendar" className="mt-4">
             <div className="mb-4 flex justify-between items-center">
@@ -58,6 +60,10 @@ const Meetings = () => {
           <TabsContent value="list" className="mt-4">
             <h2 className="text-xl font-semibold mb-4">Upcoming Meetings</h2>
             <MeetingsList />
+          </TabsContent>
+          <TabsContent value="integrations" className="mt-4">
+            <h2 className="text-xl font-semibold mb-4">Calendar Integrations</h2>
+            <CalendarIntegration />
           </TabsContent>
         </Tabs>
       </div>
