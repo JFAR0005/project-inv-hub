@@ -43,12 +43,23 @@ const NoteList: React.FC = () => {
     setLoading(true);
     
     try {
+      // First fetch users to get author names
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, name');
+      
+      if (userError) throw userError;
+      
+      // User map for easier lookup
+      const userMap = new Map();
+      userData?.forEach(u => userMap.set(u.id, u.name));
+      
+      // Now fetch notes
       let query = supabase
         .from('notes')
         .select(`
           *,
-          companies (id, name),
-          users (id, name)
+          companies (id, name)
         `);
       
       // Apply role-based filtering
@@ -72,7 +83,8 @@ const NoteList: React.FC = () => {
       const formattedNotes: Note[] = data.map(note => ({
         ...note,
         company_name: note.companies?.name || 'No company',
-        author_name: note.users?.name || 'Unknown user',
+        // Use the userMap to get author name
+        author_name: userMap.get(note.author_id) || 'Unknown user',
       }));
       
       setNotes(formattedNotes);
