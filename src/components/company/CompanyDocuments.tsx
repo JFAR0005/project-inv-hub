@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -79,10 +80,10 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           
           let uploaderName = 'Unknown';
           
-          // Fix: More explicit null checking for uploader data
+          // Fix: Explicit null checking with proper type guards
           if (!metaError && metaData) {
             const uploader = metaData.uploader;
-            if (uploader && uploader !== null && typeof uploader === 'object' && 'name' in uploader) {
+            if (uploader !== null && typeof uploader === 'object' && 'name' in uploader) {
               uploaderName = (uploader.name as string) || 'Unknown';
             }
           }
