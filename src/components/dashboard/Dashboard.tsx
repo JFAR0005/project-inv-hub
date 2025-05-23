@@ -11,10 +11,10 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart2, Briefcase, Calendar, FileText, Users } from "lucide-react";
+import { BarChart2, Briefcase, Calendar, FileText, Users, PlusCircle } from "lucide-react";
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   // Sample data (would come from APIs in real implementation)
   const stats = [
@@ -24,19 +24,15 @@ const Dashboard = () => {
       icon: <Briefcase className="h-8 w-8 text-primary" />,
       change: "+2 this quarter",
       link: "/portfolio",
-      admin: true,
-      partner: true,
-      founder: false,
+      permission: "view:portfolio",
     },
     {
       title: "Active Deals",
-      value: "8",
+      value: "8", 
       icon: <BarChart2 className="h-8 w-8 text-primary" />,
       change: "+3 this month",
       link: "/deals",
-      admin: true,
-      partner: false,
-      founder: false,
+      permission: "edit:all",
     },
     {
       title: "Upcoming Meetings",
@@ -44,19 +40,15 @@ const Dashboard = () => {
       icon: <Calendar className="h-8 w-8 text-primary" />,
       change: "Next: Tomorrow 10 AM",
       link: "/meetings",
-      admin: true,
-      partner: true,
-      founder: true,
+      permission: "book:meetings",
     },
     {
       title: "Recent Notes",
       value: "24",
       icon: <FileText className="h-8 w-8 text-primary" />,
-      change: "+12 this week",
+      change: "+12 this week", 
       link: "/notes",
-      admin: true,
-      partner: true,
-      founder: false,
+      permission: "create:notes",
     },
     {
       title: "Team Members",
@@ -64,25 +56,19 @@ const Dashboard = () => {
       icon: <Users className="h-8 w-8 text-primary" />,
       change: "4 online now",
       link: "/team",
-      admin: true,
-      partner: true,
-      founder: true,
+      permission: "view:team",
     },
   ];
 
-  // Filter stats based on user role
-  const filteredStats = stats.filter((stat) => {
-    if (user?.role === "admin") return stat.admin;
-    if (user?.role === "partner") return stat.partner;
-    if (user?.role === "founder") return stat.founder;
-    return false;
-  });
+  // Filter stats based on user permissions
+  const filteredStats = stats.filter((stat) => hasPermission(stat.permission as any));
 
   // Welcome message based on role
   const welcomeMessages: Record<string, string> = {
     admin: "Manage your portfolio, review deals, and track team activity all in one place.",
     partner: "Connect with founders, share notes, and stay updated on portfolio performance.",
     founder: "Track your metrics, schedule meetings, and connect with the Black Nova team.",
+    lp: "View portfolio performance and stay updated on investment activities.",
   };
 
   // Sample upcoming meetings
@@ -103,6 +89,42 @@ const Dashboard = () => {
     },
   ];
 
+  // Quick actions based on user role
+  const getQuickActions = () => {
+    const actions = [];
+    
+    if (hasPermission('create:notes')) {
+      actions.push({
+        title: 'Create Note',
+        description: 'Add a new note about a company or deal',
+        link: '/notes',
+        icon: <FileText className="h-5 w-5" />,
+      });
+    }
+    
+    if (hasPermission('book:meetings')) {
+      actions.push({
+        title: 'Schedule Meeting',
+        description: 'Book a meeting with team members',
+        link: '/meetings',
+        icon: <Calendar className="h-5 w-5" />,
+      });
+    }
+    
+    if (hasPermission('submit:updates')) {
+      actions.push({
+        title: 'Submit Update',
+        description: 'Submit your monthly company update',
+        link: '/submit-update',
+        icon: <BarChart2 className="h-5 w-5" />,
+      });
+    }
+    
+    return actions;
+  };
+
+  const quickActions = getQuickActions();
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -112,6 +134,41 @@ const Dashboard = () => {
         </p>
       </div>
 
+      {/* Quick Actions */}
+      {quickActions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription>
+              Common tasks for your role
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {quickActions.map((action, i) => (
+                <Link key={i} to={action.link}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3">
+                        {action.icon}
+                        <div>
+                          <h4 className="font-medium">{action.title}</h4>
+                          <p className="text-sm text-muted-foreground">{action.description}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredStats.map((stat, i) => (
           <Card key={i} className="hover:shadow-md transition-shadow">
@@ -136,14 +193,18 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* Role-specific content */}
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Upcoming Meetings - visible to all authenticated users */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Upcoming Meetings</CardTitle>
-              <Link to="/meetings">
-                <Button variant="ghost" size="sm">View all</Button>
-              </Link>
+              {hasPermission('book:meetings') && (
+                <Link to="/meetings">
+                  <Button variant="ghost" size="sm">View all</Button>
+                </Link>
+              )}
             </div>
             <CardDescription>
               Your scheduled meetings for the next few days
@@ -167,7 +228,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {user?.role === "admin" && (
+        {/* Admin-specific: Recent Activity */}
+        {hasPermission('view:all') && (
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
@@ -193,6 +255,7 @@ const Dashboard = () => {
           </Card>
         )}
 
+        {/* Founder-specific: Next Steps */}
         {user?.role === "founder" && (
           <Card>
             <CardHeader>
@@ -207,19 +270,59 @@ const Dashboard = () => {
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <BarChart2 className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium">Update your Q2 metrics</p>
                     <p className="text-xs text-muted-foreground">Due in 5 days</p>
                   </div>
+                  <Link to="/submit-update">
+                    <Button size="sm" variant="outline">Submit</Button>
+                  </Link>
                 </div>
                 <div className="flex items-center gap-4 p-2 rounded-md hover:bg-muted/50">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <Calendar className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium">Schedule monthly review</p>
                     <p className="text-xs text-muted-foreground">With your lead investor</p>
                   </div>
+                  <Link to="/meetings">
+                    <Button size="sm" variant="outline">Schedule</Button>
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Partner-specific: Deal Pipeline Summary */}
+        {user?.role === "partner" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Deal Pipeline Summary</CardTitle>
+              <CardDescription>
+                Your assigned deals and their status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
+                  <div>
+                    <p className="text-sm font-medium">Due Diligence Phase</p>
+                    <p className="text-xs text-muted-foreground">3 active deals</p>
+                  </div>
+                  <Link to="/dealflow">
+                    <Button size="sm" variant="outline">View</Button>
+                  </Link>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
+                  <div>
+                    <p className="text-sm font-medium">Investment Committee</p>
+                    <p className="text-xs text-muted-foreground">2 pending approvals</p>
+                  </div>
+                  <Link to="/deals">
+                    <Button size="sm" variant="outline">Review</Button>
+                  </Link>
                 </div>
               </div>
             </CardContent>

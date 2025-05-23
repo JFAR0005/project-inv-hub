@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
 // Pages
 import Index from "./pages/Index";
@@ -30,14 +31,56 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/deals" element={<Deals />} />
-            <Route path="/dealflow" element={<Dealflow />} />
-            <Route path="/meetings" element={<Meetings />} />
-            <Route path="/companies/:id" element={<CompanyProfile />} />
-            <Route path="/submit-update" element={<SubmitUpdate />} />
+            
+            {/* Protected Routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/portfolio" element={
+              <ProtectedRoute requiredRoles={['admin', 'partner', 'lp']}>
+                <Portfolio />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/notes" element={
+              <ProtectedRoute requiredRoles={['admin', 'partner']}>
+                <Notes />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/deals" element={
+              <ProtectedRoute requiredRoles={['admin', 'partner']}>
+                <Deals />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/dealflow" element={
+              <ProtectedRoute requiredRoles={['admin', 'partner']}>
+                <Dealflow />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/meetings" element={
+              <ProtectedRoute>
+                <Meetings />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/companies/:id" element={
+              <ProtectedRoute>
+                <CompanyProfile />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/submit-update" element={
+              <ProtectedRoute requiredRoles={['founder']}>
+                <SubmitUpdate />
+              </ProtectedRoute>
+            } />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
