@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
-import RoleGuard from "@/components/layout/RoleGuard";
+import RouteGuard from "@/components/layout/RouteGuard";
 
 // Pages
 import Index from "./pages/Index";
@@ -41,59 +41,75 @@ const App = () => (
               </ProtectedRoute>
             } />
             
+            {/* Portfolio - Admin only */}
             <Route path="/portfolio" element={
               <ProtectedRoute>
-                <Portfolio />
+                <RouteGuard requiresRole={['admin']}>
+                  <Portfolio />
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Notes - Admin, Partner (assigned), Founder (own) */}
             <Route path="/notes" element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={['admin', 'partner', 'founder']}>
+                <RouteGuard requiresRole={['admin', 'partner', 'founder']}>
                   <Notes />
-                </RoleGuard>
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Deals - Admin, Partner (assigned) only */}
             <Route path="/deals" element={
               <ProtectedRoute>
-                <Deals />
+                <RouteGuard requiresRole={['admin', 'partner']}>
+                  <Deals />
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Dealflow - Admin, Partner (assigned) only */}
             <Route path="/dealflow" element={
               <ProtectedRoute>
-                <Dealflow />
+                <RouteGuard requiresRole={['admin', 'partner']}>
+                  <Dealflow />
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Meetings - Admin, Partner (invited), Founder (invited) */}
             <Route path="/meetings" element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={['admin', 'partner', 'founder']}>
+                <RouteGuard requiresRole={['admin', 'partner', 'founder']}>
                   <Meetings />
-                </RoleGuard>
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Integrations - Admin, Partner only */}
             <Route path="/integrations" element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={['admin', 'partner']}>
+                <RouteGuard requiresRole={['admin', 'partner']}>
                   <Integrations />
-                </RoleGuard>
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Company Profile - Admin, Partner (assigned), Founder (own) */}
             <Route path="/companies/:id" element={
               <ProtectedRoute>
-                <CompanyProfile />
+                <RouteGuard requiresRole={['admin', 'partner', 'founder']} requiresOwnership={true}>
+                  <CompanyProfile />
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
+            {/* Submit Update - Founder (own) only */}
             <Route path="/submit-update" element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={['founder']}>
+                <RouteGuard requiresRole={['founder']} requiresOwnership={true}>
                   <SubmitUpdate />
-                </RoleGuard>
+                </RouteGuard>
               </ProtectedRoute>
             } />
             
