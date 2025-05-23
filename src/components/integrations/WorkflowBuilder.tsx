@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -114,7 +113,7 @@ const WorkflowBuilder: React.FC = () => {
 
   const handleCreateWorkflow = () => {
     if (!newWorkflow.name) {
-      toast("Workflow name required", {
+      toast({
         description: "Please provide a name for your workflow",
       });
       return;
@@ -134,7 +133,7 @@ const WorkflowBuilder: React.FC = () => {
     setIsCreating(false);
     setSelectedWorkflow(workflow);
 
-    toast("Workflow created", {
+    toast({
       description: `${workflow.name} has been created successfully`,
     });
   };
@@ -150,7 +149,7 @@ const WorkflowBuilder: React.FC = () => {
 
     const workflow = workflows.find(w => w.id === id);
     if (workflow) {
-      toast(workflow.active ? "Workflow deactivated" : "Workflow activated", {
+      toast({
         description: `${workflow.name} has been ${workflow.active ? 'deactivated' : 'activated'}`
       });
     }
@@ -165,7 +164,7 @@ const WorkflowBuilder: React.FC = () => {
 
     const nodeType = nodeTypes.find(n => n.id === currentNodeType);
     if (!nodeType) {
-      toast("Select node type", {
+      toast({
         description: "Please select a valid node type",
       });
       return;
@@ -192,7 +191,7 @@ const WorkflowBuilder: React.FC = () => {
     setCurrentNodeType('');
     setNodeConfig({});
 
-    toast("Node added", {
+    toast({
       description: `${nodeType.name} has been added to the workflow`,
     });
   };
@@ -233,7 +232,7 @@ const WorkflowBuilder: React.FC = () => {
                 rows={3}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Available variables: {{title}}, {{start_time}}, {{end_time}}, {{location}}
+                Available variables: {'{{title}}'}, {'{{start_time}}'}, {'{{end_time}}'}, {'{{location}}'}
               </p>
             </div>
           </div>
