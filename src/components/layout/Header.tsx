@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Menu } from 'lucide-react';
 import SearchHeader from './SearchHeader';
+import RoleViewSwitcher from '@/components/auth/RoleViewSwitcher';
 
 interface HeaderProps {
   mobile?: boolean;
@@ -80,6 +81,17 @@ const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMe
               </div>
             </div>
             <DropdownMenuSeparator />
+            
+            {/* Role View Switcher for Admin Users */}
+            {(user?.role === 'admin' || user?.role !== user?.role) && (
+              <>
+                <div className="px-2 py-1">
+                  <RoleViewSwitcher />
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            
             <DropdownMenuItem disabled>Profile</DropdownMenuItem>
             <DropdownMenuItem disabled>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
