@@ -35,14 +35,7 @@ const Dealflow = () => {
         .from('deals')
         .select(`
           *,
-          companies (
-            id,
-            name,
-            sector,
-            location,
-            stage,
-            logo_url
-          ),
+          companies (*),
           users (
             id,
             name
@@ -53,7 +46,7 @@ const Dealflow = () => {
       const { data, error } = await query;
       
       if (error) throw error;
-      return data as Deal[] || [];
+      return (data || []) as Deal[];
     },
   });
 
@@ -316,7 +309,7 @@ const Dealflow = () => {
                       {Object.entries(analytics.stageDistribution).map(([stage, count]) => (
                         <div key={stage} className="flex items-center justify-between">
                           <span className="text-sm font-medium">{stage}</span>
-                          <Badge className={getStageColor(stage)}>{count}</Badge>
+                          <Badge className={getStageColor(stage)}>{count as React.ReactNode}</Badge>
                         </div>
                       ))}
                     </div>
