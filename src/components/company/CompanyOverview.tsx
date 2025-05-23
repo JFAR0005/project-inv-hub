@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +18,7 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimation: 0,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
   };

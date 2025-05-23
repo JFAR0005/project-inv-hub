@@ -108,6 +108,15 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ companyId, limit = 20 }) =>
     }
   };
 
+  // Helper function to safely extract content from action_data
+  const getActionDataContent = (actionData: any): string | null => {
+    if (!actionData) return null;
+    if (typeof actionData === 'object' && actionData.content) {
+      return actionData.content;
+    }
+    return null;
+  };
+
   if (!user) {
     return (
       <Card>
@@ -134,39 +143,43 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ companyId, limit = 20 }) =>
           </p>
         ) : (
           <div className="space-y-4">
-            {activities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border">
-                <div className="flex-shrink-0">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      {activity.user?.name?.charAt(0) || activity.user?.email?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {getActivityIcon(activity.action_type)}
-                    <Badge
-                      variant="secondary"
-                      className={getActivityBadgeColor(activity.action_type)}
-                    >
-                      {activity.action_type}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                    </span>
+            {activities.map((activity) => {
+              const content = getActionDataContent(activity.action_data);
+              
+              return (
+                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border">
+                  <div className="flex-shrink-0">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>
+                        {activity.user?.name?.charAt(0) || activity.user?.email?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
-                  <p className="text-sm text-gray-700">
-                    {getActivityDescription(activity)}
-                  </p>
-                  {activity.action_data?.content && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate">
-                      "{activity.action_data.content}..."
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {getActivityIcon(activity.action_type)}
+                      <Badge
+                        variant="secondary"
+                        className={getActivityBadgeColor(activity.action_type)}
+                      >
+                        {activity.action_type}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700">
+                      {getActivityDescription(activity)}
                     </p>
-                  )}
+                    {content && (
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        "{content}..."
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
