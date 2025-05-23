@@ -3,17 +3,22 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/context/AuthContext';
+import AccessDenied from './AccessDenied';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRoles?: UserRole[];
   fallbackPath?: string;
+  requiresOwnership?: boolean;
+  resourceOwnerId?: string;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   requiredRoles = [], 
-  fallbackPath = '/login' 
+  fallbackPath = '/login',
+  requiresOwnership = false,
+  resourceOwnerId
 }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -33,19 +38,25 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check if user has required role
-  if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
+  const hasRequiredRole = requiredRoles.length === 0 || requiredRoles.includes(user.role);
+
+  // Check ownership requirements for founders
+  const hasOwnership = !requiresOwnership || 
+    user.role !== 'founder' || 
+    !resourceOwnerId || 
+    user.companyId === resourceOwnerId;
+
+  // If role or ownership requirements aren't met, display access denied
+  if (!hasRequiredRole || !hasOwnership) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
-          <p className="text-muted-foreground mb-4">
-            You don't have permission to access this page.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Required roles: {requiredRoles.join(', ')}
-          </p>
-        </div>
-      </div>
+      <AccessDenied 
+        userRole={user.role}
+        requiredRoles={requiredRoles}
+        message={!hasRequiredRole 
+          ? "You don't have permission to access this page." 
+          : "You can only access resources that belong to your company."
+        }
+      />
     );
   }
 

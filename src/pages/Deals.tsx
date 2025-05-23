@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import Layout from '@/components/layout/Layout';
-import RoleGuard from '@/components/layout/RoleGuard';
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import { UserRole } from '@/context/AuthContext';
 import DealTracker from '@/components/deals/DealTracker';
 import DealForm from '@/components/deals/DealForm';
 import DDForm from '@/components/deals/DDForm';
@@ -165,7 +167,7 @@ const Deals = () => {
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'partner']}>
+    <ProtectedRoute requiredRoles={['admin', 'partner']}>
       <Layout>
         <div className="space-y-6">
           <div className="flex justify-between items-center">
@@ -236,7 +238,7 @@ const Deals = () => {
           />
         )}
       </Layout>
-    </RoleGuard>
+    </ProtectedRoute>
   );
 };
 

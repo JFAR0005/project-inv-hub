@@ -1,17 +1,23 @@
 
-import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, FileText, AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw, FileSpreadsheet, ChevronRight } from 'lucide-react';
+import { format } from 'date-fns';
 
-interface FounderUpdate {
+interface CompanyUpdatesProps {
+  companyId: string;
+}
+
+interface Update {
   id: string;
   company_id: string;
   submitted_by: string;
+  submitted_at: string;
   arr: number | null;
   mrr: number | null;
   burn_rate: number | null;
@@ -20,217 +26,180 @@ interface FounderUpdate {
   churn: number | null;
   raise_status: string | null;
   raise_target_amount: number | null;
-  requested_intros: string | null;
   comments: string | null;
+  requested_intros: string | null;
   deck_url: string | null;
-  submitted_at: string;
-}
-
-interface CompanyUpdatesProps {
-  companyId: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 const CompanyUpdates: React.FC<CompanyUpdatesProps> = ({ companyId }) => {
-  const { user, hasPermission } = useAuth();
-  const [updates, setUpdates] = useState<FounderUpdate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const fetchUpdates = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
+  const { data: updates, isLoading, error, refetch } = useQuery({
+    queryKey: ['company-updates', companyId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('founder_updates')
-        .select('*')
+        .select(`
+          *,
+          user:submitted_by (id, name, email)
+        `)
         .eq('company_id', companyId)
         .order('submitted_at', { ascending: false });
-        
-      if (error) throw error;
       
-      setUpdates(data || []);
-    } catch (err: any) {
-      console.error('Error fetching updates:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (error) throw error;
+      return data as Update[];
+    },
+    enabled: !!companyId,
+  });
   
-  useEffect(() => {
-    if (companyId) {
-      fetchUpdates();
-    }
-  }, [companyId]);
-  
-  const formatCurrency = (value: number | null) => {
-    if (value === null || value === undefined) return 'N/A';
-    
-    // Format with appropriate suffix (K, M, B) for readability
-    if (value >= 1000000000) {
-      return `$${(value / 1000000000).toFixed(1)}B`;
-    } else if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(1)}K`;
-    } else {
-      return `$${value.toFixed(0)}`;
-    }
-  };
-  
-  const getRaiseStatusBadge = (status: string | null) => {
-    if (!status) return null;
-    
+  const getRaiseStatusColor = (status: string | null) => {
     switch (status) {
-      case 'Not Raising':
-        return <Badge variant="outline">Not Raising</Badge>;
-      case 'Planning':
-        return <Badge variant="secondary">Planning</Badge>;
-      case 'Raising':
-        return <Badge variant="default">Raising</Badge>;
-      case 'Closed':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">Closed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+      case 'Not Raising': return 'bg-gray-100 text-gray-800';
+      case 'Preparing': return 'bg-blue-100 text-blue-800';
+      case 'Raising': return 'bg-green-100 text-green-800';
+      case 'Closing': return 'bg-yellow-100 text-yellow-800';
+      case 'Closed': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
   
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[1, 2].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-8 w-1/3" />
-              <Skeleton className="h-4 w-1/4" />
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((j) => (
-                  <Skeleton key={j} className="h-16" />
-                ))}
-              </div>
-              <Skeleton className="h-20 mt-4" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
   
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center text-destructive">
-            <AlertCircle className="mr-2" /> Error Loading Updates
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Failed to load company updates: {error}</p>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive" className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Failed to load company updates. Please try again.
+        </AlertDescription>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-2">
+          <RefreshCw className="h-4 w-4 mr-2" /> Retry
+        </Button>
+      </Alert>
     );
   }
   
-  if (updates.length === 0) {
+  if (!updates || updates.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>No Updates Available</CardTitle>
-          <CardDescription>
-            No monthly updates have been submitted yet.
-          </CardDescription>
-        </CardHeader>
+        <CardContent className="py-6 text-center">
+          <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Updates Available</h3>
+          <p className="text-muted-foreground">
+            There are no founder updates for this company yet.
+          </p>
+        </CardContent>
       </Card>
     );
   }
   
   return (
     <div className="space-y-6">
-      {updates.map((update) => (
-        <Card key={update.id}>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle>Update: {format(new Date(update.submitted_at), 'MMMM yyyy')}</CardTitle>
-                <CardDescription>
-                  Submitted on {format(new Date(update.submitted_at), 'MMM d, yyyy')}
-                </CardDescription>
-              </div>
-              <div className="flex items-center space-x-2">
-                {getRaiseStatusBadge(update.raise_status)}
-                {update.deck_url && (
-                  <a 
-                    href={update.deck_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-sm text-muted-foreground hover:text-primary"
-                  >
-                    <FileText className="h-4 w-4 mr-1" />
-                    Deck
-                    <ExternalLink className="h-3 w-3 ml-1" />
-                  </a>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">Founder Updates</h3>
+        <Badge className="text-xs" variant="outline">
+          {updates.length} update{updates.length !== 1 ? 's' : ''}
+        </Badge>
+      </div>
+      
+      <div className="space-y-4">
+        {updates.map((update) => (
+          <Card key={update.id}>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-lg">
+                    Update on {format(new Date(update.submitted_at), 'MMMM d, yyyy')}
+                  </CardTitle>
+                  <CardDescription>
+                    From {update.user?.name || 'Unknown User'}
+                  </CardDescription>
+                </div>
+                {update.raise_status && (
+                  <Badge className={getRaiseStatusColor(update.raise_status)}>
+                    {update.raise_status}
+                  </Badge>
                 )}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">ARR</div>
-                <div className="text-2xl font-bold">{formatCurrency(update.arr)}</div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {update.arr !== null && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">ARR</p>
+                    <p className="text-lg font-medium">${update.arr.toLocaleString()}</p>
+                  </div>
+                )}
+                
+                {update.mrr !== null && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">MRR</p>
+                    <p className="text-lg font-medium">${update.mrr.toLocaleString()}</p>
+                  </div>
+                )}
+                
+                {update.burn_rate !== null && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Monthly Burn</p>
+                    <p className="text-lg font-medium">${update.burn_rate.toLocaleString()}</p>
+                  </div>
+                )}
+                
+                {update.headcount !== null && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Team Size</p>
+                    <p className="text-lg font-medium">{update.headcount}</p>
+                  </div>
+                )}
               </div>
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">MRR</div>
-                <div className="text-2xl font-bold">{formatCurrency(update.mrr)}</div>
-              </div>
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">Runway</div>
-                <div className="text-2xl font-bold">
-                  {update.runway !== null ? `${update.runway} months` : 'N/A'}
+              
+              {update.comments && (
+                <div className="pt-2">
+                  <p className="text-sm text-muted-foreground mb-1">Comments</p>
+                  <p className="text-sm">{update.comments}</p>
                 </div>
-              </div>
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">Headcount</div>
-                <div className="text-2xl font-bold">
-                  {update.headcount !== null ? update.headcount : 'N/A'}
+              )}
+              
+              {update.requested_intros && (
+                <div className="pt-2">
+                  <p className="text-sm text-muted-foreground mb-1">Requested Introductions</p>
+                  <p className="text-sm">{update.requested_intros}</p>
                 </div>
-              </div>
-            </div>
-            
-            {update.comments && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2">Commentary</h4>
-                <div className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-lg">
-                  {update.comments}
+              )}
+              
+              {update.raise_target_amount && update.raise_status && update.raise_status !== 'Not Raising' && (
+                <div className="pt-2 flex gap-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Target Amount</p>
+                    <p className="text-sm font-medium">${update.raise_target_amount.toLocaleString()}</p>
+                  </div>
+                  
+                  {update.deck_url && (
+                    <div className="ml-auto">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(update.deck_url!, '_blank')}
+                      >
+                        View Deck <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-            
-            {/* Only show requested intros to venture team members */}
-            {hasPermission('view:sensitive') && update.requested_intros && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2">Requested Introductions</h4>
-                <div className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-lg">
-                  {update.requested_intros}
-                </div>
-              </div>
-            )}
-            
-            {/* Show fundraising details if applicable */}
-            {update.raise_status === 'Raising' && update.raise_target_amount && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2">Fundraising Target</h4>
-                <div className="text-sm bg-muted/30 p-3 rounded-lg">
-                  {formatCurrency(update.raise_target_amount)}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

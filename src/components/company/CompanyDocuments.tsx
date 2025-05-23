@@ -1,343 +1,222 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, Upload, Trash2, ExternalLink, Eye } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Download, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 interface CompanyDocumentsProps {
-  company: any;
-  isEditing: boolean;
+  companyId: string;
 }
 
-interface CompanyFile {
+type FileObject = {
+  name: string;
   id: string;
-  company_id: string;
-  file_name: string;
-  file_url: string;
-  uploaded_at: string;
-  uploader_id: string | null;
-  uploader_name?: string;
-  file_size?: number;
-}
+  created_at: string;
+  updated_at: string;
+  last_accessed_at: string;
+  metadata: {
+    size: number;
+    mimetype: string;
+    uploadedBy?: string;
+    uploadedById?: string;
+  };
+};
 
-const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ company, isEditing }) => {
+const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
+  const [files, setFiles] = useState<FileObject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [files, setFiles] = useState<CompanyFile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    fetchFiles();
-  }, [company.id]);
-
-  const fetchFiles = async () => {
+  const fetchCompanyFiles = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
+      setError(null);
       
-      // Fetch files from company_files table
-      const { data, error } = await supabase
+      // List all files in the company's folder
+      const { data, error } = await supabase.storage
         .from('company_files')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('uploaded_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Get uploader names for each file
-      const filesWithUploaderNames = await Promise.all((data || []).map(async (file) => {
-        if (file.uploader_id) {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('name, email')
-            .eq('id', file.uploader_id)
-            .single();
+        .list(`${companyId}`);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        setFiles([]);
+        return;
+      }
+      
+      // Get more detailed info for each file including metadata
+      const filesWithMetadata = await Promise.all(
+        data.map(async (file) => {
+          const { data: fileData } = await supabase.storage
+            .from('company_files')
+            .getPublicUrl(`${companyId}/${file.name}`);
           
           return {
             ...file,
-            uploader_name: userData?.name || userData?.email || 'Unknown User'
+            url: fileData.publicUrl
           };
-        }
-        return {
-          ...file,
-          uploader_name: 'Unknown User'
-        };
-      }));
-
-      setFiles(filesWithUploaderNames);
-    } catch (error) {
-      console.error('Error fetching files:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load company files",
-        variant: "destructive",
-      });
+        })
+      );
+      
+      setFiles(filesWithMetadata as FileObject[]);
+    } catch (err) {
+      console.error('Error fetching company files:', err);
+      setError('Failed to load company documents. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    
-    const file = e.target.files[0];
-    
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        description: "Please select a file smaller than 10MB",
-        variant: "destructive",
-      });
-      return;
+  useEffect(() => {
+    if (companyId) {
+      fetchCompanyFiles();
     }
+  }, [companyId]);
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-    const filePath = `${company.id}/${fileName}`;
-
-    setUploading(true);
-    
+  const handleDownload = async (fileName: string) => {
     try {
-      // Upload file to storage bucket
-      const { error: uploadError } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from('company_files')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('company_files')
-        .getPublicUrl(filePath);
-
-      // Save file metadata to company_files table
-      const { error: dbError } = await supabase
-        .from('company_files')
-        .insert({
-          company_id: company.id,
-          file_name: file.name,
-          file_url: publicUrlData.publicUrl,
-          uploader_id: user?.id
-        });
-
-      if (dbError) throw dbError;
-
-      toast({
-        title: "Success",
-        description: "File uploaded successfully",
-      });
+        .download(`${companyId}/${fileName}`);
       
-      // Refresh the file list
-      fetchFiles();
+      if (error) throw error;
+      
+      // Create a URL for the file and trigger download
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error uploading file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload file",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-      // Reset the file input
-      e.target.value = '';
+      console.error('Error downloading file:', error);
     }
   };
 
-  const handleFileDelete = async (fileId: string, filePath: string) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
-
-    try {
-      // Extract the storage path from the URL
-      const urlParts = filePath.split('/');
-      const path = urlParts.slice(-2).join('/'); // company_id/filename
-      
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('company_files')
-        .remove([path]);
-
-      if (storageError) {
-        console.warn('Storage deletion error:', storageError);
-        // Continue with database deletion even if storage deletion fails
-      }
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from('company_files')
-        .delete()
-        .eq('id', fileId);
-
-      if (dbError) throw dbError;
-
-      toast({
-        title: "Success",
-        description: "File deleted successfully",
-      });
-      
-      // Update the file list
-      setFiles(files.filter(file => file.id !== fileId));
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete file",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleViewFile = (fileUrl: string) => {
-    window.open(fileUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const formatFileSize = (bytes?: number) => {
+  const formatFileSize = (bytes: number) => {
     if (!bytes) return 'Unknown size';
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+    
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
-  if (isLoading) {
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    switch(extension) {
+      case 'pdf':
+        return <FileText className="h-5 w-5 text-red-500" />;
+      case 'doc':
+      case 'docx':
+        return <FileText className="h-5 w-5 text-blue-500" />;
+      case 'xls':
+      case 'xlsx':
+        return <FileText className="h-5 w-5 text-green-500" />;
+      case 'ppt':
+      case 'pptx':
+        return <FileText className="h-5 w-5 text-orange-500" />;
+      default:
+        return <FileText className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-12 w-full" />
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+        <Button variant="outline" size="sm" onClick={fetchCompanyFiles} className="ml-2">
+          <RefreshCw className="h-4 w-4 mr-2" /> Retry
+        </Button>
+      </Alert>
+    );
+  }
+
+  if (files.length === 0) {
+    return (
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Company Documents
-            </CardTitle>
-            <CardDescription>Files and documents for {company.name}</CardDescription>
-          </div>
-          {isEditing && (
-            <div className="flex items-center">
-              <input
-                type="file"
-                id="file-upload"
-                className="hidden"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif"
-              />
-              <label htmlFor="file-upload">
-                <Button variant="outline" className="cursor-pointer" disabled={uploading} asChild>
-                  <div>
-                    <Upload className="h-4 w-4 mr-2" />
-                    {uploading ? 'Uploading...' : 'Upload File'}
-                  </div>
-                </Button>
-              </label>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          {files.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>File Name</TableHead>
-                    <TableHead>Uploaded By</TableHead>
-                    <TableHead>Upload Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {files.map(file => (
-                    <TableRow key={file.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="truncate max-w-[200px]" title={file.file_name}>
-                            {file.file_name}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {file.uploader_name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(file.uploaded_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleViewFile(file.file_url)}
-                            title="View file"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            asChild
-                            title="Download file"
-                          >
-                            <a href={file.file_url} download={file.file_name}>
-                              <Download className="h-4 w-4" />
-                            </a>
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => window.open(file.file_url, '_blank')}
-                            title="Open in new tab"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                          {isEditing && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleFileDelete(file.id, file.file_url)}
-                              title="Delete file"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No documents uploaded</h3>
-              <p className="text-sm">
-                {isEditing 
-                  ? "Upload your first document using the button above." 
-                  : "This company hasn't uploaded any documents yet."}
-              </p>
-            </div>
+        <CardContent className="py-6 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Documents Found</h3>
+          <p className="text-muted-foreground mb-4">
+            There are no documents uploaded for this company yet.
+          </p>
+          {(user?.role === 'admin' || user?.companyId === companyId) && (
+            <Button variant="outline">Upload Document</Button>
           )}
         </CardContent>
       </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between">
+        <h3 className="text-lg font-medium">Company Documents</h3>
+        {(user?.role === 'admin' || user?.companyId === companyId) && (
+          <Button size="sm" variant="outline">Upload New</Button>
+        )}
+      </div>
+      
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Document Name</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>Upload Date</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {files.map((file) => (
+            <TableRow key={file.id}>
+              <TableCell className="flex items-center">
+                {getFileIcon(file.name)}
+                <span className="ml-2">{file.name}</span>
+              </TableCell>
+              <TableCell>{file.metadata?.mimetype || 'Unknown'}</TableCell>
+              <TableCell>{formatFileSize(file.metadata?.size || 0)}</TableCell>
+              <TableCell>{format(new Date(file.created_at), 'MMM d, yyyy')}</TableCell>
+              <TableCell>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => handleDownload(file.name)}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 };

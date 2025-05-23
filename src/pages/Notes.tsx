@@ -1,87 +1,19 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Layout from '@/components/layout/Layout';
-import NoteEditor from '@/components/notes/NoteEditor';
-import NotesView from '@/components/notes/NotesView';
-import { supabase } from '@/lib/supabase';
-
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  company_id?: string;
-  visibility: 'private' | 'team' | 'shared';
-  author_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Company {
-  id: string;
-  name: string;
-}
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import { UserRole } from '@/context/AuthContext';
 
 const Notes = () => {
-  const [currentView, setCurrentView] = useState<'list' | 'create' | 'edit'>('list');
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [companies, setCompanies] = useState<Company[]>([]);
-
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
-
-  const fetchCompanies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name')
-        .order('name');
-
-      if (error) throw error;
-      setCompanies(data || []);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    }
-  };
-
-  const handleCreateNote = () => {
-    setEditingNote(null);
-    setCurrentView('create');
-  };
-
-  const handleEditNote = (note: Note) => {
-    setEditingNote(note);
-    setCurrentView('edit');
-  };
-
-  const handleSaveNote = () => {
-    setCurrentView('list');
-    setEditingNote(null);
-  };
-
-  const handleCancel = () => {
-    setCurrentView('list');
-    setEditingNote(null);
-  };
-
   return (
-    <Layout>
-      {currentView === 'list' && (
-        <NotesView
-          onCreateNote={handleCreateNote}
-          onEditNote={handleEditNote}
-        />
-      )}
-      
-      {(currentView === 'create' || currentView === 'edit') && (
-        <NoteEditor
-          note={editingNote || undefined}
-          companies={companies}
-          onSave={handleSaveNote}
-          onCancel={handleCancel}
-        />
-      )}
-    </Layout>
+    <ProtectedRoute requiredRoles={['admin', 'partner', 'founder']}>
+      <Layout>
+        <div className="container mx-auto py-8">
+          {/* Notes page content */}
+          <h1 className="text-2xl font-bold mb-4">Notes</h1>
+          <p>This is the notes page. Only admins, partners, and founders can access it.</p>
+        </div>
+      </Layout>
+    </ProtectedRoute>
   );
 };
 

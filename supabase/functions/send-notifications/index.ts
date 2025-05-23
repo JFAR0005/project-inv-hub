@@ -1,120 +1,333 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Define notification types
+type NotificationType =
+  | 'update_submitted'  // When a founder submits an update
+  | 'meeting_scheduled' // When a meeting is scheduled
+  | 'update_overdue';   // When an update is overdue (30+ days)
 
-interface NotificationPayload {
-  type: 'update_submitted' | 'meeting_scheduled' | 'overdue_update';
+// Data specific to each notification type
+interface NotificationData {
+  // For update_submitted
+  company_name?: string;
+  submitter_name?: string;
+  update_link?: string;
+  
+  // For meeting_scheduled
+  meeting_title?: string;
+  meeting_date?: string;
+  meeting_time?: string;
+  participants?: string[];
+  
+  // For update_overdue
+  days_overdue?: number;
+  last_update_date?: string;
+}
+
+interface Notification {
+  id?: string;
+  type: NotificationType;
   company_id: string;
-  data: {
-    company_name?: string;
-    submitter_name?: string;
-    meeting_title?: string;
-    meeting_time?: string;
-    participants?: string[];
-    update_link?: string;
-    meeting_link?: string;
-  };
+  data: NotificationData;
+  recipients: string[];
+  created_at?: string;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight request
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
-  }
-
   try {
-    const payload: NotificationPayload = await req.json();
-    console.log('Notification payload received:', payload);
-
-    // Create a Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_ANON_KEY') || ''
-    );
-
-    // Get n8n webhook URL from environment
-    const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
+    // Parse the request body
+    const { notification } = await req.json() as { notification: Notification };
     
-    if (!n8nWebhookUrl) {
-      console.error('N8N_WEBHOOK_URL not configured');
+    if (!notification || !notification.type) {
       return new Response(
-        JSON.stringify({ error: 'Webhook URL not configured' }),
-        {
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-          status: 500,
-        }
+        JSON.stringify({ error: "Invalid notification data" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    // Get company details
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('name')
-      .eq('id', payload.company_id)
-      .single();
-
-    if (companyError) {
-      throw new Error(`Error fetching company: ${companyError.message}`);
+    
+    // Get necessary environment variables for notifications
+    const slackWebhookUrl = Deno.env.get("SLACK_WEBHOOK_URL") || "";
+    const emailApiKey = Deno.env.get("EMAIL_API_KEY") || "";
+    const slackEnabled = !!slackWebhookUrl;
+    const emailEnabled = !!emailApiKey;
+    
+    // If no notification channels are enabled, return early
+    if (!slackEnabled && !emailEnabled) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No notification channels configured" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
-
-    // Prepare notification data for n8n
-    const notificationData = {
-      type: payload.type,
-      company_id: payload.company_id,
-      company_name: company.name,
-      timestamp: new Date().toISOString(),
-      ...payload.data
+    
+    const results: any = {
+      slack: null,
+      email: null,
     };
-
-    // Send to n8n webhook
-    const webhookResponse = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(notificationData),
-    });
-
-    if (!webhookResponse.ok) {
-      throw new Error(`Webhook failed with status: ${webhookResponse.status}`);
+    
+    // Send notification based on type
+    switch (notification.type) {
+      case "update_submitted":
+        if (slackEnabled) {
+          results.slack = await sendToSlack(
+            slackWebhookUrl,
+            formatUpdateSubmittedForSlack(notification)
+          );
+        }
+        
+        if (emailEnabled && notification.recipients?.length) {
+          results.email = await sendToEmail(
+            emailApiKey,
+            notification.recipients,
+            formatUpdateSubmittedForEmail(notification)
+          );
+        }
+        break;
+        
+      case "meeting_scheduled":
+        if (slackEnabled) {
+          results.slack = await sendToSlack(
+            slackWebhookUrl,
+            formatMeetingScheduledForSlack(notification)
+          );
+        }
+        
+        if (emailEnabled && notification.recipients?.length) {
+          results.email = await sendToEmail(
+            emailApiKey,
+            notification.recipients,
+            formatMeetingScheduledForEmail(notification)
+          );
+        }
+        break;
+        
+      case "update_overdue":
+        if (slackEnabled) {
+          results.slack = await sendToSlack(
+            slackWebhookUrl,
+            formatUpdateOverdueForSlack(notification)
+          );
+        }
+        
+        if (emailEnabled && notification.recipients?.length) {
+          results.email = await sendToEmail(
+            emailApiKey,
+            notification.recipients,
+            formatUpdateOverdueForEmail(notification)
+          );
+        }
+        break;
+        
+      default:
+        return new Response(
+          JSON.stringify({ error: "Unknown notification type" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
     }
-
-    console.log('Notification sent successfully to n8n');
-
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Notification sent for ${payload.type}`,
-        company: company.name
+        message: "Notification sent",
+        channels: {
+          slack: slackEnabled,
+          email: emailEnabled,
+        },
+        results
       }),
-      {
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        },
-        status: 200,
-      }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    console.error("Error sending notification:", error);
     
+  } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        },
-        status: 500,
-      }
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 });
+
+// Helper functions for formatting notifications
+
+// Slack message formatters
+function formatUpdateSubmittedForSlack(notification: Notification): any {
+  const { company_name, submitter_name, update_link } = notification.data;
+  
+  return {
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: `🚨 New Update from ${company_name}`,
+          emoji: true
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*${submitter_name}* has submitted a new company update for *${company_name}*`
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `View the update details: ${update_link}`
+        }
+      }
+    ]
+  };
+}
+
+function formatMeetingScheduledForSlack(notification: Notification): any {
+  const { meeting_title, meeting_date, meeting_time, participants } = notification.data;
+  
+  return {
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: `📅 New Meeting: ${meeting_title}`,
+          emoji: true
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `A new meeting has been scheduled for *${meeting_date}* at *${meeting_time}*`
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*Participants:*\n${participants?.join(', ') || 'No participants specified'}`
+        }
+      }
+    ]
+  };
+}
+
+function formatUpdateOverdueForSlack(notification: Notification): any {
+  const { company_name, days_overdue, last_update_date } = notification.data;
+  
+  return {
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: `⚠️ Update Overdue: ${company_name}`,
+          emoji: true
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*${company_name}* is overdue for an update`
+        }
+      },
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: `*Days overdue:* ${days_overdue}`
+          },
+          {
+            type: "mrkdwn",
+            text: `*Last update:* ${last_update_date ? new Date(last_update_date).toLocaleDateString() : 'Never'}`
+          }
+        ]
+      }
+    ]
+  };
+}
+
+// Email formatters
+function formatUpdateSubmittedForEmail(notification: Notification): any {
+  const { company_name, submitter_name, update_link } = notification.data;
+  
+  return {
+    subject: `New Update from ${company_name}`,
+    body: `
+      <h2>New Company Update</h2>
+      <p>${submitter_name} has submitted a new company update for ${company_name}.</p>
+      <p><a href="${update_link}">View Update Details</a></p>
+    `
+  };
+}
+
+function formatMeetingScheduledForEmail(notification: Notification): any {
+  const { meeting_title, meeting_date, meeting_time, participants } = notification.data;
+  
+  return {
+    subject: `New Meeting: ${meeting_title}`,
+    body: `
+      <h2>${meeting_title}</h2>
+      <p>A new meeting has been scheduled for ${meeting_date} at ${meeting_time}.</p>
+      <p><strong>Participants:</strong><br>
+      ${participants?.join('<br>') || 'No participants specified'}</p>
+    `
+  };
+}
+
+function formatUpdateOverdueForEmail(notification: Notification): any {
+  const { company_name, days_overdue, last_update_date } = notification.data;
+  
+  return {
+    subject: `Update Overdue: ${company_name}`,
+    body: `
+      <h2>Update Overdue</h2>
+      <p>${company_name} is overdue for an update.</p>
+      <p><strong>Days overdue:</strong> ${days_overdue}</p>
+      <p><strong>Last update:</strong> ${last_update_date ? new Date(last_update_date).toLocaleDateString() : 'Never'}</p>
+    `
+  };
+}
+
+// Functions to send notifications through different channels
+
+async function sendToSlack(webhookUrl: string, message: any): Promise<any> {
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(message)
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Slack API error: ${error}`);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error sending Slack notification:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function sendToEmail(apiKey: string, recipients: string[], emailContent: any): Promise<any> {
+  // This is a mock implementation - you would use your preferred email provider
+  // Examples include SendGrid, Mailgun, AWS SES, etc.
+  
+  try {
+    // In a real implementation, you'd call your email provider's API here
+    console.log(`Would send email to ${recipients.join(', ')}`);
+    console.log(`Subject: ${emailContent.subject}`);
+    console.log(`Body: ${emailContent.body}`);
+    
+    // Mock successful response
+    return { success: true, recipients };
+  } catch (error) {
+    console.error("Error sending email notification:", error);
+    return { success: false, error: error.message };
+  }
+}

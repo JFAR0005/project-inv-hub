@@ -1,299 +1,349 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Users, DollarSign, AlertTriangle, BarChart3 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RefreshCw, TrendingUp, Users, DollarSign, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 import MetricsCharts from './MetricsCharts';
 
 interface CompanyMetricsProps {
-  company: any;
-  isEditing: boolean;
-  formData: any;
-  onNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  companyId: string;
 }
 
 interface Metric {
   id: string;
   company_id: string;
-  metric_name: string;
-  value: number;
+  arr: number;
+  mrr: number;
+  headcount: number;
+  burn_rate: number;
+  runway_months: number;
   date: string;
 }
 
-interface ChartData {
-  date: string;
-  value: number;
-  formattedDate: string;
-}
-
-const CompanyMetrics: React.FC<CompanyMetricsProps> = ({
-  company,
-  isEditing,
-  formData,
-  onNumberChange
-}) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetchMetrics();
-  }, [company.id]);
-
-  const fetchMetrics = async () => {
-    try {
-      setIsLoading(true);
+const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
+  const [timeRange, setTimeRange] = useState<'3m' | '6m' | '1y' | 'all'>('6m');
+  
+  // Get date range based on selected timeframe
+  const getDateRange = () => {
+    const endDate = new Date();
+    let startDate = new Date();
+    
+    switch (timeRange) {
+      case '3m':
+        startDate.setMonth(endDate.getMonth() - 3);
+        break;
+      case '6m':
+        startDate.setMonth(endDate.getMonth() - 6);
+        break;
+      case '1y':
+        startDate.setFullYear(endDate.getFullYear() - 1);
+        break;
+      case 'all':
+        startDate = new Date(0); // Beginning of time
+        break;
+    }
+    
+    return { startDate, endDate };
+  };
+  
+  const { startDate } = getDateRange();
+  
+  const { data: metrics, isLoading, error, refetch } = useQuery({
+    queryKey: ['company-metrics', companyId, timeRange],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('metrics')
         .select('*')
-        .eq('company_id', company.id)
+        .eq('company_id', companyId)
+        .gte('date', startDate.toISOString().split('T')[0])
         .order('date', { ascending: true });
-
+      
       if (error) throw error;
-      setMetrics(data || []);
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load metrics data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const formatChartData = (metricName: string): ChartData[] => {
-    return metrics
-      .filter(m => m.metric_name.toLowerCase() === metricName.toLowerCase())
-      .map(m => ({
-        date: m.date,
-        value: m.value,
-        formattedDate: new Date(m.date).toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: 'numeric' 
-        })
-      }));
-  };
-
-  const getLatestMetric = (metricName: string): number => {
-    const filteredMetrics = metrics
-      .filter(m => m.metric_name.toLowerCase() === metricName.toLowerCase())
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return data as Metric[];
+    },
+    enabled: !!companyId,
+  });
+  
+  // Format metrics data for recharts
+  const getChartData = () => {
+    if (!metrics || metrics.length === 0) return [];
     
-    return filteredMetrics.length > 0 ? filteredMetrics[0].value : 0;
+    return metrics.map(metric => ({
+      date: format(new Date(metric.date), 'MMM yyyy'),
+      arr: metric.arr,
+      mrr: metric.mrr,
+      headcount: metric.headcount,
+      burnRate: metric.burn_rate,
+      runway: metric.runway_months,
+      burnMultiple: metric.arr > 0 ? (metric.burn_rate / (metric.arr / 12)).toFixed(2) : 0
+    }));
   };
-
-  const calculateBurnMultiple = (): number => {
-    const latestARR = getLatestMetric('arr');
-    const latestBurnRate = getLatestMetric('burn_rate');
+  
+  const chartData = getChartData();
+  
+  // Calculate current metrics from latest data point
+  const getLatestMetrics = () => {
+    if (!metrics || metrics.length === 0) return null;
     
-    if (latestARR > 0 && latestBurnRate > 0) {
-      return latestBurnRate / (latestARR / 12);
-    }
-    return 0;
+    return metrics[metrics.length - 1];
   };
-
-  const calculateGrowthData = (): ChartData[] => {
-    const arrData = formatChartData('arr');
-    return arrData.map((item, index) => {
-      if (index === 0) {
-        return { ...item, growthRate: 0 };
-      }
-      const previousValue = arrData[index - 1].value;
-      const growthRate = previousValue > 0 ? ((item.value - previousValue) / previousValue) * 100 : 0;
-      return { ...item, growthRate };
-    });
+  
+  const latestMetrics = getLatestMetrics();
+  
+  // Calculate burn multiple
+  const calculateBurnMultiple = () => {
+    if (!latestMetrics || latestMetrics.arr === 0) return 0;
+    
+    return (latestMetrics.burn_rate / (latestMetrics.arr / 12)).toFixed(2);
   };
-
-  const arrData = formatChartData('arr');
-  const headcountData = formatChartData('headcount');
-  const burnRateData = formatChartData('burn_rate');
-  const revenueGrowthData = calculateGrowthData();
-  const burnMultiple = calculateBurnMultiple();
-
+  
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-16" />
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-        <Skeleton className="h-64 w-full" />
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
-
+  
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Failed to load company metrics. Please try again.
+        </AlertDescription>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-2">
+          <RefreshCw className="h-4 w-4 mr-2" /> Retry
+        </Button>
+      </Alert>
+    );
+  }
+  
+  if (!metrics || metrics.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-6 text-center">
+          <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Metrics Available</h3>
+          <p className="text-muted-foreground">
+            There are no metrics recorded for this company yet.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Latest ARR</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${(getLatestMetric('arr') || company.arr || 0).toLocaleString()}
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <DollarSign className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">ARR</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${latestMetrics?.arr.toLocaleString()}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {arrData.length > 0 ? `Last updated: ${arrData[arrData.length - 1]?.formattedDate}` : 'No data available'}
-            </p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Headcount</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {getLatestMetric('headcount') || company.headcount || 0}
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <DollarSign className="h-8 w-8 text-red-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Monthly Burn</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${latestMetrics?.burn_rate.toLocaleString()}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {headcountData.length > 0 ? `Last updated: ${headcountData[headcountData.length - 1]?.formattedDate}` : 'No data available'}
-            </p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Burn Multiple</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {burnMultiple > 0 ? burnMultiple.toFixed(1) + 'x' : 'N/A'}
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <Users className="h-8 w-8 text-purple-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Headcount</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {latestMetrics?.headcount}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {burnMultiple > 3 && (
-                <span className="flex items-center gap-1 text-orange-600">
-                  <AlertTriangle className="h-3 w-3" />
-                  High burn multiple
-                </span>
-              )}
-            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <TrendingUp className="h-8 w-8 text-orange-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Burn Multiple</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {calculateBurnMultiple()}x
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Enhanced Charts */}
-      <Tabs defaultValue="charts" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="charts" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Interactive Charts
-          </TabsTrigger>
-          <TabsTrigger value="form" className="flex items-center gap-2">
-            Edit Metrics
-          </TabsTrigger>
+      
+      {/* Time Range Filter */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">Performance Over Time</h3>
+        <div className="flex space-x-1">
+          <Button 
+            size="sm" 
+            variant={timeRange === '3m' ? 'default' : 'outline'}
+            onClick={() => setTimeRange('3m')}
+          >
+            3M
+          </Button>
+          <Button 
+            size="sm" 
+            variant={timeRange === '6m' ? 'default' : 'outline'}
+            onClick={() => setTimeRange('6m')}
+          >
+            6M
+          </Button>
+          <Button 
+            size="sm" 
+            variant={timeRange === '1y' ? 'default' : 'outline'}
+            onClick={() => setTimeRange('1y')}
+          >
+            1Y
+          </Button>
+          <Button 
+            size="sm" 
+            variant={timeRange === 'all' ? 'default' : 'outline'}
+            onClick={() => setTimeRange('all')}
+          >
+            All
+          </Button>
+        </div>
+      </div>
+      
+      {/* Charts */}
+      <Tabs defaultValue="revenue" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="revenue">Revenue</TabsTrigger>
+          <TabsTrigger value="burn">Burn & Runway</TabsTrigger>
+          <TabsTrigger value="headcount">Headcount</TabsTrigger>
+          <TabsTrigger value="efficiency">Efficiency</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="charts">
-          <MetricsCharts
-            arrData={arrData}
-            headcountData={headcountData}
-            burnRateData={burnRateData}
-            revenueGrowthData={revenueGrowthData}
-          />
+        
+        <TabsContent value="revenue" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Annual Recurring Revenue</CardTitle>
+              <CardDescription>
+                ARR growth over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <MetricsCharts 
+                data={chartData} 
+                type="line"
+                dataKey="arr"
+                color="#3b82f6" 
+                yAxisLabel="ARR ($)"
+                valueFormatter={(value) => `$${value.toLocaleString()}`}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
-
-        <TabsContent value="form">
-          {isEditing && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Update Current Metrics</CardTitle>
-                <CardDescription>
-                  These values will be saved to the company profile
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Current ARR ($)</label>
-                  <input
-                    type="number"
-                    name="arr"
-                    value={formData.arr || ''}
-                    onChange={onNumberChange}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Current MRR ($)</label>
-                  <input
-                    type="number"
-                    name="mrr"
-                    value={formData.mrr || ''}
-                    onChange={onNumberChange}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Headcount</label>
-                  <input
-                    type="number"
-                    name="headcount"
-                    value={formData.headcount || ''}
-                    onChange={onNumberChange}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Monthly Burn Rate ($)</label>
-                  <input
-                    type="number"
-                    name="burn_rate"
-                    value={formData.burn_rate || ''}
-                    onChange={onNumberChange}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Runway (months)</label>
-                  <input
-                    type="number"
-                    name="runway"
-                    value={formData.runway || ''}
-                    onChange={onNumberChange}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Churn Rate (%)</label>
-                  <input
-                    type="number"
-                    name="churn_rate"
-                    value={formData.churn_rate || ''}
-                    onChange={onNumberChange}
-                    step="0.1"
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {!isEditing && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Metrics Form</h3>
-                <p>Enable edit mode to update company metrics</p>
-              </CardContent>
-            </Card>
-          )}
+        
+        <TabsContent value="burn" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Burn Rate</CardTitle>
+              <CardDescription>
+                Cash burn over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <MetricsCharts 
+                data={chartData} 
+                type="line"
+                dataKey="burnRate"
+                color="#ef4444" 
+                yAxisLabel="Burn Rate ($)"
+                valueFormatter={(value) => `$${value.toLocaleString()}`}
+              />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Runway (Months)</CardTitle>
+              <CardDescription>
+                Cash runway over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <MetricsCharts 
+                data={chartData} 
+                type="line"
+                dataKey="runway"
+                color="#8b5cf6" 
+                yAxisLabel="Months"
+                valueFormatter={(value) => `${value} months`}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="headcount" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Size</CardTitle>
+              <CardDescription>
+                Headcount over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <MetricsCharts 
+                data={chartData} 
+                type="bar"
+                dataKey="headcount"
+                color="#6366f1" 
+                yAxisLabel="Employees"
+                valueFormatter={(value) => `${value} employees`}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="efficiency" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Burn Multiple</CardTitle>
+              <CardDescription>
+                Burn rate divided by net new ARR (monthly)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <MetricsCharts 
+                data={chartData} 
+                type="bar"
+                dataKey="burnMultiple"
+                color="#f97316" 
+                yAxisLabel="Multiple"
+                valueFormatter={(value) => `${value}x`}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

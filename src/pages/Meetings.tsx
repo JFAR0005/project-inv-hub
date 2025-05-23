@@ -1,210 +1,131 @@
-
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import React from 'react';
 import Layout from '@/components/layout/Layout';
-import MeetingsCalendar from '@/components/meetings/MeetingsCalendar';
-import MeetingsList from '@/components/meetings/MeetingsList';
-import CalendarIntegration from '@/components/meetings/CalendarIntegration';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import MeetingScheduleForm from '@/components/meetings/MeetingScheduleForm';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-
-// Define Meeting type for TypeScript
-export interface Meeting {
-  id: string;
-  title: string;
-  start_time: string;
-  end_time: string;
-  company_id: string | null;
-  company_name?: string;
-  location: string | null;
-  description: string | null;
-  created_by: string;
-  created_at: string;
-  participants?: string[];
-}
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import { UserRole } from '@/context/AuthContext';
 
 const Meetings = () => {
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'week' | 'month'>('week');
-  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
-  const { user } = useAuth();
-  const { toast } = useToast();
-
-  // Fetch meetings using React Query with role-based filtering
-  const { data: meetings, isLoading, isError, refetch } = useQuery({
-    queryKey: ['meetings', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      let meetingsQuery;
-      
-      // Apply role-based filtering
-      if (user.role === 'admin') {
-        // Admins can see all meetings
-        meetingsQuery = supabase
-          .from('meetings')
-          .select(`
-            *,
-            companies (id, name),
-            meeting_participants (user_id)
-          `);
-      } else {
-        // VPs and Founders can only see meetings they're involved in
-        const { data: participantMeetings, error: participantError } = await supabase
-          .from('meeting_participants')
-          .select('meeting_id')
-          .eq('user_id', user.id);
-        
-        if (participantError) {
-          throw new Error(participantError.message);
-        }
-        
-        const meetingIds = participantMeetings?.map(pm => pm.meeting_id) || [];
-        
-        // Include meetings they created or are participants in
-        meetingsQuery = supabase
-          .from('meetings')
-          .select(`
-            *,
-            companies (id, name),
-            meeting_participants (user_id)
-          `)
-          .or(`created_by.eq.${user.id},id.in.(${meetingIds.join(',')})`);
-      }
-      
-      const { data, error } = await meetingsQuery;
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      // Format the meetings with participant data
-      return data.map(meeting => ({
-        ...meeting,
-        company_name: meeting.companies?.name || 'No company',
-        participants: meeting.meeting_participants?.map(p => p.user_id) || [],
-      }));
-    },
-    enabled: !!user,
-  });
-
-  const handleScheduleSuccess = () => {
-    setIsScheduleDialogOpen(false);
-    setEditingMeeting(null);
-    refetch();
-    toast({
-      title: "Success",
-      description: editingMeeting ? "Meeting has been updated" : "Meeting has been scheduled",
-    });
-  };
-
-  const handleEditMeeting = (meeting: Meeting) => {
-    setEditingMeeting(meeting);
-    setIsScheduleDialogOpen(true);
-  };
-
-  const handleCreateMeeting = () => {
-    setEditingMeeting(null);
-    setIsScheduleDialogOpen(true);
-  };
-
-  // Check permissions for meeting creation
-  const canCreateMeeting = user && ['admin', 'partner', 'founder'].includes(user.role);
-
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Meetings</h1>
-            <p className="text-muted-foreground mt-1">
-              Schedule and manage meetings with founders and team members
-            </p>
+    <ProtectedRoute requiredRoles={['admin', 'partner', 'founder']}>
+      <Layout>
+        <div className="container mx-auto py-8">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">Meetings</h1>
+              <p className="text-muted-foreground mt-1">
+                Schedule and manage your meetings with portfolio companies
+              </p>
+            </div>
+            <button className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90">
+              Schedule Meeting
+            </button>
           </div>
-          {canCreateMeeting && (
-            <Button onClick={handleCreateMeeting}>
-              <Plus className="mr-2 h-4 w-4" /> Schedule Meeting
-            </Button>
-          )}
-        </div>
-        
-        <Tabs defaultValue="calendar" className="w-full">
-          <TabsList className="grid w-full md:w-auto grid-cols-3">
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="list">Upcoming Meetings</TabsTrigger>
-            <TabsTrigger value="integrations">Calendar Integrations</TabsTrigger>
-          </TabsList>
-          <TabsContent value="calendar" className="mt-4">
-            <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Calendar View</h2>
-              <div className="flex space-x-2">
-                <Button 
-                  variant={activeView === 'week' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveView('week')}
-                >
-                  Week
-                </Button>
-                <Button 
-                  variant={activeView === 'month' ? 'default' : 'outline'}
-                  size="sm" 
-                  onClick={() => setActiveView('month')}
-                >
-                  Month
-                </Button>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="col-span-2">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">Upcoming Meetings</h2>
+                <div className="space-y-4">
+                  <div className="border rounded-md p-4 hover:bg-gray-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">Quarterly Review - Acme Inc</h3>
+                        <p className="text-sm text-gray-500">Tomorrow at 10:00 AM</p>
+                      </div>
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                        Upcoming
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm">
+                      <p>Participants: John Doe, Jane Smith</p>
+                      <p>Location: Zoom Meeting</p>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-md p-4 hover:bg-gray-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">Investment Committee - Beta Corp</h3>
+                        <p className="text-sm text-gray-500">May 15, 2023 at 2:00 PM</p>
+                      </div>
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                        Confirmed
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm">
+                      <p>Participants: Investment Team, Founders</p>
+                      <p>Location: Conference Room A</p>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-md p-4 hover:bg-gray-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">Due Diligence - New Startup</h3>
+                        <p className="text-sm text-gray-500">May 20, 2023 at 11:00 AM</p>
+                      </div>
+                      <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">
+                        Tentative
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm">
+                      <p>Participants: Due Diligence Team, Founders</p>
+                      <p>Location: Office</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <MeetingsCalendar 
-              view={activeView} 
-              meetings={meetings || []} 
-              isLoading={isLoading} 
-              onEditMeeting={handleEditMeeting}
-            />
-          </TabsContent>
-          <TabsContent value="list" className="mt-4">
-            <h2 className="text-xl font-semibold mb-4">Upcoming Meetings</h2>
-            <MeetingsList 
-              meetings={meetings || []} 
-              isLoading={isLoading} 
-              onEditMeeting={handleEditMeeting}
-            />
-          </TabsContent>
-          <TabsContent value="integrations" className="mt-4">
-            <h2 className="text-xl font-semibold mb-4">Calendar Integrations</h2>
-            <CalendarIntegration />
-          </TabsContent>
-        </Tabs>
 
-        {isError && (
-          <div className="text-center py-8">
-            <p className="text-destructive">Failed to load meetings. Please try again.</p>
-            <Button variant="outline" onClick={() => refetch()} className="mt-2">
-              Retry
-            </Button>
+            <div>
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">Calendar</h2>
+                <div className="border rounded-md p-4">
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                    <div className="text-gray-500">Su</div>
+                    <div className="text-gray-500">Mo</div>
+                    <div className="text-gray-500">Tu</div>
+                    <div className="text-gray-500">We</div>
+                    <div className="text-gray-500">Th</div>
+                    <div className="text-gray-500">Fr</div>
+                    <div className="text-gray-500">Sa</div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center mt-2">
+                    {Array.from({ length: 31 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`h-8 w-8 flex items-center justify-center rounded-full ${
+                          i === 14 ? 'bg-primary text-white' : ''
+                        } ${[2, 10, 18].includes(i) ? 'bg-blue-100' : ''} hover:bg-gray-100 cursor-pointer`}
+                      >
+                        {i + 1}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="font-medium mb-2">Recent Meetings</h3>
+                  <div className="space-y-2">
+                    <div className="text-sm p-2 hover:bg-gray-50 rounded">
+                      <p className="font-medium">Tech Review - Gamma Inc</p>
+                      <p className="text-xs text-gray-500">May 5, 2023</p>
+                    </div>
+                    <div className="text-sm p-2 hover:bg-gray-50 rounded">
+                      <p className="font-medium">Pitch - Delta Startup</p>
+                      <p className="text-xs text-gray-500">May 3, 2023</p>
+                    </div>
+                    <div className="text-sm p-2 hover:bg-gray-50 rounded">
+                      <p className="font-medium">Partner Meeting</p>
+                      <p className="text-xs text-gray-500">April 28, 2023</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Schedule Meeting Dialog */}
-      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{editingMeeting ? 'Edit Meeting' : 'Schedule a Meeting'}</DialogTitle>
-          </DialogHeader>
-          <MeetingScheduleForm 
-            onSuccess={handleScheduleSuccess} 
-            meeting={editingMeeting}
-          />
-        </DialogContent>
-      </Dialog>
-    </Layout>
+        </div>
+      </Layout>
+    </ProtectedRoute>
   );
 };
 

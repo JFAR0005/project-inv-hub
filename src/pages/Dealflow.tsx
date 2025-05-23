@@ -2,17 +2,9 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import Layout from '@/components/layout/Layout';
-import RoleGuard from '@/components/layout/RoleGuard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import DealForm from '@/components/deals/DealForm';
-import DDForm from '@/components/deals/DDForm';
-import DealTracker from '@/components/deals/DealTracker';
-import { Plus, Search, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { Database } from '@/integrations/supabase/types';
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import { UserRole } from '@/context/AuthContext';
 
 // Define a local Deal type that matches what we're fetching
 type DealflowDeal = Database['public']['Tables']['deals']['Row'] & {
@@ -153,7 +145,7 @@ const Dealflow = () => {
   });
 
   return (
-    <RoleGuard allowedRoles={['admin', 'partner']}>
+    <ProtectedRoute requiredRoles={['admin', 'partner']}>
       <Layout>
         <div className="space-y-6">
           {/* Header */}
@@ -425,7 +417,7 @@ const Dealflow = () => {
           />
         )}
       </Layout>
-    </RoleGuard>
+    </ProtectedRoute>
   );
 };
 
