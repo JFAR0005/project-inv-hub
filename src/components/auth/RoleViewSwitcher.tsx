@@ -19,8 +19,8 @@ const RoleViewSwitcher = () => {
   const { toast } = useToast();
   const isImpersonating = originalRole !== null;
 
-  // Only admins can use this component
-  if (!user || user.role !== 'admin' && !isImpersonating) {
+  // Only show for actual admin users (either viewing as admin or impersonating)
+  if (!user || (originalRole || user.role) !== 'admin') {
     return null;
   }
 
@@ -69,6 +69,10 @@ const RoleViewSwitcher = () => {
               value={currentViewRole || user.role}
               onValueChange={(value) => handleRoleChange(value as UserRole)}
             >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="admin" id="admin" />
+                <Label htmlFor="admin">Admin</Label>
+              </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="partner" id="partner" />
                 <Label htmlFor="partner">Partner</Label>

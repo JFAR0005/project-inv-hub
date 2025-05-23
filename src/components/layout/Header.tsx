@@ -18,7 +18,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMenu }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, originalRole } = useAuth();
   const { toast } = useToast();
 
   const handleSignOut = async () => {
@@ -37,6 +37,9 @@ const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMe
       });
     }
   };
+
+  // Check if user is actually an admin (either current role or original role)
+  const isActualAdmin = (originalRole || user?.role) === 'admin';
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
@@ -83,7 +86,7 @@ const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMe
             <DropdownMenuSeparator />
             
             {/* Role View Switcher for Admin Users */}
-            {(user?.role === 'admin' || user?.role !== user?.role) && (
+            {isActualAdmin && (
               <>
                 <div className="px-2 py-1">
                   <RoleViewSwitcher />

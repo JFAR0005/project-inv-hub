@@ -20,10 +20,16 @@ const ROUTE_ACCESS_RULES: RouteAccess[] = [
 ];
 
 export const useRoleAccess = () => {
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, originalRole } = useAuth();
+
+  // Check if user is actually an admin (either current role or original role)
+  const isActualAdmin = (originalRole || user?.role) === 'admin';
 
   const canAccessRoute = (path: string, resourceOwnerId?: string): boolean => {
     if (!user) return false;
+
+    // Admins can always access everything, regardless of current view role
+    if (isActualAdmin) return true;
 
     const rule = ROUTE_ACCESS_RULES.find(r => path.startsWith(r.path));
     if (!rule) return true; // Allow access to unprotected routes
@@ -48,9 +54,10 @@ export const useRoleAccess = () => {
   const canViewCompany = (companyId: string): boolean => {
     if (!user) return false;
 
+    // Admins can always view everything
+    if (isActualAdmin) return true;
+
     switch (user.role) {
-      case 'admin':
-        return true;
       case 'partner':
         return hasPermission('view:portfolio:limited');
       case 'founder':
@@ -63,9 +70,10 @@ export const useRoleAccess = () => {
   const canEditCompany = (companyId: string): boolean => {
     if (!user) return false;
 
+    // Admins can always edit everything
+    if (isActualAdmin) return true;
+
     switch (user.role) {
-      case 'admin':
-        return true;
       case 'founder':
         return user.companyId === companyId;
       default:
@@ -76,9 +84,10 @@ export const useRoleAccess = () => {
   const canViewNotes = (noteAuthorId: string, companyId?: string): boolean => {
     if (!user) return false;
 
+    // Admins can always view everything
+    if (isActualAdmin) return true;
+
     switch (user.role) {
-      case 'admin':
-        return true;
       case 'partner':
         return true; // Partners can view shared notes
       case 'founder':
@@ -89,14 +98,20 @@ export const useRoleAccess = () => {
   };
 
   const canSubmitUpdate = (): boolean => {
+    // Admins can always submit updates when viewing as founder
+    if (isActualAdmin) return true;
     return user?.role === 'founder';
   };
 
   const canViewPortfolio = (): boolean => {
+    // Admins can always view portfolio
+    if (isActualAdmin) return true;
     return user?.role === 'admin';
   };
 
   const canViewDeals = (): boolean => {
+    // Admins can always view deals
+    if (isActualAdmin) return true;
     return user?.role === 'admin' || user?.role === 'partner';
   };
 
