@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +6,7 @@ import { Database } from '@/integrations/supabase/types';
 import { Building2, MapPin, Globe, Users, DollarSign, TrendingUp, Calendar, AlertCircle, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import CommentSection from '@/components/comments/CommentSection';
 import ActivityFeed from '@/components/activity/ActivityFeed';
 import RecentUpdates from './RecentUpdates';
