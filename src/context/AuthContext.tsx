@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -115,7 +116,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (event === 'TOKEN_REFRESHED' && session?.user) {
         // Don't refetch user data on token refresh, just update the user object
-        setUser(prevUser => prevUser ? { ...prevUser, ...session.user } : null);
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          return {
+            ...prevUser,
+            ...session.user,
+            role: prevUser.role, // Preserve the existing role
+            name: prevUser.name, // Preserve the existing name
+            companyId: prevUser.companyId // Preserve the existing companyId
+          } as AuthUser;
+        });
         return;
       }
       
