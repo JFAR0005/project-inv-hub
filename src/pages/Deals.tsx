@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import { UserRole } from '@/context/AuthContext';
 import DealTracker from '@/components/deals/DealTracker';
 import DealForm from '@/components/deals/DealForm';
@@ -166,7 +166,7 @@ const Deals = () => {
   };
 
   return (
-    <ProtectedRoute requiredRoles={['admin', 'partner']}>
+    <EnhancedProtectedRoute allowedRoles={['admin', 'partner']}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -235,7 +235,7 @@ const Deals = () => {
           onDDDataUpdated={refetch}
         />
       )}
-    </ProtectedRoute>
+    </EnhancedProtectedRoute>
   );
 };
 

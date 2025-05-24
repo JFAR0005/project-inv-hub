@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BarChart3 } from 'lucide-react';
 import PortfolioAnalytics from '@/components/portfolio/PortfolioAnalytics';
-import RoleGuard from '@/components/layout/RoleGuard';
+import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 
 const Analytics = () => {
   return (
-    <RoleGuard allowedRoles={['admin', 'partner', 'lp']}>
+    <EnhancedProtectedRoute allowedRoles={['admin', 'partner', 'lp']}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -26,7 +26,7 @@ const Analytics = () => {
         </div>
         <PortfolioAnalytics />
       </div>
-    </RoleGuard>
+    </EnhancedProtectedRoute>
   );
 };
 

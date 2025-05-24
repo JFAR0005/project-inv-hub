@@ -1,21 +1,20 @@
-
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
 import PortfolioList from '@/components/portfolio/PortfolioList';
 import { BarChart3, Grid3X3, List, TrendingUp, Activity } from 'lucide-react';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import { UserRole } from '@/context/AuthContext';
 
-export default function Portfolio() {
+const Portfolio = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   return (
-    <ProtectedRoute requiredRoles={['admin']}> {/* Only admin can access */}
-      <div className="container mx-auto py-8">
+    <EnhancedProtectedRoute allowedRoles={['admin']}>
+      <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Portfolio Management</h1>
@@ -92,6 +91,8 @@ export default function Portfolio() {
           </TabsContent>
         </Tabs>
       </div>
-    </ProtectedRoute>
+    </EnhancedProtectedRoute>
   );
-}
+};
+
+export default Portfolio;

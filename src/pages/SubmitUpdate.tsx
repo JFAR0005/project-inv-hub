@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useForm } from 'react-hook-form';
@@ -227,8 +228,8 @@ export default function SubmitUpdate() {
   }
 
   return (
-    <ProtectedRoute requiredRoles={['founder']} requiresOwnership={true} resourceOwnerId={user?.companyId}>
-      <div className="container mx-auto py-8">
+    <EnhancedProtectedRoute allowedRoles={['founder']}>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Submit Company Update</CardTitle>
@@ -426,6 +427,6 @@ export default function SubmitUpdate() {
           </CardContent>
         </Card>
       </div>
-    </ProtectedRoute>
+    </EnhancedProtectedRoute>
   );
 }

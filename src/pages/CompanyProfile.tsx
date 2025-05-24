@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import { UserRole } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CompanyOverview from '@/components/company/CompanyOverview';
@@ -36,8 +36,8 @@ const CompanyProfile = () => {
   });
 
   return (
-    <ProtectedRoute
-      requiredRoles={['admin', 'partner', 'founder']}
+    <EnhancedProtectedRoute
+      allowedRoles={['admin', 'partner', 'founder']}
       requiresOwnership={user?.role === 'founder'}
       resourceOwnerId={id}
     >
@@ -92,7 +92,7 @@ const CompanyProfile = () => {
           </div>
         )}
       </div>
-    </ProtectedRoute>
+    </EnhancedProtectedRoute>
   );
 };
 
