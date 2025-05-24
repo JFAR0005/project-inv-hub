@@ -9,6 +9,7 @@ import { UserRole } from '@/context/auth/authTypes';
 interface RouteGuardProps {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
+  requiresOwnership?: boolean;
   resourceOwnerId?: string;
   fallbackPath?: string;
 }
@@ -16,6 +17,7 @@ interface RouteGuardProps {
 const RouteGuard: React.FC<RouteGuardProps> = ({ 
   children, 
   allowedRoles = [],
+  requiresOwnership = false,
   resourceOwnerId,
   fallbackPath = '/' 
 }) => {
