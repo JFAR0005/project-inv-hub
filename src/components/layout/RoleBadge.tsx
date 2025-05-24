@@ -27,22 +27,26 @@ const RoleBadge: React.FC = () => {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-200';
       case 'partner':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'founder':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'capital_team':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
+  const formatRoleName = (role: string) => {
+    return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
-    <Badge className={`flex items-center gap-1 ${getRoleColor(user.role)}`}>
+    <Badge variant="outline" className={`flex items-center gap-1 ${getRoleColor(user.role)}`}>
       {getRoleIcon(user.role)}
-      <span className="capitalize">{user.role?.replace('_', ' ')}</span>
+      <span>{formatRoleName(user.role)}</span>
       {originalRole && (
         <span className="text-xs opacity-75">(viewing)</span>
       )}

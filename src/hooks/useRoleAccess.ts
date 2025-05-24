@@ -118,6 +118,12 @@ export const useRoleAccess = () => {
     return user?.role === 'admin' || user?.role === 'partner' || user?.role === 'capital_team';
   };
 
+  const canManageFundraising = (): boolean => {
+    // Only admins and capital_team can manage fundraising
+    if (isActualAdmin || isCapitalTeam) return true;
+    return user?.role === 'admin' || user?.role === 'capital_team';
+  };
+
   return {
     canAccessRoute,
     canViewCompany,
@@ -126,6 +132,7 @@ export const useRoleAccess = () => {
     canSubmitUpdate,
     canViewPortfolio,
     canViewDeals,
+    canManageFundraising,
     userRole: user?.role,
     userId: user?.id,
     userCompanyId: user?.companyId,
