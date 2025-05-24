@@ -2,6 +2,7 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
+import DemoUserSetup from '@/components/auth/DemoUserSetup';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import LoadingSpinner from '@/components/layout/LoadingSpinner';
 import AuthRedirect from '@/components/auth/AuthRedirect';
@@ -31,6 +32,9 @@ const Login = () => {
           <div className="bg-background rounded-lg shadow-xl p-8">
             <LoginForm />
           </div>
+          
+          {/* Demo Setup Card */}
+          <DemoUserSetup />
           
           {/* Demo Credentials Card */}
           <Card className="bg-background/90">

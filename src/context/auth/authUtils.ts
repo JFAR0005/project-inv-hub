@@ -8,6 +8,8 @@ export const fetchUserData = async (authUser: User): Promise<{
   error: string | null;
 }> => {
   try {
+    console.log('Fetching user data for:', authUser.email);
+    
     const { data: userData, error } = await supabase
       .from('users')
       .select('*')
@@ -17,16 +19,16 @@ export const fetchUserData = async (authUser: User): Promise<{
     if (error) {
       console.error('Error fetching user data:', error);
       
-      // If user doesn't exist in users table, it should be created by the trigger
-      // But let's handle the case where it might not exist yet
+      // If user doesn't exist in users table, create them
       if (error.code === 'PGRST116') {
-        // Try to create the user profile if it doesn't exist
+        console.log('User not found in users table, creating profile...');
+        
         const { data: newUser, error: insertError } = await supabase
           .from('users')
           .insert({
             id: authUser.id,
             email: authUser.email,
-            name: authUser.email?.split('@')[0] || 'User',
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
             role: 'founder'
           })
           .select()
@@ -45,6 +47,7 @@ export const fetchUserData = async (authUser: User): Promise<{
           };
         }
 
+        console.log('User profile created successfully:', newUser);
         return {
           user: {
             ...authUser,
@@ -66,6 +69,7 @@ export const fetchUserData = async (authUser: User): Promise<{
         };
       }
     } else {
+      console.log('User data fetched successfully:', userData);
       return {
         user: {
           ...authUser,
@@ -91,31 +95,38 @@ export const fetchUserData = async (authUser: User): Promise<{
 };
 
 export const performLogin = async (email: string, password: string): Promise<void> => {
+  console.log('Attempting login for:', email);
+  
   // Clean up any existing auth state first
   try {
     await supabase.auth.signOut();
   } catch (error) {
-    // Ignore sign out errors
+    // Ignore sign out errors during login
     console.log('Previous session cleanup:', error);
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
+    console.error('Login error:', error);
     throw error;
   }
+
+  console.log('Login successful:', data.user?.email);
 };
 
 export const performLogout = async (): Promise<string | null> => {
   try {
+    console.log('Performing logout...');
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Logout error:', error);
       return 'Failed to log out completely. Please clear your browser cache.';
     }
+    console.log('Logout successful');
     return null;
   } catch (error) {
     console.error('Logout error:', error);
