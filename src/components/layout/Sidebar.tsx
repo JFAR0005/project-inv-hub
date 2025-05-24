@@ -127,7 +127,7 @@ const Sidebar = () => {
     } else if (user?.role === 'founder') {
       items = [
         { 
-          path: `/company/${user.company_id}`, 
+          path: `/company/${user.companyId}`, 
           label: 'My Company', 
           icon: Building2,
           description: 'Company profile & updates'
