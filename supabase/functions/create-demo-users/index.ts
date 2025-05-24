@@ -49,35 +49,54 @@ serve(async (req) => {
 
     for (const user of demoUsers) {
       try {
-        // Create auth user
-        const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
-          email: user.email,
-          password: user.password,
-          email_confirm: true
-        })
+        // First check if user already exists
+        const { data: existingAuth } = await supabaseClient.auth.admin.listUsers()
+        const existingUser = existingAuth?.users?.find(u => u.email === user.email)
+        
+        let authUserId = existingUser?.id
 
-        if (authError) {
-          console.error(`Error creating auth user ${user.email}:`, authError)
-          results.push({ email: user.email, success: false, error: authError.message })
-          continue
+        if (!existingUser) {
+          // Create auth user
+          const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+            email: user.email,
+            password: user.password,
+            email_confirm: true,
+            user_metadata: {
+              name: user.name
+            }
+          })
+
+          if (authError) {
+            console.error(`Error creating auth user ${user.email}:`, authError)
+            results.push({ email: user.email, success: false, error: authError.message })
+            continue
+          }
+          
+          authUserId = authData.user.id
         }
 
         // Create/update user profile
         const { error: profileError } = await supabaseClient
           .from('users')
           .upsert({
-            id: authData.user.id,
+            id: authUserId,
             email: user.email,
             name: user.name,
             role: user.role,
             created_at: new Date().toISOString()
+          }, {
+            onConflict: 'id'
           })
 
         if (profileError) {
-          console.error(`Error creating profile for ${user.email}:`, profileError)
+          console.error(`Error creating/updating profile for ${user.email}:`, profileError)
           results.push({ email: user.email, success: false, error: profileError.message })
         } else {
-          results.push({ email: user.email, success: true })
+          results.push({ 
+            email: user.email, 
+            success: true, 
+            action: existingUser ? 'updated' : 'created' 
+          })
         }
       } catch (error) {
         console.error(`Error processing user ${user.email}:`, error)
@@ -93,6 +112,7 @@ serve(async (req) => {
       },
     )
   } catch (error) {
+    console.error('Error in create-demo-users function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       {
