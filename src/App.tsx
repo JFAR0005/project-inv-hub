@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -26,6 +27,7 @@ import Integrations from './pages/Integrations';
 import IntegrationHub from './pages/IntegrationHub';
 import NotFound from './pages/NotFound';
 import Search from './pages/Search';
+import AdvancedSearch from './pages/AdvancedSearch';
 
 const queryClient = new QueryClient();
 
@@ -82,6 +84,10 @@ const router = createBrowserRouter([
   {
     path: "/search",
     element: <Layout><Search /></Layout>,
+  },
+  {
+    path: "/advanced-search",
+    element: <Layout><AdvancedSearch /></Layout>,
   },
   {
     path: "/company/:id",
