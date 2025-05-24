@@ -1,245 +1,253 @@
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
+import { useMutation } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, Send } from 'lucide-react';
+
+interface SubmitUpdateFormProps {
+  companyId: string;
+  companyName: string;
+}
 
 interface UpdateFormData {
-  arr?: number;
   mrr?: number;
+  arr?: number;
   burn_rate?: number;
   runway?: number;
   headcount?: number;
   churn?: number;
   raise_status?: string;
   raise_target_amount?: number;
-  deck_url?: string;
   requested_intros?: string;
   comments?: string;
+  deck_url?: string;
 }
 
-interface SubmitUpdateFormProps {
-  companyId: string;
-  companyName: string;
-  onSuccess?: () => void;
-}
-
-const SubmitUpdateForm: React.FC<SubmitUpdateFormProps> = ({ 
-  companyId, 
-  companyName, 
-  onSuccess 
-}) => {
+const SubmitUpdateForm: React.FC<SubmitUpdateFormProps> = ({ companyId, companyName }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { notifyUpdateSubmitted } = useNotificationTrigger();
+  const navigate = useNavigate();
   
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<UpdateFormData>();
+  const [formData, setFormData] = useState<UpdateFormData>({
+    raise_status: 'Not Raising',
+  });
 
-  const submitUpdateMutation = useMutation({
+  const submitUpdate = useMutation({
     mutationFn: async (data: UpdateFormData) => {
-      const { data: result, error } = await supabase
+      const { error } = await supabase
         .from('founder_updates')
         .insert({
           company_id: companyId,
           submitted_by: user?.id,
-          ...data
-        })
-        .select()
-        .single();
+          ...data,
+        });
 
       if (error) throw error;
-      return result;
     },
-    onSuccess: async (result) => {
-      // Trigger notification after successful update submission
-      try {
-        await notifyUpdateSubmitted(companyId, companyName, result.id);
-      } catch (error) {
-        console.error('Failed to send notification:', error);
-        // Don't fail the whole operation if notification fails
-      }
-
+    onSuccess: () => {
       toast({
-        title: "Update submitted successfully",
-        description: "Your company update has been submitted and notifications have been sent.",
+        title: "Update Submitted",
+        description: "Your company update has been submitted successfully.",
       });
-
-      queryClient.invalidateQueries({ queryKey: ['founder-updates', companyId] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio-health'] });
-      
-      if (onSuccess) {
-        onSuccess();
-      }
+      navigate('/');
     },
-    onError: (error: any) => {
+    onError: (error) => {
+      console.error('Error submitting update:', error);
       toast({
-        title: "Error submitting update",
-        description: error.message || "There was an error submitting your update. Please try again.",
+        title: "Error",
+        description: "Failed to submit update. Please try again.",
         variant: "destructive",
       });
     }
   });
 
-  const onSubmit = (data: UpdateFormData) => {
-    submitUpdateMutation.mutate(data);
+  const handleInputChange = (field: keyof UpdateFormData, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value === '' ? undefined : value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitUpdate.mutate(formData);
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Submit Company Update</CardTitle>
+        <CardTitle>Monthly Update</CardTitle>
+        <CardDescription>
+          Share your progress and key metrics with investors
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="arr">ARR ($)</Label>
-              <Input
-                id="arr"
-                type="number"
-                step="0.01"
-                placeholder="Annual Recurring Revenue"
-                {...register('arr', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mrr">MRR ($)</Label>
-              <Input
-                id="mrr"
-                type="number"
-                step="0.01"
-                placeholder="Monthly Recurring Revenue"
-                {...register('mrr', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="burn_rate">Burn Rate ($)</Label>
-              <Input
-                id="burn_rate"
-                type="number"
-                step="0.01"
-                placeholder="Monthly burn rate"
-                {...register('burn_rate', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="runway">Runway (months)</Label>
-              <Input
-                id="runway"
-                type="number"
-                placeholder="Months of runway remaining"
-                {...register('runway', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="headcount">Headcount</Label>
-              <Input
-                id="headcount"
-                type="number"
-                placeholder="Total employees"
-                {...register('headcount', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="churn">Churn Rate (%)</Label>
-              <Input
-                id="churn"
-                type="number"
-                step="0.01"
-                placeholder="Monthly churn rate"
-                {...register('churn', { valueAsNumber: true })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="raise_status">Fundraising Status</Label>
-            <Select onValueChange={(value) => setValue('raise_status', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select fundraising status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Not raising">Not raising</SelectItem>
-                <SelectItem value="Planning to raise">Planning to raise</SelectItem>
-                <SelectItem value="Actively raising">Actively raising</SelectItem>
-                <SelectItem value="Closed round">Closed round</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {watch('raise_status') && ['Planning to raise', 'Actively raising'].includes(watch('raise_status') || '') && (
-            <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Financial Metrics */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Financial Metrics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="raise_target_amount">Target Raise Amount ($)</Label>
+                <Label htmlFor="mrr">Monthly Recurring Revenue ($)</Label>
+                <Input
+                  id="mrr"
+                  type="number"
+                  placeholder="0"
+                  value={formData.mrr || ''}
+                  onChange={(e) => handleInputChange('mrr', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="arr">Annual Recurring Revenue ($)</Label>
+                <Input
+                  id="arr"
+                  type="number"
+                  placeholder="0"
+                  value={formData.arr || ''}
+                  onChange={(e) => handleInputChange('arr', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="burn_rate">Monthly Burn Rate ($)</Label>
+                <Input
+                  id="burn_rate"
+                  type="number"
+                  placeholder="0"
+                  value={formData.burn_rate || ''}
+                  onChange={(e) => handleInputChange('burn_rate', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="runway">Runway (months)</Label>
+                <Input
+                  id="runway"
+                  type="number"
+                  placeholder="0"
+                  value={formData.runway || ''}
+                  onChange={(e) => handleInputChange('runway', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Operational Metrics */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Operational Metrics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="headcount">Team Size</Label>
+                <Input
+                  id="headcount"
+                  type="number"
+                  placeholder="0"
+                  value={formData.headcount || ''}
+                  onChange={(e) => handleInputChange('headcount', parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="churn">Churn Rate (%)</Label>
+                <Input
+                  id="churn"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.churn || ''}
+                  onChange={(e) => handleInputChange('churn', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Fundraising */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Fundraising</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="raise_status">Fundraising Status</Label>
+                <Select value={formData.raise_status} onValueChange={(value) => handleInputChange('raise_status', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Not Raising">Not Raising</SelectItem>
+                    <SelectItem value="Planning to Raise">Planning to Raise</SelectItem>
+                    <SelectItem value="Actively Raising">Actively Raising</SelectItem>
+                    <SelectItem value="Recently Closed">Recently Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="raise_target_amount">Target Amount ($)</Label>
                 <Input
                   id="raise_target_amount"
                   type="number"
-                  step="0.01"
-                  placeholder="Target fundraising amount"
-                  {...register('raise_target_amount', { valueAsNumber: true })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="deck_url">Pitch Deck URL</Label>
-                <Input
-                  id="deck_url"
-                  type="url"
-                  placeholder="https://..."
-                  {...register('deck_url')}
+                  placeholder="0"
+                  value={formData.raise_target_amount || ''}
+                  onChange={(e) => handleInputChange('raise_target_amount', parseFloat(e.target.value) || 0)}
                 />
               </div>
             </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="requested_intros">Requested Introductions</Label>
-            <Textarea
-              id="requested_intros"
-              placeholder="Any specific introductions you'd like us to make..."
-              {...register('requested_intros')}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="deck_url">Pitch Deck URL</Label>
+              <Input
+                id="deck_url"
+                type="url"
+                placeholder="https://..."
+                value={formData.deck_url || ''}
+                onChange={(e) => handleInputChange('deck_url', e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="comments">Additional Comments</Label>
-            <Textarea
-              id="comments"
-              placeholder="Any additional updates, challenges, or wins to share..."
-              {...register('comments')}
-            />
+          {/* Additional Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Additional Information</h3>
+            <div className="space-y-2">
+              <Label htmlFor="requested_intros">Requested Introductions</Label>
+              <Textarea
+                id="requested_intros"
+                placeholder="What introductions would be helpful?"
+                value={formData.requested_intros || ''}
+                onChange={(e) => handleInputChange('requested_intros', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="comments">Comments & Updates</Label>
+              <Textarea
+                id="comments"
+                placeholder="Share any additional updates, challenges, or wins..."
+                value={formData.comments || ''}
+                onChange={(e) => handleInputChange('comments', e.target.value)}
+                rows={4}
+              />
+            </div>
           </div>
 
-          <Button 
-            type="submit" 
-            disabled={submitUpdateMutation.isPending}
-            className="w-full"
-          >
-            {submitUpdateMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              'Submit Update'
-            )}
-          </Button>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={submitUpdate.isPending}>
+              {submitUpdate.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Submit Update
+                </>
+              )}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

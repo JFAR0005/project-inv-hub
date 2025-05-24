@@ -1,16 +1,28 @@
 
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import LoadingSpinner from '@/components/layout/LoadingSpinner';
 
 const Login = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  // Show loading while auth state is being determined
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova">
+        <LoadingSpinner size="lg" className="text-white" />
+      </div>
+    );
+  }
 
   // If already authenticated, redirect to dashboard
-  if (!isLoading && isAuthenticated) {
-    return <Navigate to="/" />;
+  if (isAuthenticated) {
+    const from = location.state?.from?.pathname || '/';
+    return <Navigate to={from} replace />;
   }
 
   return (
