@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleGuard from '@/components/layout/RoleGuard';
@@ -41,7 +40,7 @@ const AdvancedSearch = () => {
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'partner', 'analyst', 'lp']}>
+    <RoleGuard allowedRoles={['admin', 'partner', 'capital_team']}>
       <div className="space-y-6">
         {/* Header */}
         <div>

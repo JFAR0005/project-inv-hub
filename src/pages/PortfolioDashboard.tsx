@@ -5,7 +5,7 @@ import InteractivePortfolioDashboard from '@/components/portfolio/InteractivePor
 
 const PortfolioDashboard = () => {
   return (
-    <RoleGuard allowedRoles={['admin', 'partner', 'lp']}>
+    <RoleGuard allowedRoles={['admin', 'partner', 'capital_team']}>
       <div className="container mx-auto py-6">
         <InteractivePortfolioDashboard />
       </div>

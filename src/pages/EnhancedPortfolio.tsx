@@ -5,11 +5,10 @@ import EnhancedPortfolioView from '@/components/portfolio/EnhancedPortfolioView'
 
 const EnhancedPortfolio = () => {
   return (
-    <RoleGuard allowedRoles={['admin', 'partner', 'analyst', 'lp']}>
+    <RoleGuard allowedRoles={['admin', 'partner', 'capital_team']}>
       <EnhancedPortfolioView />
     </RoleGuard>
   );
 };
 
 export default EnhancedPortfolio;
-
