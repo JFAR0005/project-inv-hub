@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
 import PortfolioList from '@/components/portfolio/PortfolioList';
+import PortfolioHealthDashboard from '@/components/portfolio/PortfolioHealthDashboard';
 import { BarChart3, Grid3X3, List, TrendingUp, Activity } from 'lucide-react';
 import { UserRole } from '@/context/AuthContext';
 
@@ -52,13 +53,13 @@ const Portfolio = () => {
           <TabsContent value="health" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Company Health Dashboard</CardTitle>
+                <CardTitle>Portfolio Health Dashboard</CardTitle>
                 <CardDescription>
-                  Monitor the health and performance of your portfolio companies
+                  Monitor update freshness, fundraising status, and identify companies needing attention
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <PortfolioList />
+                <PortfolioHealthDashboard />
               </CardContent>
             </Card>
           </TabsContent>

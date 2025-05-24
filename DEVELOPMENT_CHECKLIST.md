@@ -100,22 +100,26 @@
 - [x] Improved loading states and error handling
 - [x] Added "View All" button to navigate to full updates page
 
+### Step 12: Add Update Freshness & Raise Flags to Portfolio ✅
+- [x] Created PortfolioHealthIndicators component for consistent status display
+- [x] Built comprehensive PortfolioHealthDashboard with health metrics overview
+- [x] Added health overview cards showing total companies, companies needing updates, currently raising, and healthy companies
+- [x] Implemented tabbed filtering for "All Companies", "Need Updates", and "Raising"
+- [x] Enhanced Portfolio page with new Health Dashboard tab
+- [x] Added visual indicators for companies with overdue updates (red flags)
+- [x] Added visual indicators for companies currently raising (green flags)
+- [x] Implemented percentage calculations for portfolio health metrics
+
 ## 🚀 CURRENT CHECKLIST STATUS
 
 ✅ Role-Based Access — COMPLETE  
 ✅ Metrics Integration — COMPLETE  
 ✅ Document Viewer — COMPLETE  
 ✅ Update History in Overview — COMPLETE  
-❌ Update Health in Portfolio — NOT STARTED  
+✅ Update Health in Portfolio — COMPLETE  
 ❌ Notifications — NOT STARTED  
 
 ## 🚀 NEXT STEPS
-
-### Step 12: Add Update Freshness & Raise Flags to Portfolio
-- [ ] Show last update date and latest ARR in portfolio views
-- [ ] Highlight companies with no updates in 30+ days (red flag)
-- [ ] Highlight companies with "Raising" status (green flag)
-- [ ] Add sorting and filtering for overdue companies
 
 ### Step 13: Add Slack/Email Notifications
 - [ ] Trigger notifications when founders submit updates
