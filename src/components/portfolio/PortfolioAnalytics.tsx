@@ -133,17 +133,19 @@ const PortfolioAnalytics: React.FC = () => {
       }, {});
 
       // Process metrics by company (get latest values)
-      const metricsByCompany = metricsData.reduce((acc: Record<string, Record<string, number>>, metric: MetricData) => {
+      const metricsByCompany = metricsData.reduce((acc: Record<string, Record<string, number | string>>, metric: MetricData) => {
         if (!acc[metric.company_id]) {
           acc[metric.company_id] = {};
         }
         
         // Convert value to number and only keep the latest value for each metric
         const numericValue = Number(metric.value) || 0;
+        const dateKey = `${metric.metric_name}_date`;
+        
         if (!acc[metric.company_id][metric.metric_name] || 
-            new Date(metric.date) > new Date(acc[metric.company_id][`${metric.metric_name}_date`] || '1970-01-01')) {
+            new Date(metric.date) > new Date((acc[metric.company_id][dateKey] as string) || '1970-01-01')) {
           acc[metric.company_id][metric.metric_name] = numericValue;
-          acc[metric.company_id][`${metric.metric_name}_date`] = metric.date;
+          acc[metric.company_id][dateKey] = metric.date;
         }
         
         return acc;
@@ -155,9 +157,9 @@ const PortfolioAnalytics: React.FC = () => {
         const companyMetrics = metricsByCompany[company.id] || {};
         
         // Use metrics data first, fall back to founder updates, then company data
-        const arr = companyMetrics.arr || latestUpdate?.arr || company.arr || 0;
-        const burnRate = companyMetrics.burn_rate || latestUpdate?.burn_rate || company.burn_rate || 0;
-        const headcount = companyMetrics.headcount || latestUpdate?.headcount || company.headcount || 0;
+        const arr = (companyMetrics.arr as number) || latestUpdate?.arr || company.arr || 0;
+        const burnRate = (companyMetrics.burn_rate as number) || latestUpdate?.burn_rate || company.burn_rate || 0;
+        const headcount = (companyMetrics.headcount as number) || latestUpdate?.headcount || company.headcount || 0;
         
         // Calculate growth from historical data (simplified for now)
         const growth = latestUpdate?.growth || 0;
@@ -199,7 +201,7 @@ const PortfolioAnalytics: React.FC = () => {
       const avgGrowthRate = companiesWithGrowth.length > 0 
         ? companiesWithGrowth.reduce((sum, c) => sum + c.growth, 0) / companiesWithGrowth.length
         : 0;
-      const totalHeadcount = performanceData.reduce((sum, company) => sum + (metricsByCompany[company.id]?.headcount || 0), 0);
+      const totalHeadcount = performanceData.reduce((sum, company) => sum + ((metricsByCompany[company.id]?.headcount as number) || 0), 0);
       const avgBurnMultiple = performanceData
         .filter(c => c.burnMultiple > 0)
         .reduce((sum, c, _, arr) => sum + c.burnMultiple / arr.length, 0);
