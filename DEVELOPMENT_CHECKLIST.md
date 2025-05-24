@@ -83,21 +83,25 @@
 - [x] Enhanced data processing to combine metrics table and founder_updates
 - [x] Added comprehensive error handling and empty states
 
+### Step 10: List Company Documents ✅
+- [x] Implemented CompanyDocuments component that pulls files from Supabase Storage at /company_files/{company_id}/
+- [x] Added comprehensive file display with name, upload date, size, uploader, and download links
+- [x] Implemented proper error handling and empty states
+- [x] Added file upload functionality with 10MB size validation
+- [x] Created file actions: view, download, delete with proper permissions
+- [x] Added file type badges and icons for better UX
+- [x] Integrated role-based access control for file operations
+
 ## 🚀 CURRENT CHECKLIST STATUS
 
 ✅ Role-Based Access — COMPLETE  
 ✅ Metrics Integration — COMPLETE  
-❌ Document Viewer — NOT STARTED  
+✅ Document Viewer — COMPLETE  
 ❌ Update History in Overview — NOT STARTED  
 ❌ Update Health in Portfolio — NOT STARTED  
 ❌ Notifications — NOT STARTED  
 
 ## 🚀 NEXT STEPS
-
-### Step 10: List Company Documents
-- [ ] Pull files from Supabase Storage at /company_files/{company_id}/
-- [ ] Display file name, upload date, download link in Documents tab
-- [ ] Handle empty and error states properly
 
 ### Step 11: Show Recent Updates on Company Overview
 - [ ] Pull latest 3 entries from founder_updates table
