@@ -50,8 +50,11 @@ export const useCompanyFiles = (companyId: string) => {
           let uploaderName = 'Unknown';
           // Fix the null check issue with proper null handling
           const uploader = file.uploader;
-          if (uploader && typeof uploader === 'object' && 'name' in uploader && uploader.name) {
-            uploaderName = uploader.name;
+          if (uploader !== null && typeof uploader === 'object' && 'name' in uploader) {
+            const uploaderData = uploader as { name?: string };
+            if (uploaderData.name) {
+              uploaderName = uploaderData.name;
+            }
           }
           
           processedFiles.push({
