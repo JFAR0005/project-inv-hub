@@ -20,7 +20,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
   fallbackPath = '/' 
 }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { canAccessRoute, userRole } = useRoleAccess();
+  const { canAccessRoute } = useRoleAccess();
   const location = useLocation();
 
   // Show loading state while checking authentication
@@ -37,14 +37,14 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check route access
+  // Use the standardized access control from useRoleAccess
   const hasAccess = canAccessRoute(location.pathname, resourceOwnerId);
 
   if (!hasAccess) {
     return (
       <AccessDenied 
         userRole={user.role}
-        requiredRoles={allowedRoles as UserRole[]} 
+        requiredRoles={allowedRoles}
       />
     );
   }

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { UserRole } from '@/context/auth/authTypes';
 import AccessDenied from './AccessDenied';
 
@@ -21,6 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   resourceOwnerId
 }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { canAccessRoute } = useRoleAccess();
   const location = useLocation();
 
   // Show loading state while checking authentication
@@ -37,25 +39,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user has required role
-  const hasRequiredRole = requiredRoles.length === 0 || requiredRoles.includes(user.role);
+  // Use the standardized access control from useRoleAccess
+  const hasAccess = canAccessRoute(location.pathname, resourceOwnerId);
 
-  // Check ownership requirements for founders
-  const hasOwnership = !requiresOwnership || 
-    user.role !== 'founder' || 
-    !resourceOwnerId || 
-    user.companyId === resourceOwnerId;
+  if (!hasAccess) {
+    const message = requiredRoles.length > 0 && !requiredRoles.includes(user.role!)
+      ? `Access denied. Required roles: ${requiredRoles.join(', ')}. Your role: ${user.role}.`
+      : requiresOwnership 
+        ? "You can only access resources that belong to your company."
+        : "You don't have permission to access this page.";
 
-  // If role or ownership requirements aren't met, display access denied
-  if (!hasRequiredRole || !hasOwnership) {
     return (
       <AccessDenied 
         userRole={user.role}
         requiredRoles={requiredRoles}
-        message={!hasRequiredRole 
-          ? "You don't have permission to access this page." 
-          : "You can only access resources that belong to your company."
-        }
+        message={message}
       />
     );
   }
