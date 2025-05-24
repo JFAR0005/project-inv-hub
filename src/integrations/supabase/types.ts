@@ -439,6 +439,39 @@ export type Database = {
           },
         ]
       }
+      mention_notifications: {
+        Row: {
+          content: string
+          context_id: string
+          context_type: string
+          created_at: string
+          id: string
+          is_read: boolean
+          mentioned_user_id: string
+          mentioning_user_id: string
+        }
+        Insert: {
+          content: string
+          context_id: string
+          context_type: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          mentioned_user_id: string
+          mentioning_user_id: string
+        }
+        Update: {
+          content?: string
+          context_id?: string
+          context_type?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          mentioned_user_id?: string
+          mentioning_user_id?: string
+        }
+        Relationships: []
+      }
       metrics: {
         Row: {
           company_id: string | null
@@ -518,6 +551,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          last_seen_at: string | null
           name: string | null
           role: string | null
           team: string | null
@@ -527,6 +561,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id: string
+          last_seen_at?: string | null
           name?: string | null
           role?: string | null
           team?: string | null
@@ -536,6 +571,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          last_seen_at?: string | null
           name?: string | null
           role?: string | null
           team?: string | null

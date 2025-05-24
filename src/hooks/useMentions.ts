@@ -19,6 +19,10 @@ interface MentionNotification {
   context_id: string;
   created_at: string;
   is_read: boolean;
+  mentioning_user?: {
+    name: string;
+    email: string;
+  };
 }
 
 export const useMentions = () => {
