@@ -1,235 +1,140 @@
-import React, { useState } from 'react';
+
+import React from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import DealTracker from '@/components/deals/DealTracker';
-import DealForm from '@/components/deals/DealForm';
-import DDForm from '@/components/deals/DDForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
-import { BarChart4, KanbanSquare, Plus } from 'lucide-react';
-import { Database } from '@/integrations/supabase/types';
-
-// Define a local Deal type that matches what we're fetching
-type DealsDeal = Database['public']['Tables']['deals']['Row'] & {
-  companies?: Database['public']['Tables']['companies']['Row'] | null;
-  lead_partner_data?: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    role: string | null;
-    team: string | null;
-  } | null;
-};
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 const Deals = () => {
   const { user } = useAuth();
-  const [activeView, setActiveView] = useState<'kanban' | 'table'>('kanban');
-  const [dealFormOpen, setDealFormOpen] = useState(false);
-  const [ddFormOpen, setDDFormOpen] = useState(false);
-  const [selectedDeal, setSelectedDeal] = useState<DealsDeal | null>(null);
-  const [editingDeal, setEditingDeal] = useState<DealsDeal | null>(null);
 
-  // Fetch deals with company information
-  const { data: deals = [], isLoading, refetch } = useQuery({
+  const { data: deals, isLoading, error } = useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deals')
         .select(`
           *,
-          companies (*)
+          companies (
+            name,
+            sector,
+            location
+          )
         `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      
-      // Get lead partner data separately
-      const dealsWithPartners = await Promise.all(
-        (data || []).map(async (deal) => {
-          let lead_partner_data = null;
-          
-          if (deal.lead_partner) {
-            const { data: userData } = await supabase
-              .from('users')
-              .select('id, name, email, role, team')
-              .eq('id', deal.lead_partner)
-              .single();
-            
-            lead_partner_data = userData;
-          }
-          
-          return {
-            ...deal,
-            companies: deal.companies || null,
-            lead_partner_data
-          };
-        })
-      );
-      
-      return dealsWithPartners as DealsDeal[];
+      return data;
     },
   });
 
-  const handleEditDeal = (deal: DealsDeal) => {
-    setEditingDeal(deal);
-    setDealFormOpen(true);
+  const getStageColor = (stage: string) => {
+    switch (stage) {
+      case 'Discovery': return 'bg-blue-100 text-blue-800';
+      case 'DD': return 'bg-yellow-100 text-yellow-800';
+      case 'IC': return 'bg-purple-100 text-purple-800';
+      case 'Funded': return 'bg-green-100 text-green-800';
+      case 'Rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const handleDDFormOpen = (deal: DealsDeal) => {
-    setSelectedDeal(deal);
-    setDDFormOpen(true);
-  };
-
-  // Convert DealsDeal to the format expected by DealTracker
-  const convertDealForTracker = (deal: DealsDeal) => ({
-    ...deal,
-    companies: deal.companies,
-    users: deal.lead_partner_data ? {
-      id: deal.lead_partner_data.id,
-      name: deal.lead_partner_data.name || '',
-      email: deal.lead_partner_data.email || '',
-      role: deal.lead_partner_data.role || '',
-      team: deal.lead_partner_data.team || '',
-      company_id: '',
-      created_at: '',
-      last_seen_at: null // Add the missing property
-    } : null
-  });
-
-  const renderKanbanView = () => {
-    const stages = ['Discovery', 'DD', 'IC', 'Funded', 'Rejected'];
-    
+  if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {stages.map((stage) => (
-          <div key={stage} className="space-y-3">
-            <h3 className="font-semibold text-gray-900">{stage}</h3>
-            <div className="space-y-2 min-h-[400px]">
-              {deals
-                .filter(deal => deal.stage === stage)
-                .map((deal) => (
-                  <DealTracker
-                    key={deal.id}
-                    deal={convertDealForTracker(deal)}
-                    onEditDeal={(convertedDeal) => {
-                      // Find the original deal
-                      const originalDeal = deals.find(d => d.id === convertedDeal.id);
-                      if (originalDeal) {
-                        handleEditDeal(originalDeal);
-                      }
-                    }}
-                    onOpenDD={(convertedDeal) => {
-                      // Find the original deal
-                      const originalDeal = deals.find(d => d.id === convertedDeal.id);
-                      if (originalDeal) {
-                        handleDDFormOpen(originalDeal);
-                      }
-                    }}
-                  />
-                ))}
-            </div>
-          </div>
-        ))}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
       </div>
     );
-  };
+  }
 
-  const renderTableView = () => {
+  if (error) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {deals.map((deal) => (
-          <DealTracker
-            key={deal.id}
-            deal={convertDealForTracker(deal)}
-            onEditDeal={(convertedDeal) => {
-              // Find the original deal
-              const originalDeal = deals.find(d => d.id === convertedDeal.id);
-              if (originalDeal) {
-                handleEditDeal(originalDeal);
-              }
-            }}
-            onOpenDD={(convertedDeal) => {
-              // Find the original deal
-              const originalDeal = deals.find(d => d.id === convertedDeal.id);
-              if (originalDeal) {
-                handleDDFormOpen(originalDeal);
-              }
-            }}
-          />
-        ))}
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error Loading Deals</CardTitle>
+            <CardDescription>Failed to load deals data</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
-  };
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Deal Pipeline</h1>
-          <p className="text-muted-foreground mt-1">
-            Track and manage all investment opportunities in the pipeline
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button onClick={() => setDealFormOpen(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Deal
-          </Button>
-          
-          <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'kanban' | 'table')} className="w-[240px]">
-            <TabsList className="grid grid-cols-2">
-              <TabsTrigger value="kanban" className="flex items-center gap-1">
-                <KanbanSquare className="h-4 w-4" />
-                <span>Kanban</span>
-              </TabsTrigger>
-              <TabsTrigger value="table" className="flex items-center gap-1">
-                <BarChart4 className="h-4 w-4" />
-                <span>Cards</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Deals</h1>
+        <p className="text-muted-foreground mt-2">
+          Track and manage investment opportunities
+        </p>
       </div>
-      
-      <Card>
-        <CardHeader className="pb-0">
-          <CardTitle>Deal Management</CardTitle>
-          <CardDescription>
-            {activeView === 'kanban' 
-              ? 'Drag and drop deals between stages in the pipeline' 
-              : 'View all deals in a card format with filtering options'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {activeView === 'kanban' ? renderKanbanView() : renderTableView()}
-        </CardContent>
-      </Card>
 
-      {/* Deal Form Modal */}
-      <DealForm 
-        open={dealFormOpen} 
-        onOpenChange={(open) => {
-          setDealFormOpen(open);
-          if (!open) {
-            setEditingDeal(null);
-          }
-        }}
-        onDealCreated={refetch}
-        editingDeal={editingDeal ? convertDealForTracker(editingDeal) : null}
-      />
+      <div className="grid gap-6">
+        {deals?.map((deal) => (
+          <Card key={deal.id} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">
+                    {deal.companies?.name || 'Unknown Company'}
+                  </CardTitle>
+                  <CardDescription>
+                    {deal.companies?.sector} • {deal.companies?.location}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Badge className={getStageColor(deal.stage)}>
+                    {deal.stage}
+                  </Badge>
+                  <Badge variant={deal.status === 'Active' ? 'default' : 'secondary'}>
+                    {deal.status}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Valuation</p>
+                  <p className="text-lg font-semibold">
+                    {deal.valuation_expectation 
+                      ? `$${(deal.valuation_expectation / 1000000).toFixed(1)}M`
+                      : 'Not specified'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Created</p>
+                  <p className="text-lg font-semibold">
+                    {new Date(deal.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
+                  <p className="text-lg font-semibold">
+                    {new Date(deal.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      {/* Due Diligence Form Modal */}
-      {selectedDeal && (
-        <DDForm
-          dealId={selectedDeal.id}
-          companyName={selectedDeal.companies?.name || 'Unknown Company'}
-          open={ddFormOpen}
-          onOpenChange={setDDFormOpen}
-          onDDDataUpdated={refetch}
-        />
+      {deals?.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium">No deals found</h3>
+            <p className="text-muted-foreground mt-2">
+              Start tracking investment opportunities
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

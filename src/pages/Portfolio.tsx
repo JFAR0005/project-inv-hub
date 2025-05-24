@@ -1,94 +1,90 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
-import PortfolioList from '@/components/portfolio/PortfolioList';
-import PortfolioHealthDashboard from '@/components/portfolio/PortfolioHealthDashboard';
-import { BarChart3, Grid3X3, List, TrendingUp, Activity } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const Portfolio = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const { user } = useAuth();
+
+  const { data: companies, isLoading, error } = useQuery({
+    queryKey: ['portfolio-companies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error Loading Portfolio</CardTitle>
+            <CardDescription>Failed to load portfolio companies</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Portfolio Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor and manage your portfolio companies
-          </p>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Portfolio</h1>
+        <p className="text-muted-foreground mt-2">
+          Manage and track your portfolio companies
+        </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="health" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Health Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="list" className="flex items-center gap-2">
-            <List className="h-4 w-4" />
-            List
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Analytics
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <PortfolioOverview />
-        </TabsContent>
-
-        <TabsContent value="health" className="space-y-6">
-          <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {companies?.map((company) => (
+          <Card key={company.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>Portfolio Health Dashboard</CardTitle>
-              <CardDescription>
-                Monitor update freshness, fundraising status, and identify companies needing attention
-              </CardDescription>
+              <CardTitle className="text-lg">{company.name}</CardTitle>
+              <CardDescription>{company.sector}</CardDescription>
             </CardHeader>
             <CardContent>
-              <PortfolioHealthDashboard />
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Location: {company.location || 'Not specified'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Stage: {company.stage || 'Not specified'}
+                </p>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        ))}
+      </div>
 
-        <TabsContent value="list" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Portfolio List View</CardTitle>
-              <CardDescription>
-                Detailed table view of all portfolio companies with filtering and sorting
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PortfolioList />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Portfolio Analytics</CardTitle>
-              <CardDescription>
-                Coming soon - Advanced analytics and reporting for your portfolio
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              Portfolio analytics dashboard will be available in the next update
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {companies?.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <h3 className="text-lg font-medium">No companies found</h3>
+            <p className="text-muted-foreground mt-2">
+              Start by adding companies to your portfolio
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
