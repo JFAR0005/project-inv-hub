@@ -8,7 +8,7 @@ import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 
 const Analytics = () => {
   return (
-    <EnhancedProtectedRoute allowedRoles={['admin', 'partner', 'lp']}>
+    <EnhancedProtectedRoute allowedRoles={['admin']}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>

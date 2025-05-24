@@ -1,5 +1,4 @@
 
-
 # Development Progress Checklist
 
 ## ✅ COMPLETED STEPS
@@ -67,22 +66,52 @@
 - [x] Added role-based permissions for team features
 - [x] Integrated mentions across comment sections
 
+### Step 8: Role-Based Page Access ✅
+- [x] Implemented role-based guards for all pages using EnhancedProtectedRoute
+- [x] Applied proper access rules: Portfolio (admin only), Deals/Dealflow (admin/partner), Company Profile (admin/partner/founder), Submit Update (founder only), Notes (admin/partner/founder)
+- [x] Added ownership validation for founders (can only access their own company)
+- [x] Configured proper fallback handling with AccessDenied component
+- [x] Updated all page components with appropriate role restrictions
+
+## 🚀 CURRENT CHECKLIST STATUS
+
+✅ Role-Based Access — COMPLETE  
+❌ Metrics Integration — NOT STARTED  
+❌ Document Viewer — NOT STARTED  
+❌ Update History in Overview — NOT STARTED  
+❌ Update Health in Portfolio — NOT STARTED  
+❌ Notifications — NOT STARTED  
+
 ## 🚀 NEXT STEPS
 
-### Step 8: Integration Hub
-- [ ] Create webhook management interface
-- [ ] Add third-party service integrations (Slack, Teams)
-- [ ] Implement API rate limiting
-- [ ] Add integration monitoring
-- [ ] Build custom workflow automation
-- [ ] Add integration marketplace
+### Step 9: Wire Metrics Charts to Supabase
+- [ ] Connect CompanyProfile.tsx charts to Supabase metrics table
+- [ ] Filter metrics by company_id
+- [ ] Display line charts for ARR and Burn
+- [ ] Display bar chart for Headcount
+- [ ] Calculate and display Burn Multiple card
 
-### Step 9: Advanced Reporting & Insights
-- [ ] Create automated report generation
-- [ ] Add executive dashboard views
-- [ ] Implement predictive analytics
-- [ ] Add performance benchmarking
-- [ ] Create custom report builder
+### Step 10: List Company Documents
+- [ ] Pull files from Supabase Storage at /company_files/{company_id}/
+- [ ] Display file name, upload date, download link in Documents tab
+- [ ] Handle empty and error states properly
+
+### Step 11: Show Recent Updates on Company Overview
+- [ ] Pull latest 3 entries from founder_updates table
+- [ ] Display submitted date, ARR, raise status, commentary preview
+- [ ] Add default message for companies with no updates
+
+### Step 12: Add Update Freshness & Raise Flags to Portfolio
+- [ ] Show last update date and latest ARR in portfolio views
+- [ ] Highlight companies with no updates in 30+ days (red flag)
+- [ ] Highlight companies with "Raising" status (green flag)
+- [ ] Add sorting and filtering for overdue companies
+
+### Step 13: Add Slack/Email Notifications
+- [ ] Trigger notifications when founders submit updates
+- [ ] Notify participants when meetings are scheduled
+- [ ] Send alerts for companies with 30+ days without updates
+- [ ] Implement using Supabase Edge Functions with webhook integration
 
 ## 📋 TECHNICAL DEBT & IMPROVEMENTS
 - [ ] Refactor large components for better maintainability
@@ -90,5 +119,3 @@
 - [ ] Implement proper loading states
 - [ ] Add unit tests for critical functionality
 - [ ] Optimize database queries and indexes
-
-

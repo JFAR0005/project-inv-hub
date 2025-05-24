@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,19 +9,6 @@ import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import { Users, MessageSquare, Activity } from 'lucide-react';
 
 const Team: React.FC = () => {
-  const { hasPermission } = useAuth();
-
-  if (!hasPermission('view:team')) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to view team collaboration features.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <EnhancedProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
       <div className="container mx-auto px-4 py-8">
