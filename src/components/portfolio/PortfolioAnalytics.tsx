@@ -138,10 +138,11 @@ const PortfolioAnalytics: React.FC = () => {
           acc[metric.company_id] = {};
         }
         
-        // Only keep the latest value for each metric
+        // Convert value to number and only keep the latest value for each metric
+        const numericValue = Number(metric.value) || 0;
         if (!acc[metric.company_id][metric.metric_name] || 
             new Date(metric.date) > new Date(acc[metric.company_id][`${metric.metric_name}_date`] || '1970-01-01')) {
-          acc[metric.company_id][metric.metric_name] = metric.value;
+          acc[metric.company_id][metric.metric_name] = numericValue;
           acc[metric.company_id][`${metric.metric_name}_date`] = metric.date;
         }
         
@@ -254,10 +255,11 @@ const PortfolioAnalytics: React.FC = () => {
         
         monthlyMetrics[monthKey].companies.add(metric.company_id);
         
+        const numericValue = Number(metric.value) || 0;
         if (metric.metric_name === 'arr') {
-          monthlyMetrics[monthKey].totalARR += metric.value;
+          monthlyMetrics[monthKey].totalARR += numericValue;
         } else if (metric.metric_name === 'headcount') {
-          monthlyMetrics[monthKey].headcount += metric.value;
+          monthlyMetrics[monthKey].headcount += numericValue;
         }
       });
 
