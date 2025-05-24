@@ -366,6 +366,110 @@ export type Database = {
           },
         ]
       }
+      lp_documents: {
+        Row: {
+          file_name: string
+          file_url: string
+          id: string
+          lp_lead_id: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          file_name: string
+          file_url: string
+          id?: string
+          lp_lead_id?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_url?: string
+          id?: string
+          lp_lead_id?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lp_documents_lp_lead_id_fkey"
+            columns: ["lp_lead_id"]
+            isOneToOne: false
+            referencedRelation: "lp_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lp_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lp_leads: {
+        Row: {
+          confirmed_commitment: number | null
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string | null
+          estimated_commitment: number | null
+          id: string
+          location: string | null
+          name: string
+          next_followup_date: string | null
+          notes: string | null
+          referred_by: string | null
+          relationship_owner: string | null
+          status: Database["public"]["Enums"]["lp_status"]
+          type: Database["public"]["Enums"]["lp_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          confirmed_commitment?: number | null
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          estimated_commitment?: number | null
+          id?: string
+          location?: string | null
+          name: string
+          next_followup_date?: string | null
+          notes?: string | null
+          referred_by?: string | null
+          relationship_owner?: string | null
+          status?: Database["public"]["Enums"]["lp_status"]
+          type: Database["public"]["Enums"]["lp_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          confirmed_commitment?: number | null
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          estimated_commitment?: number | null
+          id?: string
+          location?: string | null
+          name?: string
+          next_followup_date?: string | null
+          notes?: string | null
+          referred_by?: string | null
+          relationship_owner?: string | null
+          status?: Database["public"]["Enums"]["lp_status"]
+          type?: Database["public"]["Enums"]["lp_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lp_leads_relationship_owner_fkey"
+            columns: ["relationship_owner"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_participants: {
         Row: {
           id: string
@@ -596,6 +700,8 @@ export type Database = {
     Enums: {
       deal_stage: "Discovery" | "DD" | "IC" | "Funded" | "Rejected"
       due_diligence_status: "Pending" | "In Progress" | "Complete"
+      lp_status: "Contacted" | "Interested" | "In DD" | "Committed" | "Declined"
+      lp_type: "Individual" | "Family Office" | "Institutional"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -713,6 +819,8 @@ export const Constants = {
     Enums: {
       deal_stage: ["Discovery", "DD", "IC", "Funded", "Rejected"],
       due_diligence_status: ["Pending", "In Progress", "Complete"],
+      lp_status: ["Contacted", "Interested", "In DD", "Committed", "Declined"],
+      lp_type: ["Individual", "Family Office", "Institutional"],
     },
   },
 } as const

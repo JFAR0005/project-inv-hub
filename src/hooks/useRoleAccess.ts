@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/context/AuthContext';
 
@@ -18,6 +17,7 @@ const ROUTE_ACCESS_RULES: RouteAccess[] = [
   { path: '/deals', allowedRoles: ['admin', 'partner'] }, // Admin and VP only
   { path: '/dealflow', allowedRoles: ['admin', 'partner'] }, // Admin and VP only
   { path: '/meetings', allowedRoles: ['admin', 'partner', 'founder'] },
+  { path: '/fundraising', allowedRoles: ['admin'] }, // Admin only for now
 ];
 
 export const useRoleAccess = () => {

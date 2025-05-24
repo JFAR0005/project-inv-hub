@@ -1,10 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, cleanupAuthState } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 // Define user roles as per specification
-export type UserRole = 'admin' | 'partner' | 'founder' | 'lp';
+export type UserRole = 'admin' | 'partner' | 'founder' | 'lp' | 'capital_team';
 
 // Extend user interface to include company_id for founders
 interface User {
@@ -117,6 +116,20 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view:portfolio',
     'view:portfolio:limited',
     'view:notes:shared',
+  ],
+  capital_team: [
+    'view:all',
+    'edit:all',
+    'delete:all',
+    'create:notes',
+    'edit:notes',
+    'delete:notes',
+    'view:sensitive',
+    'manage:users',
+    'vote:investments',
+    'book:meetings',
+    'view:team',
+    'view:portfolio',
   ],
 };
 

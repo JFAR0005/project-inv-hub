@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -29,6 +28,8 @@ import NotFound from './pages/NotFound';
 import Search from './pages/Search';
 import AdvancedSearch from './pages/AdvancedSearch';
 import Team from './pages/Team';
+import Fundraising from './pages/Fundraising';
+import LPLeadDetail from './pages/LPLeadDetail';
 
 const queryClient = new QueryClient();
 
@@ -133,6 +134,14 @@ const router = createBrowserRouter([
   {
     path: "/team",
     element: <Layout><Team /></Layout>,
+  },
+  {
+    path: "/fundraising",
+    element: <Layout><Fundraising /></Layout>,
+  },
+  {
+    path: "/fundraising/leads/:id",
+    element: <Layout><LPLeadDetail /></Layout>,
   },
   {
     path: "*",

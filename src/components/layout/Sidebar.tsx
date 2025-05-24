@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -46,6 +45,12 @@ const Sidebar = () => {
       label: 'Dealflow', 
       icon: Building2,
       description: 'Manage deal flow'
+    },
+    { 
+      path: '/fundraising', 
+      label: 'Fundraising', 
+      icon: TrendingUp,
+      description: 'LP tracker & fundraising dashboard'
     },
   ];
 
