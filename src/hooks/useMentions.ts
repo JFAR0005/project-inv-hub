@@ -105,8 +105,9 @@ export const useMentions = () => {
 
           return {
             ...mention,
+            context_type: mention.context_type as 'comment' | 'note' | 'update',
             mentioning_user: userData || undefined
-          };
+          } as MentionNotification;
         })
       );
 
