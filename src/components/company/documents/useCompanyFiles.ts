@@ -48,7 +48,7 @@ export const useCompanyFiles = (companyId: string) => {
           if (!metaError && metaData?.uploader && metaData.uploader !== null) {
             // Additional safety check to ensure uploader is not null
             const uploader = metaData.uploader;
-            if (uploader !== null && typeof uploader === 'object' && 'name' in uploader) {
+            if (typeof uploader === 'object' && uploader !== null && 'name' in uploader) {
               const name = (uploader as { name: unknown }).name;
               if (typeof name === 'string' && name.trim()) {
                 uploaderName = name.trim();
