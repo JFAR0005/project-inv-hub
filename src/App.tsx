@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SearchProvider } from './context/SearchContext';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
+import RouteGuard from '@/components/layout/RouteGuard';
 
 // Import pages
 import Index from './pages/Index';
@@ -61,11 +63,17 @@ function App() {
   );
 }
 
-// Define routes - wrap most routes with Layout
+// Define routes with proper role-based protection
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout><Index /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard>
+          <Index />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/login",
@@ -73,75 +81,183 @@ const router = createBrowserRouter([
   },
   {
     path: "/portfolio",
-    element: <Layout><Portfolio /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <Portfolio />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/enhanced-portfolio",
-    element: <Layout><EnhancedPortfolio /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <EnhancedPortfolio />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/portfolio-search",
-    element: <Layout><PortfolioSearch /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+          <PortfolioSearch />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/search",
-    element: <Layout><Search /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'founder', 'capital_team']}>
+          <Search />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/advanced-search",
-    element: <Layout><AdvancedSearch /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+          <AdvancedSearch />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/company/:id",
-    element: <Layout><CompanyDetails /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'founder', 'capital_team']} requiresOwnership={true}>
+          <CompanyDetails />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/company-profile/:id",
-    element: <Layout><CompanyProfile /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'founder', 'capital_team']} requiresOwnership={true}>
+          <CompanyProfile />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/notes",
-    element: <Layout><Notes /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'founder', 'capital_team']}>
+          <Notes />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/meetings",
-    element: <Layout><Meetings /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'founder', 'capital_team']}>
+          <Meetings />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/deals",
-    element: <Layout><Deals /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+          <Deals />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/dealflow",
-    element: <Layout><Dealflow /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+          <Dealflow />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/analytics",
-    element: <Layout><Analytics /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+          <Analytics />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/submit-update",
-    element: <Layout><SubmitUpdate /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['founder']} requiresOwnership={true}>
+          <SubmitUpdate />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/integrations",
-    element: <Layout><Integrations /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <Integrations />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/integration-hub",
-    element: <Layout><IntegrationHub /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <IntegrationHub />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/team",
-    element: <Layout><Team /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <Team />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/fundraising",
-    element: <Layout><Fundraising /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <Fundraising />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "/fundraising/leads/:id",
-    element: <Layout><LPLeadDetail /></Layout>,
+    element: (
+      <Layout>
+        <RouteGuard allowedRoles={['admin', 'capital_team']}>
+          <LPLeadDetail />
+        </RouteGuard>
+      </Layout>
+    ),
   },
   {
     path: "*",
