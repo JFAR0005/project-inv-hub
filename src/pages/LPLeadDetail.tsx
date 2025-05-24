@@ -3,7 +3,6 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import LPLeadDetailView from '@/components/fundraising/LPLeadDetailView';
 
 const LPLeadDetail = () => {
@@ -32,30 +31,24 @@ const LPLeadDetail = () => {
 
   if (isLoading) {
     return (
-      <EnhancedProtectedRoute allowedRoles={['admin', 'capital_team']}>
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading LP lead details...</div>
-        </div>
-      </EnhancedProtectedRoute>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Loading LP lead details...</div>
+      </div>
     );
   }
 
   if (!lpLead) {
     return (
-      <EnhancedProtectedRoute allowedRoles={['admin', 'capital_team']}>
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">LP lead not found</div>
-        </div>
-      </EnhancedProtectedRoute>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">LP lead not found</div>
+      </div>
     );
   }
 
   return (
-    <EnhancedProtectedRoute allowedRoles={['admin', 'capital_team']}>
-      <div className="container mx-auto px-4 py-8">
-        <LPLeadDetailView lpLead={lpLead} onRefetch={refetch} />
-      </div>
-    </EnhancedProtectedRoute>
+    <div className="container mx-auto px-4 py-8">
+      <LPLeadDetailView lpLead={lpLead} onRefetch={refetch} />
+    </div>
   );
 };
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useForm } from 'react-hook-form';
@@ -26,7 +25,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, ArrowRight, CheckCircle2, CircleDollarSign, Loader2 } from 'lucide-react';
 import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
 
 // Create schema for form validation
 const updateFormSchema = z.object({
@@ -228,205 +226,203 @@ export default function SubmitUpdate() {
   }
 
   return (
-    <EnhancedProtectedRoute allowedRoles={['founder']}>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Submit Company Update</CardTitle>
-            <CardDescription>
-              Provide the latest metrics and information about your company.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {errorMessage && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{errorMessage}</AlertDescription>
-              </Alert>
-            )}
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="arr"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Annual Recurring Revenue (ARR)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="mrr"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Recurring Revenue (MRR)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="burn_rate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Burn Rate</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="runway"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Runway (months)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="headcount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Headcount</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="churn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Churn Rate (%)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Submit Company Update</CardTitle>
+          <CardDescription>
+            Provide the latest metrics and information about your company.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {errorMessage && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="arr"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Annual Recurring Revenue (ARR)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="raise_status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Fundraising Status</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Not raising, Actively raising, Planning to raise" {...field} />
-                        </FormControl>
-                        <FormDescription>Indicate your current fundraising status</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="raise_target_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Target Raise Amount</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., 1000000" type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="deck_url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pitch Deck URL</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="requested_intros"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Requested Introductions</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="List any specific introductions you would like from us"
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="comments"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Additional Comments</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Any other updates or comments about your company"
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="mrr"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Recurring Revenue (MRR)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
-                <CardFooter className="flex justify-between px-0">
-                  <Button variant="outline" onClick={() => navigate(-1)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting...' : 'Submit Update'}
-                  </Button>
-                </CardFooter>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-    </EnhancedProtectedRoute>
+                <FormField
+                  control={form.control}
+                  name="burn_rate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Burn Rate</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="runway"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Runway (months)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="headcount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Headcount</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="churn"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Churn Rate (%)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="raise_status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fundraising Status</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Not raising, Actively raising, Planning to raise" {...field} />
+                      </FormControl>
+                      <FormDescription>Indicate your current fundraising status</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="raise_target_amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Target Raise Amount</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 1000000" type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="deck_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pitch Deck URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="requested_intros"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Requested Introductions</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="List any specific introductions you would like from us"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="comments"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Additional Comments</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Any other updates or comments about your company"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <CardFooter className="flex justify-between px-0">
+                <Button variant="outline" onClick={() => navigate(-1)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Submitting...' : 'Submit Update'}
+                </Button>
+              </CardFooter>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import PortfolioSkeleton from '@/components/portfolio/PortfolioSkeleton';
 import PortfolioError from '@/components/portfolio/PortfolioError';
 import PortfolioEmpty from '@/components/portfolio/PortfolioEmpty';
@@ -140,42 +138,6 @@ const PortfolioSearch: React.FC = () => {
 
   if (isLoading) {
     return (
-      <ProtectedRoute requiredRoles={['admin']}>
-        <div className="container mx-auto py-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">Portfolio Search</h1>
-              <p className="text-muted-foreground mt-1">
-                Advanced search and filtering for your portfolio
-              </p>
-            </div>
-          </div>
-          <PortfolioSkeleton viewMode="grid" />
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  if (error) {
-    return (
-      <ProtectedRoute requiredRoles={['admin']}>
-        <div className="container mx-auto py-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">Portfolio Search</h1>
-              <p className="text-muted-foreground mt-1">
-                Advanced search and filtering for your portfolio
-              </p>
-            </div>
-          </div>
-          <PortfolioError error={error as Error} onRetry={refetch} />
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  return (
-    <ProtectedRoute requiredRoles={['admin']}>
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -184,76 +146,106 @@ const PortfolioSearch: React.FC = () => {
               Advanced search and filtering for your portfolio
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setViewMode(viewMode === 'grid' ? 'table' : 'grid')}>
-              {viewMode === 'grid' ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-              {viewMode === 'grid' ? ' Table View' : ' Grid View'}
-            </Button>
-          </div>
         </div>
-
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <SearchInput 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search companies..."
-                onClear={() => setSearchQuery('')}
-              />
-            </div>
-            <div className="flex gap-2">
-              <AdvancedSearchFilters onApplyFilters={(f) => setFilters(f)} />
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Found {filteredCompanies.length} companies
-            </div>
-          </div>
-        </div>
-
-        {companies.length === 0 ? (
-          <PortfolioEmpty />
-        ) : filteredCompanies.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Search className="h-12 w-12 mb-4 text-muted-foreground opacity-50" />
-            <h2 className="text-2xl font-bold mb-2">No results found</h2>
-            <p className="text-muted-foreground">
-              No companies match your search criteria. Try adjusting your filters.
-            </p>
-            <Button 
-              variant="link" 
-              onClick={() => {
-                setSearchQuery('');
-                setFilters({
-                  types: ['company', 'note', 'meeting', 'deal'], // Add the required types property
-                  query: '',
-                  sectors: [],
-                  stages: [],
-                  metrics: {},
-                  statuses: [],
-                  sortBy: 'name',
-                  sortDirection: 'asc',
-                });
-              }}
-            >
-              Clear all filters
-            </Button>
-          </div>
-        ) : (
-          <Tabs value={viewMode}>
-            <TabsContent value="grid" className="mt-0">
-              <PortfolioGrid companies={filteredCompanies} />
-            </TabsContent>
-            <TabsContent value="table" className="mt-0">
-              <PortfolioTable companies={filteredCompanies} />
-            </TabsContent>
-          </Tabs>
-        )}
+        <PortfolioSkeleton viewMode="grid" />
       </div>
-    </ProtectedRoute>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Portfolio Search</h1>
+            <p className="text-muted-foreground mt-1">
+              Advanced search and filtering for your portfolio
+            </p>
+          </div>
+        </div>
+        <PortfolioError error={error as Error} onRetry={refetch} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Portfolio Search</h1>
+          <p className="text-muted-foreground mt-1">
+            Advanced search and filtering for your portfolio
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setViewMode(viewMode === 'grid' ? 'table' : 'grid')}>
+            {viewMode === 'grid' ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            {viewMode === 'grid' ? ' Table View' : ' Grid View'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <SearchInput 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search companies..."
+              onClear={() => setSearchQuery('')}
+            />
+          </div>
+          <div className="flex gap-2">
+            <AdvancedSearchFilters onApplyFilters={(f) => setFilters(f)} />
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Found {filteredCompanies.length} companies
+          </div>
+        </div>
+      </div>
+
+      {companies.length === 0 ? (
+        <PortfolioEmpty />
+      ) : filteredCompanies.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Search className="h-12 w-12 mb-4 text-muted-foreground opacity-50" />
+          <h2 className="text-2xl font-bold mb-2">No results found</h2>
+          <p className="text-muted-foreground">
+            No companies match your search criteria. Try adjusting your filters.
+          </p>
+          <Button 
+            variant="link" 
+            onClick={() => {
+              setSearchQuery('');
+              setFilters({
+                types: ['company', 'note', 'meeting', 'deal'], // Add the required types property
+                query: '',
+                sectors: [],
+                stages: [],
+                metrics: {},
+                statuses: [],
+                sortBy: 'name',
+                sortDirection: 'asc',
+              });
+            }}
+          >
+            Clear all filters
+          </Button>
+        </div>
+      ) : (
+        <Tabs value={viewMode}>
+          <TabsContent value="grid" className="mt-0">
+            <PortfolioGrid companies={filteredCompanies} />
+          </TabsContent>
+          <TabsContent value="table" className="mt-0">
+            <PortfolioTable companies={filteredCompanies} />
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
   );
 };
 

@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/integrations/supabase/types';
-import RoleGuard from '@/components/layout/RoleGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -149,12 +147,10 @@ const CompanyProfile = () => {
 
   if (!canView || !company) {
     return (
-      <RoleGuard resourceOwnerId={id}>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-gray-800">Company not found</h2>
-          <p className="text-gray-600 mt-2">The company you're looking for doesn't exist or you don't have permission to view it.</p>
-        </div>
-      </RoleGuard>
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-800">Company not found</h2>
+        <p className="text-gray-600 mt-2">The company you're looking for doesn't exist or you don't have permission to view it.</p>
+      </div>
     );
   }
 
