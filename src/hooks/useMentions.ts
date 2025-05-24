@@ -89,15 +89,28 @@ export const useMentions = () => {
 
     const { data, error } = await supabase
       .from('mention_notifications')
-      .select(`
-        *,
-        mentioning_user:users!mention_notifications_mentioning_user_id_fkey(name, email)
-      `)
+      .select('*')
       .eq('mentioned_user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      setMentions(data);
+      // Fetch mentioning user data separately
+      const mentionsWithUsers = await Promise.all(
+        data.map(async (mention) => {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('name, email')
+            .eq('id', mention.mentioning_user_id)
+            .single();
+
+          return {
+            ...mention,
+            mentioning_user: userData || undefined
+          };
+        })
+      );
+
+      setMentions(mentionsWithUsers);
     }
   };
 

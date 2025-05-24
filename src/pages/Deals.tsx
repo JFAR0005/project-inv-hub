@@ -95,7 +95,8 @@ const Deals = () => {
       role: deal.lead_partner_data.role || '',
       team: deal.lead_partner_data.team || '',
       company_id: '',
-      created_at: ''
+      created_at: '',
+      last_seen_at: null // Add the missing property
     } : null
   });
 
