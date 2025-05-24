@@ -25,4 +25,4 @@ export interface AuthContextType {
 }
 
 // Re-export UserRole for convenience
-export { UserRole };
+export type { UserRole };
