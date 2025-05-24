@@ -1,17 +1,27 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RefreshCw, TrendingUp, Users, DollarSign, AlertCircle } from 'lucide-react';
+import { RefreshCw, TrendingUp, Users, DollarSign, AlertCircle, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import EnhancedLineChart from '@/components/charts/EnhancedLineChart';
 import EnhancedBarChart from '@/components/charts/EnhancedBarChart';
 
 interface CompanyMetricsProps {
   companyId: string;
+}
+
+interface MetricData {
+  id: string;
+  company_id: string;
+  metric_name: string;
+  value: number;
+  date: string;
 }
 
 interface FounderUpdate {
@@ -23,14 +33,6 @@ interface FounderUpdate {
   burn_rate: number | null;
   runway: number | null;
   submitted_at: string;
-}
-
-interface MetricData {
-  id: string;
-  company_id: string;
-  metric_name: string;
-  value: number;
-  date: string;
 }
 
 const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
@@ -52,7 +54,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
         startDate.setFullYear(endDate.getFullYear() - 1);
         break;
       case 'all':
-        startDate = new Date(0); // Beginning of time
+        startDate = new Date(0);
         break;
     }
     
@@ -61,7 +63,24 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   
   const { startDate } = getDateRange();
   
-  // Fetch founder updates
+  // Fetch metrics data from Supabase
+  const { data: metrics, isLoading: metricsLoading, error: metricsError, refetch: refetchMetrics } = useQuery({
+    queryKey: ['company-metrics', companyId, timeRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('metrics')
+        .select('*')
+        .eq('company_id', companyId)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .order('date', { ascending: true });
+      
+      if (error) throw error;
+      return data as MetricData[];
+    },
+    enabled: !!companyId,
+  });
+
+  // Fetch founder updates as backup data source
   const { data: updates, isLoading: updatesLoading, error: updatesError } = useQuery({
     queryKey: ['founder-updates-metrics', companyId, timeRange],
     queryFn: async () => {
@@ -77,51 +96,15 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
     },
     enabled: !!companyId,
   });
-
-  // Fetch metrics data
-  const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
-    queryKey: ['company-metrics', companyId, timeRange],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('metrics')
-        .select('*')
-        .eq('company_id', companyId)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .order('date', { ascending: true });
-      
-      if (error) throw error;
-      return data as MetricData[];
-    },
-    enabled: !!companyId,
-  });
   
-  const isLoading = updatesLoading || metricsLoading;
-  const error = updatesError || metricsError;
+  const isLoading = metricsLoading || updatesLoading;
+  const error = metricsError || updatesError;
   
-  // Combine and format data for charts
+  // Process and combine data for charts
   const getChartData = () => {
     const combinedData: Record<string, any> = {};
     
-    // Process founder updates
-    if (updates && updates.length > 0) {
-      updates.forEach(update => {
-        const dateKey = format(new Date(update.submitted_at), 'yyyy-MM');
-        if (!combinedData[dateKey]) {
-          combinedData[dateKey] = {
-            date: format(new Date(update.submitted_at), 'MMM yyyy'),
-            dateKey
-          };
-        }
-        
-        if (update.arr) combinedData[dateKey].arr = update.arr;
-        if (update.mrr) combinedData[dateKey].mrr = update.mrr;
-        if (update.headcount) combinedData[dateKey].headcount = update.headcount;
-        if (update.burn_rate) combinedData[dateKey].burnRate = update.burn_rate;
-        if (update.runway) combinedData[dateKey].runway = update.runway;
-      });
-    }
-    
-    // Process metrics data
+    // Process metrics data (primary source)
     if (metrics && metrics.length > 0) {
       metrics.forEach(metric => {
         const dateKey = format(new Date(metric.date), 'yyyy-MM');
@@ -133,39 +116,58 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
         }
         
         // Map metric names to chart keys
-        switch (metric.metric_name.toLowerCase()) {
-          case 'arr':
-            combinedData[dateKey].arr = metric.value;
-            break;
-          case 'mrr':
-            combinedData[dateKey].mrr = metric.value;
-            break;
-          case 'headcount':
-            combinedData[dateKey].headcount = metric.value;
-            break;
-          case 'burn_rate':
-            combinedData[dateKey].burnRate = metric.value;
-            break;
-          case 'runway':
-            combinedData[dateKey].runway = metric.value;
-            break;
+        const metricName = metric.metric_name.toLowerCase();
+        if (metricName === 'arr') {
+          combinedData[dateKey].arr = metric.value;
+        } else if (metricName === 'burn_rate' || metricName === 'burn') {
+          combinedData[dateKey].burnRate = metric.value;
+        } else if (metricName === 'headcount') {
+          combinedData[dateKey].headcount = metric.value;
+        } else if (metricName === 'mrr') {
+          combinedData[dateKey].mrr = metric.value;
         }
       });
     }
     
-    // Convert to array and calculate burn multiple
+    // Fill gaps with founder updates data
+    if (updates && updates.length > 0) {
+      updates.forEach(update => {
+        const dateKey = format(new Date(update.submitted_at), 'yyyy-MM');
+        if (!combinedData[dateKey]) {
+          combinedData[dateKey] = {
+            date: format(new Date(update.submitted_at), 'MMM yyyy'),
+            dateKey
+          };
+        }
+        
+        // Only use update data if metrics data doesn't exist
+        if (update.arr && !combinedData[dateKey].arr) {
+          combinedData[dateKey].arr = update.arr;
+        }
+        if (update.burn_rate && !combinedData[dateKey].burnRate) {
+          combinedData[dateKey].burnRate = update.burn_rate;
+        }
+        if (update.headcount && !combinedData[dateKey].headcount) {
+          combinedData[dateKey].headcount = update.headcount;
+        }
+        if (update.mrr && !combinedData[dateKey].mrr) {
+          combinedData[dateKey].mrr = update.mrr;
+        }
+      });
+    }
+    
     return Object.values(combinedData)
       .sort((a: any, b: any) => a.dateKey.localeCompare(b.dateKey))
       .map((item: any) => ({
         ...item,
         burnMultiple: item.arr && item.arr > 0 && item.burnRate ? 
-          ((item.burnRate) / (item.arr / 12)).toFixed(2) : 0
+          Number(((item.burnRate * 12) / item.arr).toFixed(2)) : 0
       }));
   };
   
   const chartData = getChartData();
   
-  // Calculate current metrics from latest data point
+  // Get latest metrics for summary cards
   const getLatestMetrics = () => {
     if (chartData.length === 0) return null;
     return chartData[chartData.length - 1];
@@ -173,16 +175,27 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   
   const latestMetrics = getLatestMetrics();
   
-  // Calculate burn multiple
+  // Calculate burn multiple with proper validation
   const calculateBurnMultiple = () => {
-    if (!latestMetrics || !latestMetrics.arr || latestMetrics.arr === 0) return 0;
-    
-    return ((latestMetrics.burnRate || 0) / (latestMetrics.arr / 12)).toFixed(2);
+    if (!latestMetrics || !latestMetrics.arr || latestMetrics.arr === 0 || !latestMetrics.burnRate) {
+      return 0;
+    }
+    return Number(((latestMetrics.burnRate * 12) / latestMetrics.arr).toFixed(2));
+  };
+
+  const getBurnMultipleBadge = (burnMultiple: number) => {
+    if (burnMultiple === 0) return null;
+    if (burnMultiple < 1) {
+      return <Badge className="bg-green-500 text-white">Efficient</Badge>;
+    } else if (burnMultiple < 2) {
+      return <Badge className="bg-yellow-500 text-white">Good</Badge>;
+    } else {
+      return <Badge variant="destructive">Concerning</Badge>;
+    }
   };
   
   const refetch = () => {
-    // This will trigger both queries to refetch
-    window.location.reload();
+    refetchMetrics();
   };
   
   if (isLoading) {
@@ -210,28 +223,30 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   if (chartData.length === 0) {
     return (
       <Card>
-        <CardContent className="py-6 text-center">
+        <CardContent className="py-8 text-center">
           <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No Metrics Available</h3>
           <p className="text-muted-foreground">
-            There are no metrics recorded for this company yet.
+            There are no metrics recorded for this company yet. Metrics will appear once data is added to the system.
           </p>
         </CardContent>
       </Card>
     );
   }
   
+  const burnMultiple = calculateBurnMultiple();
+  
   return (
     <div className="space-y-6">
-      {/* Key Metrics Cards */}
+      {/* Key Metrics Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
               <DollarSign className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">ARR</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-muted-foreground">ARR</p>
+                <p className="text-2xl font-bold">
                   ${latestMetrics?.arr?.toLocaleString() || '0'}
                 </p>
               </div>
@@ -244,8 +259,8 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             <div className="flex items-center">
               <DollarSign className="h-8 w-8 text-red-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Monthly Burn</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-muted-foreground">Monthly Burn</p>
+                <p className="text-2xl font-bold">
                   ${latestMetrics?.burnRate?.toLocaleString() || '0'}
                 </p>
               </div>
@@ -258,8 +273,8 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
             <div className="flex items-center">
               <Users className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Headcount</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-muted-foreground">Headcount</p>
+                <p className="text-2xl font-bold">
                   {latestMetrics?.headcount || '0'}
                 </p>
               </div>
@@ -269,14 +284,17 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
         
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center">
-              <TrendingUp className="h-8 w-8 text-orange-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Burn Multiple</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {calculateBurnMultiple()}x
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Calculator className="h-8 w-8 text-orange-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Burn Multiple</p>
+                  <p className="text-2xl font-bold">
+                    {burnMultiple}x
+                  </p>
+                </div>
               </div>
+              {getBurnMultipleBadge(burnMultiple)}
             </div>
           </CardContent>
         </Card>
@@ -317,16 +335,16 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
         </div>
       </div>
       
-      {/* Charts */}
-      <Tabs defaultValue="revenue" className="space-y-4">
+      {/* Charts Tabs */}
+      <Tabs defaultValue="arr" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="burn">Burn & Runway</TabsTrigger>
+          <TabsTrigger value="arr">ARR</TabsTrigger>
+          <TabsTrigger value="burn">Burn Rate</TabsTrigger>
           <TabsTrigger value="headcount">Headcount</TabsTrigger>
-          <TabsTrigger value="efficiency">Efficiency</TabsTrigger>
+          <TabsTrigger value="efficiency">Burn Multiple</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="revenue" className="space-y-4">
+        <TabsContent value="arr" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Annual Recurring Revenue</CardTitle>
@@ -376,30 +394,6 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
               />
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Runway (Months)</CardTitle>
-              <CardDescription>Cash runway over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EnhancedLineChart
-                data={chartData}
-                lines={[
-                  {
-                    dataKey: 'runway',
-                    color: '#8b5cf6',
-                    label: 'Runway',
-                  }
-                ]}
-                xAxisKey="date"
-                height={300}
-                formatValue={(value) => `${value} months`}
-                showGrid={true}
-                showLegend={false}
-              />
-            </CardContent>
-          </Card>
         </TabsContent>
         
         <TabsContent value="headcount" className="space-y-4">
@@ -432,7 +426,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           <Card>
             <CardHeader>
               <CardTitle>Burn Multiple</CardTitle>
-              <CardDescription>Burn rate divided by net new ARR (monthly)</CardDescription>
+              <CardDescription>Annual burn rate divided by ARR - lower is better</CardDescription>
             </CardHeader>
             <CardContent>
               <EnhancedBarChart
