@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BarChart3 } from 'lucide-react';
 import PortfolioAnalytics from '@/components/portfolio/PortfolioAnalytics';
+import PortfolioMetricsDashboard from '@/components/analytics/PortfolioMetricsDashboard';
 
 const Analytics = () => {
   return (
@@ -22,6 +22,14 @@ const Analytics = () => {
           </Button>
         </Link>
       </div>
+      
+      {/* Portfolio Metrics Dashboard */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Portfolio Metrics Overview</h2>
+        <PortfolioMetricsDashboard />
+      </div>
+      
+      {/* Existing Portfolio Analytics */}
       <PortfolioAnalytics />
     </div>
   );
