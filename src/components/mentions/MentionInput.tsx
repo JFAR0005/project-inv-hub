@@ -1,97 +1,94 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { useMentions } from '@/hooks/useMentions';
-import { User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MentionInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
-  onMentionCreate?: (mentionedUserIds: string[]) => void;
 }
 
 const MentionInput: React.FC<MentionInputProps> = ({
   value,
   onChange,
   placeholder,
-  className,
-  onMentionCreate
+  className
 }) => {
   const { teamMembers } = useMentions();
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState<typeof teamMembers>([]);
+  const [filteredMembers, setFilteredMembers] = useState(teamMembers);
   const [mentionQuery, setMentionQuery] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleInputChange = (newValue: string) => {
+  // Handle input changes and detect @mentions
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    const cursorPos = e.target.selectionStart || 0;
+    
     onChange(newValue);
-    
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    const cursorPos = textarea.selectionStart;
     setCursorPosition(cursorPos);
-    
-    // Check if we're typing an @mention
+
+    // Check if we're typing after an @ symbol
     const textBeforeCursor = newValue.substring(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
     
     if (mentionMatch) {
       const query = mentionMatch[1];
       setMentionQuery(query);
+      setShowSuggestions(true);
       
-      const filteredSuggestions = teamMembers.filter(member =>
+      // Filter team members based on query
+      const filtered = teamMembers.filter(member =>
         member.name.toLowerCase().includes(query.toLowerCase()) ||
         member.email.toLowerCase().includes(query.toLowerCase())
       );
-      
-      setSuggestions(filteredSuggestions);
-      setShowSuggestions(filteredSuggestions.length > 0);
+      setFilteredMembers(filtered);
     } else {
       setShowSuggestions(false);
+      setMentionQuery('');
     }
   };
 
-  const insertMention = (member: typeof teamMembers[0]) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
+  // Handle mention selection
+  const selectMention = (member: typeof teamMembers[0]) => {
+    if (!textareaRef.current) return;
+
     const textBeforeCursor = value.substring(0, cursorPosition);
     const textAfterCursor = value.substring(cursorPosition);
     
-    // Remove the partial @mention and replace with full mention
-    const mentionStart = textBeforeCursor.lastIndexOf('@');
-    const newTextBefore = textBeforeCursor.substring(0, mentionStart);
-    const mention = `@${member.name}`;
-    const newValue = newTextBefore + mention + ' ' + textAfterCursor;
+    // Find the @ symbol position
+    const mentionStartIndex = textBeforeCursor.lastIndexOf('@');
     
-    onChange(newValue);
+    // Replace the @query with @membername
+    const newText = 
+      value.substring(0, mentionStartIndex) + 
+      `@${member.name} ` + 
+      textAfterCursor;
+    
+    onChange(newText);
     setShowSuggestions(false);
-    
-    // Notify about the mention
-    if (onMentionCreate) {
-      onMentionCreate([member.id]);
-    }
     
     // Set cursor position after the mention
     setTimeout(() => {
-      const newCursorPos = newTextBefore.length + mention.length + 1;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-      textarea.focus();
+      if (textareaRef.current) {
+        const newCursorPos = mentionStartIndex + member.name.length + 2;
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        textareaRef.current.focus();
+      }
     }, 0);
   };
 
+  // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+    if (!showSuggestions || filteredMembers.length === 0) return;
+
+    if (e.key === 'Escape') {
+      setShowSuggestions(false);
       e.preventDefault();
-      // For simplicity, just select the first suggestion on Enter
-      if (e.key === 'Enter' && suggestions.length > 0) {
-        insertMention(suggestions[0]);
-      }
     }
   };
 
@@ -100,28 +97,31 @@ const MentionInput: React.FC<MentionInputProps> = ({
       <Textarea
         ref={textareaRef}
         value={value}
-        onChange={(e) => handleInputChange(e.target.value)}
+        onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className={className}
+        className={cn("resize-none", className)}
       />
       
-      {showSuggestions && (
-        <Card className="absolute z-10 mt-1 max-h-48 overflow-y-auto bg-white border shadow-lg">
-          {suggestions.map((member) => (
+      {/* Mentions suggestions dropdown */}
+      {showSuggestions && filteredMembers.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {filteredMembers.map((member) => (
             <div
               key={member.id}
-              className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => insertMention(member)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+              onClick={() => selectMention(member)}
             >
-              <User className="h-4 w-4" />
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium">
+                {member.name.charAt(0).toUpperCase()}
+              </div>
               <div>
-                <div className="font-medium">{member.name}</div>
+                <div className="font-medium text-sm">{member.name}</div>
                 <div className="text-xs text-gray-500">{member.email}</div>
               </div>
             </div>
           ))}
-        </Card>
+        </div>
       )}
     </div>
   );
