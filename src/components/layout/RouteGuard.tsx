@@ -4,7 +4,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useAuth } from '@/context/AuthContext';
 import AccessDenied from './AccessDenied';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 
 interface RouteGuardProps {
   children: React.ReactNode;
