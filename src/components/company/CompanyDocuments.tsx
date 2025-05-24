@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -79,13 +80,13 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           
           let uploaderName = 'Unknown';
           
-          // Check metadata and uploader data with proper null handling
-          if (!metaError && metaData && metaData.uploader !== null) {
+          // Check metadata and extract uploader name with proper null checking
+          if (!metaError && metaData && metaData.uploader) {
+            // Safely assign uploaderData, now TypeScript knows it's not null at this point
             const uploaderData = metaData.uploader;
             
-            // Add explicit null check and type guard for uploaderData
-            if (uploaderData !== null && typeof uploaderData === 'object' && 'name' in uploaderData) {
-              const nameValue = (uploaderData as { name: unknown }).name;
+            if (typeof uploaderData === 'object' && uploaderData && 'name' in uploaderData) {
+              const nameValue = uploaderData.name;
               if (typeof nameValue === 'string' && nameValue.trim()) {
                 uploaderName = nameValue.trim();
               }
