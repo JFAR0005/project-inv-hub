@@ -17,15 +17,17 @@ const SubmitUpdate = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updateData, setUpdateData] = useState({
-    title: '',
-    content: '',
-    type: '',
-    metrics: {
-      revenue: '',
-      burn_rate: '',
-      runway: '',
-      team_size: ''
-    }
+    arr: '',
+    mrr: '',
+    burn_rate: '',
+    runway: '',
+    headcount: '',
+    churn: '',
+    raise_status: '',
+    raise_target_amount: '',
+    deck_url: '',
+    requested_intros: '',
+    comments: ''
   });
 
   const { data: company } = useQuery({
@@ -52,14 +54,21 @@ const SubmitUpdate = () => {
     setIsSubmitting(true);
     try {
       const { error } = await supabase
-        .from('company_updates')
+        .from('founder_updates')
         .insert({
           company_id: user.companyId,
-          title: updateData.title,
-          content: updateData.content,
-          type: updateData.type,
-          metrics: updateData.metrics,
-          submitted_by: user.id
+          submitted_by: user.id,
+          arr: updateData.arr ? parseFloat(updateData.arr) : null,
+          mrr: updateData.mrr ? parseFloat(updateData.mrr) : null,
+          burn_rate: updateData.burn_rate ? parseFloat(updateData.burn_rate) : null,
+          runway: updateData.runway ? parseFloat(updateData.runway) : null,
+          headcount: updateData.headcount ? parseInt(updateData.headcount) : null,
+          churn: updateData.churn ? parseFloat(updateData.churn) : null,
+          raise_status: updateData.raise_status || null,
+          raise_target_amount: updateData.raise_target_amount ? parseFloat(updateData.raise_target_amount) : null,
+          deck_url: updateData.deck_url || null,
+          requested_intros: updateData.requested_intros || null,
+          comments: updateData.comments || null
         });
 
       if (error) throw error;
@@ -71,15 +80,17 @@ const SubmitUpdate = () => {
 
       // Reset form
       setUpdateData({
-        title: '',
-        content: '',
-        type: '',
-        metrics: {
-          revenue: '',
-          burn_rate: '',
-          runway: '',
-          team_size: ''
-        }
+        arr: '',
+        mrr: '',
+        burn_rate: '',
+        runway: '',
+        headcount: '',
+        churn: '',
+        raise_status: '',
+        raise_target_amount: '',
+        deck_url: '',
+        requested_intros: '',
+        comments: ''
       });
     } catch (error) {
       console.error('Error submitting update:', error);
@@ -120,75 +131,57 @@ const SubmitUpdate = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="title">Update Title</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Q4 2024 Progress Update"
-                value={updateData.title}
-                onChange={(e) => setUpdateData(prev => ({ ...prev, title: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="type">Update Type</Label>
+              <Label htmlFor="raise_status">Fundraising Status</Label>
               <Select
-                value={updateData.type}
-                onValueChange={(value) => setUpdateData(prev => ({ ...prev, type: value }))}
-                required
+                value={updateData.raise_status}
+                onValueChange={(value) => setUpdateData(prev => ({ ...prev, raise_status: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select update type" />
+                  <SelectValue placeholder="Select fundraising status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="monthly">Monthly Update</SelectItem>
-                  <SelectItem value="quarterly">Quarterly Update</SelectItem>
-                  <SelectItem value="milestone">Milestone Update</SelectItem>
-                  <SelectItem value="fundraising">Fundraising Update</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="Not raising">Not raising</SelectItem>
+                  <SelectItem value="Planning to raise">Planning to raise</SelectItem>
+                  <SelectItem value="Actively raising">Actively raising</SelectItem>
+                  <SelectItem value="Closed round">Closed round</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="content">Update Content</Label>
-              <Textarea
-                id="content"
-                placeholder="Share your progress, achievements, challenges, and upcoming plans..."
-                value={updateData.content}
-                onChange={(e) => setUpdateData(prev => ({ ...prev, content: e.target.value }))}
-                rows={8}
-                required
-              />
-            </div>
-
             <div className="space-y-4">
-              <Label className="text-base font-medium">Key Metrics (Optional)</Label>
+              <Label className="text-base font-medium">Key Metrics</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="revenue">Monthly Revenue</Label>
+                  <Label htmlFor="arr">ARR ($)</Label>
                   <Input
-                    id="revenue"
+                    id="arr"
                     type="number"
-                    placeholder="0"
-                    value={updateData.metrics.revenue}
-                    onChange={(e) => setUpdateData(prev => ({
-                      ...prev,
-                      metrics: { ...prev.metrics, revenue: e.target.value }
-                    }))}
+                    step="0.01"
+                    placeholder="Annual Recurring Revenue"
+                    value={updateData.arr}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, arr: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="burn_rate">Monthly Burn Rate</Label>
+                  <Label htmlFor="mrr">MRR ($)</Label>
+                  <Input
+                    id="mrr"
+                    type="number"
+                    step="0.01"
+                    placeholder="Monthly Recurring Revenue"
+                    value={updateData.mrr}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, mrr: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="burn_rate">Burn Rate ($)</Label>
                   <Input
                     id="burn_rate"
                     type="number"
-                    placeholder="0"
-                    value={updateData.metrics.burn_rate}
-                    onChange={(e) => setUpdateData(prev => ({
-                      ...prev,
-                      metrics: { ...prev.metrics, burn_rate: e.target.value }
-                    }))}
+                    step="0.01"
+                    placeholder="Monthly burn rate"
+                    value={updateData.burn_rate}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, burn_rate: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
@@ -196,28 +189,81 @@ const SubmitUpdate = () => {
                   <Input
                     id="runway"
                     type="number"
-                    placeholder="0"
-                    value={updateData.metrics.runway}
-                    onChange={(e) => setUpdateData(prev => ({
-                      ...prev,
-                      metrics: { ...prev.metrics, runway: e.target.value }
-                    }))}
+                    placeholder="Months of runway remaining"
+                    value={updateData.runway}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, runway: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="team_size">Team Size</Label>
+                  <Label htmlFor="headcount">Headcount</Label>
                   <Input
-                    id="team_size"
+                    id="headcount"
                     type="number"
-                    placeholder="0"
-                    value={updateData.metrics.team_size}
-                    onChange={(e) => setUpdateData(prev => ({
-                      ...prev,
-                      metrics: { ...prev.metrics, team_size: e.target.value }
-                    }))}
+                    placeholder="Total employees"
+                    value={updateData.headcount}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, headcount: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="churn">Churn Rate (%)</Label>
+                  <Input
+                    id="churn"
+                    type="number"
+                    step="0.01"
+                    placeholder="Monthly churn rate"
+                    value={updateData.churn}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, churn: e.target.value }))}
                   />
                 </div>
               </div>
+            </div>
+
+            {updateData.raise_status && ['Planning to raise', 'Actively raising'].includes(updateData.raise_status) && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="raise_target_amount">Target Raise Amount ($)</Label>
+                  <Input
+                    id="raise_target_amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="Target fundraising amount"
+                    value={updateData.raise_target_amount}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, raise_target_amount: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="deck_url">Pitch Deck URL</Label>
+                  <Input
+                    id="deck_url"
+                    type="url"
+                    placeholder="https://..."
+                    value={updateData.deck_url}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, deck_url: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="requested_intros">Requested Introductions</Label>
+              <Textarea
+                id="requested_intros"
+                placeholder="Any specific introductions you'd like us to make..."
+                value={updateData.requested_intros}
+                onChange={(e) => setUpdateData(prev => ({ ...prev, requested_intros: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="comments">Additional Comments</Label>
+              <Textarea
+                id="comments"
+                placeholder="Any additional updates, challenges, or wins to share..."
+                value={updateData.comments}
+                onChange={(e) => setUpdateData(prev => ({ ...prev, comments: e.target.value }))}
+                rows={8}
+              />
             </div>
 
             <Button
