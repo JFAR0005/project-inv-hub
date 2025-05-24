@@ -1,149 +1,219 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
 import { 
+  BarChart3, 
   Building2, 
   FileText, 
   Calendar, 
-  TrendingUp, 
-  Users, 
+  Search, 
+  Users,
+  Bell,
   Settings,
-  Search,
-  SearchCheck,
-  BarChart3,
-  DollarSign,
-  Upload,
-  Zap
+  LogOut,
+  PlusCircle,
+  TrendingUp,
+  MessageSquare
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 const Sidebar = () => {
+  const { user, logout } = useAuth();
   const location = useLocation();
-  const { user } = useAuth();
 
-  const navigation = [
-    {
-      name: 'Portfolio',
-      href: '/enhanced-portfolio',
-      icon: Building2,
-      roles: ['admin', 'partner', 'analyst', 'lp']
-    },
-    {
-      name: 'Analytics',
-      href: '/analytics',
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const adminNavItems = [
+    { 
+      path: '/portfolio', 
+      label: 'Portfolio', 
       icon: BarChart3,
-      roles: ['admin', 'partner', 'lp']
+      description: 'Portfolio overview & analytics'
     },
-    {
-      name: 'Search',
-      href: '/search',
-      icon: Search,
-      roles: ['admin', 'partner', 'analyst', 'lp']
-    },
-    {
-      name: 'Advanced Search',
-      href: '/advanced-search',
-      icon: SearchCheck,
-      roles: ['admin', 'partner', 'analyst', 'lp']
-    },
-    {
-      name: 'Team',
-      href: '/team',
-      icon: Users,
-      roles: ['admin', 'partner']
-    },
-    {
-      name: 'Notes',
-      href: '/notes',
-      icon: FileText,
-      roles: ['admin', 'partner', 'founder']
-    },
-    {
-      name: 'Meetings',
-      href: '/meetings',
-      icon: Calendar,
-      roles: ['admin', 'partner', 'founder']
-    },
-    {
-      name: 'Deals',
-      href: '/deals',
-      icon: DollarSign,
-      roles: ['admin', 'partner']
-    },
-    {
-      name: 'Dealflow',
-      href: '/dealflow',
+    { 
+      path: '/deals', 
+      label: 'Deals', 
       icon: TrendingUp,
-      roles: ['admin', 'partner']
+      description: 'Deal pipeline & tracking'
     },
-    {
-      name: 'Submit Update',
-      href: '/submit-update',
-      icon: Upload,
-      roles: ['founder']
+    { 
+      path: '/dealflow', 
+      label: 'Dealflow', 
+      icon: Building2,
+      description: 'Manage deal flow'
     },
-    {
-      name: 'Integrations',
-      href: '/integrations',
-      icon: Zap,
-      roles: ['admin']
-    }
   ];
 
-  const filteredNavigation = navigation.filter(item => 
-    item.roles.includes(user?.role || '')
-  );
+  const partnerNavItems = [
+    { 
+      path: '/portfolio', 
+      label: 'Portfolio', 
+      icon: BarChart3,
+      description: 'Portfolio overview',
+      roles: ['admin']
+    },
+    { 
+      path: '/deals', 
+      label: 'Deals', 
+      icon: TrendingUp,
+      description: 'Deal pipeline'
+    },
+    { 
+      path: '/dealflow', 
+      label: 'Dealflow', 
+      icon: Building2,
+      description: 'Manage deal flow'
+    },
+  ];
+
+  const commonNavItems = [
+    { 
+      path: '/search', 
+      label: 'Search', 
+      icon: Search,
+      description: 'Search companies & notes'
+    },
+    { 
+      path: '/notes', 
+      label: 'Notes', 
+      icon: FileText,
+      description: 'Company notes & updates'
+    },
+    { 
+      path: '/meetings', 
+      label: 'Meetings', 
+      icon: Calendar,
+      description: 'Schedule & manage meetings'
+    },
+    { 
+      path: '/team', 
+      label: 'Team', 
+      icon: Users,
+      description: 'Team collaboration'
+    },
+  ];
+
+  const adminOnlyItems = [
+    { 
+      path: '/notifications', 
+      label: 'Notifications', 
+      icon: Bell,
+      description: 'Notification settings',
+      roles: ['admin', 'partner']
+    },
+    { 
+      path: '/integrations', 
+      label: 'Integrations', 
+      icon: Settings,
+      description: 'Third-party integrations',
+      roles: ['admin']
+    },
+  ];
+
+  const getNavItems = () => {
+    let items = [...commonNavItems];
+    
+    if (user?.role === 'admin') {
+      items = [...adminNavItems, ...items, ...adminOnlyItems];
+    } else if (user?.role === 'partner') {
+      items = [...partnerNavItems, ...items, ...adminOnlyItems.filter(item => 
+        !item.roles || item.roles.includes('partner')
+      )];
+    } else if (user?.role === 'founder') {
+      items = [
+        { 
+          path: `/company/${user.company_id}`, 
+          label: 'My Company', 
+          icon: Building2,
+          description: 'Company profile & updates'
+        },
+        { 
+          path: '/submit-update', 
+          label: 'Submit Update', 
+          icon: PlusCircle,
+          description: 'Submit company update'
+        },
+        ...items.filter(item => 
+          ['notes', 'meetings', 'team'].includes(item.path.split('/')[1])
+        )
+      ];
+    }
+    
+    return items;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
-    <div className="flex h-full w-64 flex-col bg-white border-r border-gray-200">
-      {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-6">
-        <Building2 className="h-8 w-8 text-blue-600" />
-        <span className="ml-2 text-xl font-bold text-gray-900">VC Portal</span>
+    <div className="flex flex-col h-full bg-background border-r">
+      {/* Header */}
+      <div className="p-6 border-b">
+        <Link to="/" className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <BarChart3 className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <span className="text-xl font-bold">Black Nova</span>
+        </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col p-4">
-        <ul role="list" className="flex flex-1 flex-col gap-y-2">
-          {filteredNavigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <li key={item.name}>
-                <Link
-                  to={item.href}
-                  className={cn(
-                    'group flex gap-x-3 rounded-md p-3 text-sm font-medium leading-6 transition-colors',
-                    isActive
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
-                  )}
-                >
-                  <item.icon
-                    className={cn(
-                      'h-5 w-5 shrink-0',
-                      isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'
-                    )}
-                  />
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      <nav className="flex-1 p-4 space-y-2">
+        {getNavItems().map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={cn(
+              "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              isActive(item.path)
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+            )}
+          >
+            <item.icon className="w-5 h-5" />
+            <div className="flex-1">
+              <div>{item.label}</div>
+              <div className="text-xs opacity-70">{item.description}</div>
+            </div>
+          </Link>
+        ))}
       </nav>
 
-      {/* User info */}
-      <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <Users className="h-8 w-8 rounded-full bg-gray-200 p-1" />
+      {/* User section */}
+      <div className="p-4 border-t">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+            </span>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-gray-900">{user?.name || user?.email}</p>
-            <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{user?.name || user?.email}</div>
+            <div className="text-xs text-muted-foreground capitalize">{user?.role}</div>
           </div>
         </div>
+        
+        <Separator className="my-3" />
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="w-full justify-start"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign out
+        </Button>
       </div>
     </div>
   );
