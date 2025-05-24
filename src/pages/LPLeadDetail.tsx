@@ -32,7 +32,7 @@ const LPLeadDetail = () => {
 
   if (isLoading) {
     return (
-      <EnhancedProtectedRoute allowedRoles={['admin']}>
+      <EnhancedProtectedRoute allowedRoles={['admin', 'capital_team']}>
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">Loading LP lead details...</div>
         </div>
@@ -42,7 +42,7 @@ const LPLeadDetail = () => {
 
   if (!lpLead) {
     return (
-      <EnhancedProtectedRoute allowedRoles={['admin']}>
+      <EnhancedProtectedRoute allowedRoles={['admin', 'capital_team']}>
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">LP lead not found</div>
         </div>
@@ -51,7 +51,7 @@ const LPLeadDetail = () => {
   }
 
   return (
-    <EnhancedProtectedRoute allowedRoles={['admin']}>
+    <EnhancedProtectedRoute allowedRoles={['admin', 'capital_team']}>
       <div className="container mx-auto px-4 py-8">
         <LPLeadDetailView lpLead={lpLead} onRefetch={refetch} />
       </div>
