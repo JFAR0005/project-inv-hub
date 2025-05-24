@@ -82,8 +82,8 @@ const RoleViewSwitcher = () => {
                 <Label htmlFor="founder">Founder</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lp" id="lp" />
-                <Label htmlFor="lp">Limited Partner</Label>
+                <RadioGroupItem value="capital_team" id="capital_team" />
+                <Label htmlFor="capital_team">Capital Team</Label>
               </div>
             </RadioGroup>
             

@@ -21,6 +21,8 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   switchRole: (role: UserRole) => void;
   resetRole: () => void;
+  setTemporaryRole: (role: UserRole) => void;
+  clearTemporaryRole: () => void;
 }
 
 const ROLE_PERMISSIONS = {
@@ -113,18 +115,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user data:', error);
-        setUser({ ...authUser });
+        setUser({ 
+          ...authUser,
+          role: undefined,
+          name: undefined,
+          companyId: undefined
+        } as AuthUser);
       } else {
         setUser({
           ...authUser,
           role: userData.role as UserRole,
           name: userData.name,
           companyId: userData.company_id
-        });
+        } as AuthUser);
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
-      setUser({ ...authUser });
+      setUser({ 
+        ...authUser,
+        role: undefined,
+        name: undefined,
+        companyId: undefined
+      } as AuthUser);
     } finally {
       setIsLoading(false);
     }
@@ -175,6 +187,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOriginalRole(null);
   };
 
+  const setTemporaryRole = (role: UserRole) => {
+    switchRole(role);
+  };
+
+  const clearTemporaryRole = () => {
+    resetRole();
+  };
+
   const isAuthenticated = !!user;
 
   const value: AuthContextType = {
@@ -187,6 +207,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     hasPermission,
     switchRole,
     resetRole,
+    setTemporaryRole,
+    clearTemporaryRole,
   };
 
   return (
