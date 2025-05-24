@@ -47,8 +47,8 @@ export const useCompanyFiles = (companyId: string) => {
           // Check metadata and extract uploader name with comprehensive null checking
           if (!metaError && metaData?.uploader) {
             const uploader = metaData.uploader;
-            // Use explicit type checking and null safety
-            if (uploader && typeof uploader === 'object' && uploader !== null && 'name' in uploader) {
+            // Explicit null check first, then type check
+            if (uploader !== null && typeof uploader === 'object' && 'name' in uploader) {
               const uploaderObj = uploader as Record<string, unknown>;
               const name = uploaderObj.name;
               if (typeof name === 'string' && name.trim()) {
