@@ -83,8 +83,8 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           if (!metaError && metaData && metaData.uploader !== null) {
             const uploaderData = metaData.uploader;
             
-            // Now TypeScript knows uploaderData is not null
-            if (typeof uploaderData === 'object' && 'name' in uploaderData) {
+            // Add explicit null check and type guard for uploaderData
+            if (uploaderData !== null && typeof uploaderData === 'object' && 'name' in uploaderData) {
               const nameValue = (uploaderData as { name: unknown }).name;
               if (typeof nameValue === 'string' && nameValue.trim()) {
                 uploaderName = nameValue.trim();
