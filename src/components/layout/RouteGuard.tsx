@@ -42,11 +42,41 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
   // Use the standardized access control from useRoleAccess
   const hasAccess = canAccessRoute(location.pathname, resourceOwnerId);
 
-  if (!hasAccess) {
+  // Additional role-based checks if specific roles are required
+  if (allowedRoles.length > 0) {
+    const hasRequiredRole = allowedRoles.includes(user.role!);
+    if (!hasRequiredRole && !hasAccess) {
+      return (
+        <AccessDenied 
+          userRole={user.role}
+          requiredRoles={allowedRoles}
+          message={`Access denied. Required roles: ${allowedRoles.join(', ')}. Your role: ${user.role}.`}
+        />
+      );
+    }
+  }
+
+  // Check ownership requirements for founders
+  if (requiresOwnership && user.role === 'founder' && resourceOwnerId) {
+    const hasOwnership = user.companyId === resourceOwnerId;
+    if (!hasOwnership) {
+      return (
+        <AccessDenied 
+          userRole={user.role}
+          requiredRoles={allowedRoles}
+          message="You can only access resources that belong to your company."
+        />
+      );
+    }
+  }
+
+  // Final check using useRoleAccess logic
+  if (!hasAccess && allowedRoles.length > 0) {
     return (
       <AccessDenied 
         userRole={user.role}
         requiredRoles={allowedRoles}
+        message="You don't have permission to access this page."
       />
     );
   }
