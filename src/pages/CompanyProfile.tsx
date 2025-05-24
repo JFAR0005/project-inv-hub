@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CompanyOverview from '@/components/company/CompanyOverview';
 import CompanyMetrics from '@/components/company/CompanyMetrics';

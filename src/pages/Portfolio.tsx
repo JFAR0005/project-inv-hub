@@ -9,7 +9,7 @@ import PortfolioOverview from '@/components/portfolio/PortfolioOverview';
 import PortfolioList from '@/components/portfolio/PortfolioList';
 import PortfolioHealthDashboard from '@/components/portfolio/PortfolioHealthDashboard';
 import { BarChart3, Grid3X3, List, TrendingUp, Activity } from 'lucide-react';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 
 const Portfolio = () => {
   const [activeTab, setActiveTab] = useState('overview');

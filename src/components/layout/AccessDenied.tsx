@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Shield, AlertTriangle, Home, ArrowLeft } from 'lucide-react';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 
 interface AccessDeniedProps {
   userRole: UserRole | undefined;

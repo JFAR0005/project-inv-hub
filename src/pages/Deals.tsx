@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 import DealTracker from '@/components/deals/DealTracker';
 import DealForm from '@/components/deals/DealForm';
 import DDForm from '@/components/deals/DDForm';

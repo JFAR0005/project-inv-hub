@@ -1,6 +1,6 @@
 import React from 'react';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 
 const Meetings = () => {
   return (
