@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -80,7 +81,7 @@ const PortfolioAnalytics: React.FC = () => {
   const sectorColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
   useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'partner' || user.role === 'lp')) {
+    if (user && (user.role === 'admin' || user.role === 'partner' || user.role === 'capital_team')) {
       fetchPortfolioAnalytics();
     }
   }, [user]);
