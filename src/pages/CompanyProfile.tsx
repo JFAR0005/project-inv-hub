@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -33,22 +34,6 @@ const CompanyProfile = () => {
     },
     enabled: !!id,
   });
-  
-  // Determine if the user is allowed to access this company
-  const hasAccess = () => {
-    if (!user || !id) return false;
-    
-    // Admins can access all companies
-    if (user.role === 'admin') return true;
-    
-    // Partners can access assigned companies (simplified check)
-    if (user.role === 'partner') return true; // In reality, would check assignments
-    
-    // Founders can only access their own company
-    if (user.role === 'founder') return user.companyId === id;
-    
-    return false;
-  };
 
   return (
     <ProtectedRoute

@@ -11,12 +11,13 @@ interface RouteAccess {
 
 const ROUTE_ACCESS_RULES: RouteAccess[] = [
   { path: '/submit-update', allowedRoles: ['founder'], requiresOwnership: true },
-  { path: '/portfolio', allowedRoles: ['admin'] },
+  { path: '/portfolio', allowedRoles: ['admin'] }, // Only admin
   { path: '/companies', allowedRoles: ['admin', 'partner', 'founder'], requiresOwnership: true },
-  { path: '/notes', allowedRoles: ['admin', 'partner', 'founder'], requiresAssignment: true },
-  { path: '/deals', allowedRoles: ['admin', 'partner'], requiresAssignment: true },
-  { path: '/dealflow', allowedRoles: ['admin', 'partner'], requiresAssignment: true },
-  { path: '/meetings', allowedRoles: ['admin', 'partner', 'founder'] }, // Special handling for invitations
+  { path: '/company-profile', allowedRoles: ['admin', 'partner', 'founder'], requiresOwnership: true },
+  { path: '/notes', allowedRoles: ['admin', 'partner', 'founder'] },
+  { path: '/deals', allowedRoles: ['admin', 'partner'] }, // Admin and VP only
+  { path: '/dealflow', allowedRoles: ['admin', 'partner'] }, // Admin and VP only
+  { path: '/meetings', allowedRoles: ['admin', 'partner', 'founder'] },
 ];
 
 export const useRoleAccess = () => {
@@ -104,13 +105,13 @@ export const useRoleAccess = () => {
   };
 
   const canViewPortfolio = (): boolean => {
-    // Admins can always view portfolio
+    // Only admins can view portfolio
     if (isActualAdmin) return true;
     return user?.role === 'admin';
   };
 
   const canViewDeals = (): boolean => {
-    // Admins can always view deals
+    // Admins and partners can view deals
     if (isActualAdmin) return true;
     return user?.role === 'admin' || user?.role === 'partner';
   };

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -13,7 +14,7 @@ export default function Portfolio() {
   const [activeTab, setActiveTab] = useState('overview');
 
   return (
-    <ProtectedRoute requiredRoles={['admin']}>
+    <ProtectedRoute requiredRoles={['admin']}> {/* Only admin can access */}
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
