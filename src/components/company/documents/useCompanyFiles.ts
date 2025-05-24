@@ -48,11 +48,13 @@ export const useCompanyFiles = (companyId: string) => {
           if (!metaError && metaData?.uploader) {
             const uploader = metaData.uploader;
             // Check if uploader is not null and is an object with name property
-            if (uploader !== null && typeof uploader === 'object' && uploader !== null && 'name' in uploader) {
+            if (uploader !== null && typeof uploader === 'object') {
               const uploaderObj = uploader as Record<string, unknown>;
-              const name = uploaderObj.name;
-              if (typeof name === 'string' && name.trim()) {
-                uploaderName = name.trim();
+              if ('name' in uploaderObj) {
+                const name = uploaderObj.name;
+                if (typeof name === 'string' && name.trim()) {
+                  uploaderName = name.trim();
+                }
               }
             }
           }
