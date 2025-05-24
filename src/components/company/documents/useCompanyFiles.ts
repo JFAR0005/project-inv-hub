@@ -47,9 +47,10 @@ export const useCompanyFiles = (companyId: string) => {
             .getPublicUrl(`${companyId}/${file.file_name}`);
           
           let uploaderName = 'Unknown';
-          // Fix the null check issue with proper type narrowing
-          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
-            const uploaderData = file.uploader as { name: string };
+          // Fix the null check issue by extracting uploader to a variable first
+          const uploader = file.uploader;
+          if (uploader && typeof uploader === 'object' && 'name' in uploader) {
+            const uploaderData = uploader as { name: string };
             if (uploaderData.name) {
               uploaderName = uploaderData.name;
             }
