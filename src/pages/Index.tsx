@@ -1,88 +1,39 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import Dashboard from '@/components/dashboard/Dashboard';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Bookmark, Filter, BarChart3, Bell, Webhook } from 'lucide-react';
+import AuthTest from '@/components/auth/AuthTest';
 
 const Index = () => {
-  return (
-    <>
-      <Dashboard />
-      
-      {/* New Features Section */}
-      <div className="container mx-auto mt-8 pb-8">
-        <h2 className="text-2xl font-bold mb-4">New Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Global Search
-              </CardTitle>
-              <CardDescription>
-                Search across companies, meetings, and notes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Use our new global search (⌘+K) to quickly find any information across the platform.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/search">Try Advanced Search</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Advanced Filtering
-              </CardTitle>
-              <CardDescription>
-                Filter portfolio by multiple criteria
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Apply advanced filters to find exactly what you're looking for in your portfolio.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/portfolio">View Portfolio</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Webhook className="h-5 w-5" />
-                Integration Hub
-              </CardTitle>
-              <CardDescription>
-                Connect and manage third-party services
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Set up webhooks, integrate with Slack/Teams, and monitor API usage all in one place.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/integration-hub">Open Integration Hub</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova p-4">
+        <div className="text-center space-y-6">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">Black Nova</h1>
+            <p className="text-white/80">Venture Capital Operating Platform</p>
+          </div>
+          <AuthTest />
         </div>
       </div>
-    </>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome back, {user?.name || user?.email}</h1>
+          <p className="text-muted-foreground">
+            Here's what's happening with your portfolio today.
+          </p>
+        </div>
+        <AuthTest />
+      </div>
+      <Dashboard />
+    </div>
   );
 };
 

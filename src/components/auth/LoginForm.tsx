@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +14,6 @@ const LoginForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const getErrorMessage = (error: any): string => {
@@ -69,6 +67,7 @@ const LoginForm = () => {
     }
 
     try {
+      console.log('Attempting login for:', email);
       await login(email, password);
       
       toast({
