@@ -1,13 +1,13 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useMentions } from '@/hooks/useMentions';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import MentionInput from '@/components/mentions/MentionInput';
 import { MessageSquare, Send, Reply, Edit, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -36,6 +36,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ companyId }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { createMentions } = useMentions();
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editingComment, setEditingComment] = useState<string | null>(null);
@@ -83,7 +84,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ companyId }) => {
     },
   });
 
-  // Add comment mutation
+  // Add comment mutation with mentions support
   const addCommentMutation = useMutation({
     mutationFn: async ({ content, parentId }: { content: string; parentId?: string }) => {
       const { data, error } = await supabase
@@ -98,6 +99,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({ companyId }) => {
         .single();
 
       if (error) throw error;
+
+      // Create mentions if any
+      await createMentions(content, 'comment', data.id);
 
       // Add to activity feed
       await supabase.from('activity_feed').insert({
@@ -302,7 +306,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ companyId }) => {
         </span>
       </div>
 
-      {/* New comment form */}
+      {/* New comment form with mention support */}
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-4">
@@ -320,10 +324,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ companyId }) => {
                 </Button>
               </div>
             )}
-            <Textarea
-              placeholder="Share your thoughts about this company..."
+            <MentionInput
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={setNewComment}
+              placeholder="Share your thoughts about this company... Use @mentions to notify team members"
               className="min-h-[80px]"
             />
             <div className="flex justify-end">

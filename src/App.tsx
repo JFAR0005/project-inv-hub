@@ -28,6 +28,7 @@ import IntegrationHub from './pages/IntegrationHub';
 import NotFound from './pages/NotFound';
 import Search from './pages/Search';
 import AdvancedSearch from './pages/AdvancedSearch';
+import Team from './pages/Team';
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
   {
     path: "/integration-hub",
     element: <Layout><IntegrationHub /></Layout>,
+  },
+  {
+    path: "/team",
+    element: <Layout><Team /></Layout>,
   },
   {
     path: "*",

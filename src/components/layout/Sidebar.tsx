@@ -48,6 +48,12 @@ const Sidebar = () => {
       roles: ['admin', 'partner', 'analyst', 'lp']
     },
     {
+      name: 'Team',
+      href: '/team',
+      icon: Users,
+      roles: ['admin', 'partner']
+    },
+    {
       name: 'Notes',
       href: '/notes',
       icon: FileText,
