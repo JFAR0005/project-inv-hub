@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileObject } from './types';
@@ -48,9 +49,10 @@ export const useCompanyFiles = (companyId: string) => {
           
           let uploaderName = 'Unknown';
           // Fix the null check issue with proper null handling
-          if (file.uploader !== null && file.uploader && typeof file.uploader === 'object') {
-            if ('name' in file.uploader && file.uploader.name) {
-              uploaderName = file.uploader.name;
+          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
+            const name = file.uploader.name;
+            if (name) {
+              uploaderName = name;
             }
           }
           
