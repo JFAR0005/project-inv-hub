@@ -1,10 +1,10 @@
+
 import React from 'react';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import { UserRole } from '@/context/auth/authTypes';
+import EnhancedProtectedRoute from '@/components/layout/EnhancedProtectedRoute';
 
 const Meetings = () => {
   return (
-    <ProtectedRoute requiredRoles={['admin', 'partner', 'founder']}>
+    <EnhancedProtectedRoute allowedRoles={['admin', 'partner', 'founder', 'capital_team']}>
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -122,7 +122,7 @@ const Meetings = () => {
           </div>
         </div>
       </div>
-    </ProtectedRoute>
+    </EnhancedProtectedRoute>
   );
 };
 
