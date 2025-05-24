@@ -1,5 +1,6 @@
+
 import { useAuth } from '@/context/AuthContext';
-import { UserRole } from '@/context/AuthContext';
+import { UserRole } from '@/context/auth/authTypes';
 
 interface RouteAccess {
   path: string;
