@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -75,6 +74,14 @@ interface TrendData {
   headcount: number;
 }
 
+interface MetricData {
+  id: string;
+  company_id: string;
+  metric_name: string;
+  value: number;
+  date: string;
+}
+
 const PortfolioAnalytics: React.FC = () => {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null);
@@ -109,6 +116,14 @@ const PortfolioAnalytics: React.FC = () => {
 
       if (updatesError) throw updatesError;
 
+      // Fetch metrics data
+      const { data: metricsData, error: metricsError } = await supabase
+        .from('metrics')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (metricsError) throw metricsError;
+
       // Process data for analytics
       const updatesByCompany = updates.reduce((acc: Record<string, any>, update) => {
         if (!acc[update.company_id] || new Date(update.submitted_at) > new Date(acc[update.company_id].submitted_at)) {
@@ -117,12 +132,34 @@ const PortfolioAnalytics: React.FC = () => {
         return acc;
       }, {});
 
+      // Process metrics by company (get latest values)
+      const metricsByCompany = metricsData.reduce((acc: Record<string, Record<string, number>>, metric: MetricData) => {
+        if (!acc[metric.company_id]) {
+          acc[metric.company_id] = {};
+        }
+        
+        // Only keep the latest value for each metric
+        if (!acc[metric.company_id][metric.metric_name] || 
+            new Date(metric.date) > new Date(acc[metric.company_id][`${metric.metric_name}_date`] || '1970-01-01')) {
+          acc[metric.company_id][metric.metric_name] = metric.value;
+          acc[metric.company_id][`${metric.metric_name}_date`] = metric.date;
+        }
+        
+        return acc;
+      }, {});
+
       // Calculate company performance metrics
       const performanceData: CompanyPerformance[] = companies.map(company => {
         const latestUpdate = updatesByCompany[company.id];
-        const arr = latestUpdate?.arr || company.arr || 0;
+        const companyMetrics = metricsByCompany[company.id] || {};
+        
+        // Use metrics data first, fall back to founder updates, then company data
+        const arr = companyMetrics.arr || latestUpdate?.arr || company.arr || 0;
+        const burnRate = companyMetrics.burn_rate || latestUpdate?.burn_rate || company.burn_rate || 0;
+        const headcount = companyMetrics.headcount || latestUpdate?.headcount || company.headcount || 0;
+        
+        // Calculate growth from historical data (simplified for now)
         const growth = latestUpdate?.growth || 0;
-        const burnRate = latestUpdate?.burn_rate || company.burn_rate || 0;
         const burnMultiple = arr > 0 && burnRate > 0 ? burnRate / (arr / 12) : 0;
         
         // Calculate health score (0-100)
@@ -161,10 +198,7 @@ const PortfolioAnalytics: React.FC = () => {
       const avgGrowthRate = companiesWithGrowth.length > 0 
         ? companiesWithGrowth.reduce((sum, c) => sum + c.growth, 0) / companiesWithGrowth.length
         : 0;
-      const totalHeadcount = companies.reduce((sum, company) => {
-        const update = updatesByCompany[company.id];
-        return sum + (update?.headcount || company.headcount || 0);
-      }, 0);
+      const totalHeadcount = performanceData.reduce((sum, company) => sum + (metricsByCompany[company.id]?.headcount || 0), 0);
       const avgBurnMultiple = performanceData
         .filter(c => c.burnMultiple > 0)
         .reduce((sum, c, _, arr) => sum + c.burnMultiple / arr.length, 0);
@@ -206,23 +240,39 @@ const PortfolioAnalytics: React.FC = () => {
 
       setSectorMetrics(sectorMetricsData);
 
-      // Generate trend data (last 12 months)
+      // Generate trend data from metrics table
       const trendDataPoints: TrendData[] = [];
+      const monthlyMetrics: Record<string, { totalARR: number, headcount: number, companies: Set<string> }> = {};
+
+      // Process metrics data for trends
+      metricsData.forEach((metric: MetricData) => {
+        const monthKey = format(new Date(metric.date), 'MMM yyyy');
+        
+        if (!monthlyMetrics[monthKey]) {
+          monthlyMetrics[monthKey] = { totalARR: 0, headcount: 0, companies: new Set() };
+        }
+        
+        monthlyMetrics[monthKey].companies.add(metric.company_id);
+        
+        if (metric.metric_name === 'arr') {
+          monthlyMetrics[monthKey].totalARR += metric.value;
+        } else if (metric.metric_name === 'headcount') {
+          monthlyMetrics[monthKey].headcount += metric.value;
+        }
+      });
+
+      // Convert to array and fill in missing months if needed
       for (let i = 11; i >= 0; i--) {
         const month = startOfMonth(subMonths(new Date(), i));
         const monthStr = format(month, 'MMM yyyy');
         
-        // For demo purposes, generate trend data based on current metrics
-        // In a real app, you'd query historical data
-        const baseARR = totalARR * (0.7 + (11 - i) * 0.03);
-        const baseGrowth = avgGrowthRate * (0.8 + Math.random() * 0.4);
-        const baseHeadcount = totalHeadcount * (0.8 + (11 - i) * 0.02);
-
+        const monthData = monthlyMetrics[monthStr];
+        
         trendDataPoints.push({
           month: monthStr,
-          totalARR: Math.round(baseARR),
-          avgGrowth: Math.round(baseGrowth * 10) / 10,
-          headcount: Math.round(baseHeadcount)
+          totalARR: monthData ? monthData.totalARR : (totalARR * (0.7 + (11 - i) * 0.03)),
+          avgGrowth: avgGrowthRate * (0.8 + Math.random() * 0.4), // Simplified for demo
+          headcount: monthData ? monthData.headcount : (totalHeadcount * (0.8 + (11 - i) * 0.02))
         });
       }
 

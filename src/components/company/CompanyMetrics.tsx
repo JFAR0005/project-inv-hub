@@ -25,6 +25,14 @@ interface FounderUpdate {
   submitted_at: string;
 }
 
+interface MetricData {
+  id: string;
+  company_id: string;
+  metric_name: string;
+  value: number;
+  date: string;
+}
+
 const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   const [timeRange, setTimeRange] = useState<'3m' | '6m' | '1y' | 'all'>('6m');
   
@@ -53,7 +61,8 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   
   const { startDate } = getDateRange();
   
-  const { data: updates, isLoading, error, refetch } = useQuery({
+  // Fetch founder updates
+  const { data: updates, isLoading: updatesLoading, error: updatesError } = useQuery({
     queryKey: ['founder-updates-metrics', companyId, timeRange],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,29 +77,98 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
     },
     enabled: !!companyId,
   });
+
+  // Fetch metrics data
+  const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
+    queryKey: ['company-metrics', companyId, timeRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('metrics')
+        .select('*')
+        .eq('company_id', companyId)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .order('date', { ascending: true });
+      
+      if (error) throw error;
+      return data as MetricData[];
+    },
+    enabled: !!companyId,
+  });
   
-  // Format updates data for recharts
+  const isLoading = updatesLoading || metricsLoading;
+  const error = updatesError || metricsError;
+  
+  // Combine and format data for charts
   const getChartData = () => {
-    if (!updates || updates.length === 0) return [];
+    const combinedData: Record<string, any> = {};
     
-    return updates.map(update => ({
-      date: format(new Date(update.submitted_at), 'MMM yyyy'),
-      arr: update.arr || 0,
-      mrr: update.mrr || 0,
-      headcount: update.headcount || 0,
-      burnRate: update.burn_rate || 0,
-      runway: update.runway || 0,
-      burnMultiple: update.arr && update.arr > 0 ? ((update.burn_rate || 0) / (update.arr / 12)).toFixed(2) : 0
-    }));
+    // Process founder updates
+    if (updates && updates.length > 0) {
+      updates.forEach(update => {
+        const dateKey = format(new Date(update.submitted_at), 'yyyy-MM');
+        if (!combinedData[dateKey]) {
+          combinedData[dateKey] = {
+            date: format(new Date(update.submitted_at), 'MMM yyyy'),
+            dateKey
+          };
+        }
+        
+        if (update.arr) combinedData[dateKey].arr = update.arr;
+        if (update.mrr) combinedData[dateKey].mrr = update.mrr;
+        if (update.headcount) combinedData[dateKey].headcount = update.headcount;
+        if (update.burn_rate) combinedData[dateKey].burnRate = update.burn_rate;
+        if (update.runway) combinedData[dateKey].runway = update.runway;
+      });
+    }
+    
+    // Process metrics data
+    if (metrics && metrics.length > 0) {
+      metrics.forEach(metric => {
+        const dateKey = format(new Date(metric.date), 'yyyy-MM');
+        if (!combinedData[dateKey]) {
+          combinedData[dateKey] = {
+            date: format(new Date(metric.date), 'MMM yyyy'),
+            dateKey
+          };
+        }
+        
+        // Map metric names to chart keys
+        switch (metric.metric_name.toLowerCase()) {
+          case 'arr':
+            combinedData[dateKey].arr = metric.value;
+            break;
+          case 'mrr':
+            combinedData[dateKey].mrr = metric.value;
+            break;
+          case 'headcount':
+            combinedData[dateKey].headcount = metric.value;
+            break;
+          case 'burn_rate':
+            combinedData[dateKey].burnRate = metric.value;
+            break;
+          case 'runway':
+            combinedData[dateKey].runway = metric.value;
+            break;
+        }
+      });
+    }
+    
+    // Convert to array and calculate burn multiple
+    return Object.values(combinedData)
+      .sort((a: any, b: any) => a.dateKey.localeCompare(b.dateKey))
+      .map((item: any) => ({
+        ...item,
+        burnMultiple: item.arr && item.arr > 0 && item.burnRate ? 
+          ((item.burnRate) / (item.arr / 12)).toFixed(2) : 0
+      }));
   };
   
   const chartData = getChartData();
   
   // Calculate current metrics from latest data point
   const getLatestMetrics = () => {
-    if (!updates || updates.length === 0) return null;
-    
-    return updates[updates.length - 1];
+    if (chartData.length === 0) return null;
+    return chartData[chartData.length - 1];
   };
   
   const latestMetrics = getLatestMetrics();
@@ -99,7 +177,12 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
   const calculateBurnMultiple = () => {
     if (!latestMetrics || !latestMetrics.arr || latestMetrics.arr === 0) return 0;
     
-    return ((latestMetrics.burn_rate || 0) / (latestMetrics.arr / 12)).toFixed(2);
+    return ((latestMetrics.burnRate || 0) / (latestMetrics.arr / 12)).toFixed(2);
+  };
+  
+  const refetch = () => {
+    // This will trigger both queries to refetch
+    window.location.reload();
   };
   
   if (isLoading) {
@@ -117,14 +200,14 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
         <AlertDescription>
           Failed to load company metrics. Please try again.
         </AlertDescription>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-2">
+        <Button variant="outline" size="sm" onClick={refetch} className="ml-2">
           <RefreshCw className="h-4 w-4 mr-2" /> Retry
         </Button>
       </Alert>
     );
   }
   
-  if (!updates || updates.length === 0) {
+  if (chartData.length === 0) {
     return (
       <Card>
         <CardContent className="py-6 text-center">
@@ -163,7 +246,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Monthly Burn</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${latestMetrics?.burn_rate?.toLocaleString() || '0'}
+                  ${latestMetrics?.burnRate?.toLocaleString() || '0'}
                 </p>
               </div>
             </div>
