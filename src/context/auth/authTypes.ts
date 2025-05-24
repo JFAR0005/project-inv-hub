@@ -23,3 +23,6 @@ export interface AuthContextType {
   clearTemporaryRole: () => void;
   clearError: () => void;
 }
+
+// Re-export UserRole for convenience
+export { UserRole };
