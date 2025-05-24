@@ -92,21 +92,24 @@
 - [x] Added file type badges and icons for better UX
 - [x] Integrated role-based access control for file operations
 
+### Step 11: Show Recent Updates on Company Overview ✅
+- [x] Extracted standalone RecentUpdates component to display founder updates
+- [x] Displayed submitted date, ARR, raise status, and commentary preview
+- [x] Added age indicators with color-coding for old updates
+- [x] Added empty state message for companies with no updates
+- [x] Improved loading states and error handling
+- [x] Added "View All" button to navigate to full updates page
+
 ## 🚀 CURRENT CHECKLIST STATUS
 
 ✅ Role-Based Access — COMPLETE  
 ✅ Metrics Integration — COMPLETE  
 ✅ Document Viewer — COMPLETE  
-❌ Update History in Overview — NOT STARTED  
+✅ Update History in Overview — COMPLETE  
 ❌ Update Health in Portfolio — NOT STARTED  
 ❌ Notifications — NOT STARTED  
 
 ## 🚀 NEXT STEPS
-
-### Step 11: Show Recent Updates on Company Overview
-- [ ] Pull latest 3 entries from founder_updates table
-- [ ] Display submitted date, ARR, raise status, commentary preview
-- [ ] Add default message for companies with no updates
 
 ### Step 12: Add Update Freshness & Raise Flags to Portfolio
 - [ ] Show last update date and latest ARR in portfolio views

@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import CommentSection from '@/components/comments/CommentSection';
 import ActivityFeed from '@/components/activity/ActivityFeed';
+import RecentUpdates from './RecentUpdates';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type Company = Database['public']['Tables']['companies']['Row'];
@@ -64,33 +65,6 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
   const formatNumber = (num: number | null) => {
     if (!num) return 'Not specified';
     return new Intl.NumberFormat('en-US').format(num);
-  };
-
-  const getRaiseStatusBadge = (status: string | null) => {
-    if (!status) return null;
-    
-    let variant = 'secondary';
-    
-    if (status.toLowerCase().includes('active') || status.toLowerCase().includes('raising')) {
-      variant = 'success';
-    } else if (status.toLowerCase().includes('planned')) {
-      variant = 'warning';
-    } else if (status.toLowerCase().includes('not')) {
-      variant = 'outline';
-    }
-    
-    return <Badge variant={variant as any}>{status}</Badge>;
-  };
-
-  const getUpdateAge = (updateDate: string | null) => {
-    if (!updateDate) return null;
-    
-    const today = new Date();
-    const submitted = new Date(updateDate);
-    const diffTime = Math.abs(today.getTime() - submitted.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays;
   };
 
   return (
@@ -152,104 +126,25 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
           </CardContent>
         </Card>
 
-        {/* Recent Updates */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Recent Updates
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : error ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : recentUpdates.length > 0 ? (
-              <div className="space-y-4">
-                {recentUpdates.map((update) => (
-                  <Card key={update.id} className="overflow-hidden">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(update.submitted_at), 'MMM d, yyyy')}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getRaiseStatusBadge(update.raise_status)}
-                            {update.arr && (
-                              <span className="font-medium">
-                                ARR: {formatCurrency(update.arr)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          {getUpdateAge(update.submitted_at) && getUpdateAge(update.submitted_at)! > 30 ? (
-                            <Badge variant="destructive">
-                              {getUpdateAge(update.submitted_at)} days old
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">
-                              {getUpdateAge(update.submitted_at)} days old
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-muted-foreground">Burn Rate</span>
-                          <span className="font-medium">{formatCurrency(update.burn_rate)}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm text-muted-foreground">Runway</span>
-                          <span className="font-medium">
-                            {update.runway ? `${update.runway} months` : 'Not specified'}
-                          </span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm text-muted-foreground">Headcount</span>
-                          <span className="font-medium">{formatNumber(update.headcount)}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm text-muted-foreground">MRR</span>
-                          <span className="font-medium">{formatCurrency(update.mrr)}</span>
-                        </div>
-                      </div>
-                      
-                      {update.comments && (
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Comments</div>
-                          <p className="text-sm line-clamp-2">{update.comments}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Updates Found</h3>
-                <p className="text-muted-foreground mb-4">
-                  This company hasn't submitted any updates yet.
-                </p>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full" onClick={() => navigate(`/company-profile/${company.id}/updates`)}>
-              View All Updates <ChevronRight className="h-4 w-4 ml-2" />
+        {/* Recent Updates - Now using the extracted component */}
+        <RecentUpdates 
+          updates={recentUpdates}
+          isLoading={isLoading}
+          error={error}
+        />
+        {recentUpdates.length > 0 && (
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate(`/company-profile/${company.id}/updates`)}
+              className="flex items-center gap-1"
+            >
+              View All Updates
+              <ChevronRight className="h-4 w-4" />
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+        )}
 
         {/* Key Metrics */}
         <Card>
