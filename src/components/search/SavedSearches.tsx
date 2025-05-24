@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,7 +47,7 @@ const SavedSearches: React.FC<SavedSearchesProps> = ({
   }, []);
 
   // Save searches to localStorage
-  const saveTo LocalStorage = (searches: SavedSearch[]) => {
+  const saveToLocalStorage = (searches: SavedSearch[]) => {
     localStorage.setItem('savedSearches', JSON.stringify(searches));
     setSavedSearches(searches);
   };
