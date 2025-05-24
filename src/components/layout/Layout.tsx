@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Navigate, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import LoadingSpinner from './LoadingSpinner';
-import AuthRedirect from '../auth/AuthRedirect';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,9 +14,10 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, requireAuth = true }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const location = useLocation();
 
   // Show loading state while checking authentication
-  if (requireAuth && isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova">
         <LoadingSpinner size="lg" className="text-white" />
@@ -24,25 +25,31 @@ const Layout: React.FC<LayoutProps> = ({ children, requireAuth = true }) => {
     );
   }
 
+  // Handle authentication redirects
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!requireAuth && isAuthenticated && location.pathname === '/login') {
+    return <Navigate to="/" replace />;
+  }
+
   return (
-    <>
-      {requireAuth && <AuthRedirect />}
-      <div className="flex h-screen">
-        {isAuthenticated && <Sidebar />}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {isAuthenticated && (
-            <Header 
-              mobile={true} 
-              showMobileMenu={showMobileMenu} 
-              setShowMobileMenu={setShowMobileMenu} 
-            />
-          )}
-          <main className="flex-1 overflow-y-auto p-4 bg-background">
-            {children}
-          </main>
-        </div>
+    <div className="flex h-screen">
+      {isAuthenticated && <Sidebar />}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {isAuthenticated && (
+          <Header 
+            mobile={true} 
+            showMobileMenu={showMobileMenu} 
+            setShowMobileMenu={setShowMobileMenu} 
+          />
+        )}
+        <main className="flex-1 overflow-y-auto p-4 bg-background">
+          {children}
+        </main>
       </div>
-    </>
+    </div>
   );
 };
 

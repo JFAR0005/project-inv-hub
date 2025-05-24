@@ -19,6 +19,11 @@ export const getCompanyFileUrl = (companyId: string, fileName: string): string =
   return `${SUPABASE_URL}/storage/v1/object/public/company_files/${companyId}/${fileName}`;
 };
 
+// Helper function to get proper public URL for storage files
+export const getStoragePublicUrl = (bucket: string, path: string) => {
+  return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+};
+
 // Helper function to clean up auth state (prevents auth limbo issues)
 export const cleanupAuthState = () => {
   // Remove standard auth tokens

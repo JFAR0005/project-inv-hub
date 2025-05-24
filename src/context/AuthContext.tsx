@@ -22,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const authOperations = useAuthOperations(
     user,
@@ -36,6 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...');
+        
         // Get initial session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
@@ -44,28 +47,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (mounted) {
             setError('Failed to restore session. Please log in again.');
             setIsLoading(false);
+            setInitialized(true);
           }
           return;
         }
         
         if (session?.user && mounted) {
+          console.log('Found existing session for:', session.user.email);
           await handleFetchUserData(session.user);
         } else if (mounted) {
+          console.log('No existing session found');
           setIsLoading(false);
+          setInitialized(true);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
         if (mounted) {
           setError('Failed to initialize authentication.');
           setIsLoading(false);
+          setInitialized(true);
         }
       }
     };
 
-    // Initialize auth
-    initializeAuth();
-
-    // Listen for auth changes
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
@@ -94,20 +99,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      if (session?.user) {
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('User signed in:', session.user.email);
         await handleFetchUserData(session.user);
-      } else {
+      } else if (!session?.user) {
         setUser(null);
         setOriginalRole(null);
         setIsLoading(false);
       }
     });
 
+    // Initialize after setting up listener
+    if (!initialized) {
+      initializeAuth();
+    }
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [initialized]);
 
   const handleFetchUserData = async (authUser: User) => {
     setError(null);
@@ -122,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError('Failed to load user profile.');
     } finally {
       setIsLoading(false);
+      setInitialized(true);
     }
   };
 

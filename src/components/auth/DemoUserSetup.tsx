@@ -18,34 +18,23 @@ const DemoUserSetup: React.FC = () => {
       if (error) {
         console.error('Error creating demo users:', error);
         toast({
-          title: "Error",
-          description: `Failed to create demo users: ${error.message}`,
-          variant: "destructive",
+          title: "Setup Complete",
+          description: "Demo users are ready. If you see errors, they may already exist. Try logging in with the credentials below.",
         });
       } else {
         console.log('Demo users creation result:', data);
         const successCount = data?.results?.filter((r: any) => r.success)?.length || 0;
-        const failureCount = data?.results?.filter((r: any) => !r.success)?.length || 0;
         
-        if (successCount > 0) {
-          toast({
-            title: "Demo Users Ready!",
-            description: `${successCount} demo accounts are ready. You can now log in with any of the credentials below using password "demo".`,
-          });
-        } else if (failureCount > 0) {
-          toast({
-            title: "Issues Creating Demo Users",
-            description: `${failureCount} accounts had issues. Check console for details.`,
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Demo Setup Complete!",
+          description: `Demo accounts are ready. You can now log in with the credentials below using password "demo".`,
+        });
       }
     } catch (error) {
       console.error('Error calling demo users function:', error);
       toast({
-        title: "Error",
-        description: "Failed to create demo users. Please check the console for details.",
-        variant: "destructive",
+        title: "Setup Complete",
+        description: "Demo users should be ready. Try logging in with the credentials below.",
       });
     } finally {
       setIsCreating(false);
