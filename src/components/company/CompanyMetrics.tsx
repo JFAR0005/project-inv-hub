@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -8,7 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RefreshCw, TrendingUp, Users, DollarSign, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import MetricsCharts from './MetricsCharts';
+import EnhancedLineChart from '@/components/charts/EnhancedLineChart';
+import EnhancedBarChart from '@/components/charts/EnhancedBarChart';
 
 interface CompanyMetricsProps {
   companyId: string;
@@ -330,18 +330,23 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           <Card>
             <CardHeader>
               <CardTitle>Annual Recurring Revenue</CardTitle>
-              <CardDescription>
-                ARR growth over time
-              </CardDescription>
+              <CardDescription>ARR growth over time</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
-              <MetricsCharts 
-                chartData={chartData} 
-                type="line"
-                dataKey="arr"
-                color="#3b82f6" 
-                yAxisLabel="ARR ($)"
-                valueFormatter={(value) => `$${value.toLocaleString()}`}
+            <CardContent>
+              <EnhancedLineChart
+                data={chartData}
+                lines={[
+                  {
+                    dataKey: 'arr',
+                    color: '#3b82f6',
+                    label: 'ARR',
+                  }
+                ]}
+                xAxisKey="date"
+                height={300}
+                formatValue={(value) => `$${value.toLocaleString()}`}
+                showGrid={true}
+                showLegend={false}
               />
             </CardContent>
           </Card>
@@ -351,18 +356,23 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           <Card>
             <CardHeader>
               <CardTitle>Monthly Burn Rate</CardTitle>
-              <CardDescription>
-                Cash burn over time
-              </CardDescription>
+              <CardDescription>Cash burn over time</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
-              <MetricsCharts 
-                chartData={chartData} 
-                type="line"
-                dataKey="burnRate"
-                color="#ef4444" 
-                yAxisLabel="Burn Rate ($)"
-                valueFormatter={(value) => `$${value.toLocaleString()}`}
+            <CardContent>
+              <EnhancedLineChart
+                data={chartData}
+                lines={[
+                  {
+                    dataKey: 'burnRate',
+                    color: '#ef4444',
+                    label: 'Burn Rate',
+                  }
+                ]}
+                xAxisKey="date"
+                height={300}
+                formatValue={(value) => `$${value.toLocaleString()}`}
+                showGrid={true}
+                showLegend={false}
               />
             </CardContent>
           </Card>
@@ -370,18 +380,23 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           <Card>
             <CardHeader>
               <CardTitle>Runway (Months)</CardTitle>
-              <CardDescription>
-                Cash runway over time
-              </CardDescription>
+              <CardDescription>Cash runway over time</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
-              <MetricsCharts 
-                chartData={chartData} 
-                type="line"
-                dataKey="runway"
-                color="#8b5cf6" 
-                yAxisLabel="Months"
-                valueFormatter={(value) => `${value} months`}
+            <CardContent>
+              <EnhancedLineChart
+                data={chartData}
+                lines={[
+                  {
+                    dataKey: 'runway',
+                    color: '#8b5cf6',
+                    label: 'Runway',
+                  }
+                ]}
+                xAxisKey="date"
+                height={300}
+                formatValue={(value) => `${value} months`}
+                showGrid={true}
+                showLegend={false}
               />
             </CardContent>
           </Card>
@@ -391,18 +406,23 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           <Card>
             <CardHeader>
               <CardTitle>Team Size</CardTitle>
-              <CardDescription>
-                Headcount over time
-              </CardDescription>
+              <CardDescription>Headcount over time</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
-              <MetricsCharts 
-                chartData={chartData} 
-                type="bar"
-                dataKey="headcount"
-                color="#6366f1" 
-                yAxisLabel="Employees"
-                valueFormatter={(value) => `${value} employees`}
+            <CardContent>
+              <EnhancedBarChart
+                data={chartData}
+                bars={[
+                  {
+                    dataKey: 'headcount',
+                    color: '#6366f1',
+                    label: 'Headcount',
+                  }
+                ]}
+                xAxisKey="date"
+                height={300}
+                formatValue={(value) => `${value} employees`}
+                showGrid={true}
+                showLegend={false}
               />
             </CardContent>
           </Card>
@@ -412,18 +432,23 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           <Card>
             <CardHeader>
               <CardTitle>Burn Multiple</CardTitle>
-              <CardDescription>
-                Burn rate divided by net new ARR (monthly)
-              </CardDescription>
+              <CardDescription>Burn rate divided by net new ARR (monthly)</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
-              <MetricsCharts 
-                chartData={chartData} 
-                type="bar"
-                dataKey="burnMultiple"
-                color="#f97316" 
-                yAxisLabel="Multiple"
-                valueFormatter={(value) => `${value}x`}
+            <CardContent>
+              <EnhancedBarChart
+                data={chartData}
+                bars={[
+                  {
+                    dataKey: 'burnMultiple',
+                    color: '#f97316',
+                    label: 'Burn Multiple',
+                  }
+                ]}
+                xAxisKey="date"
+                height={300}
+                formatValue={(value) => `${value}x`}
+                showGrid={true}
+                showLegend={false}
               />
             </CardContent>
           </Card>

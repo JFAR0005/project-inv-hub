@@ -18,23 +18,10 @@ import {
   Users,
   Activity
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  PieChart as RechartsPieChart, 
-  Cell, 
-  ComposedChart, 
-  Area, 
-  AreaChart,
-  Pie
-} from 'recharts';
+import EnhancedLineChart from '@/components/charts/EnhancedLineChart';
+import EnhancedBarChart from '@/components/charts/EnhancedBarChart';
+import EnhancedPieChart from '@/components/charts/EnhancedPieChart';
+import EnhancedAreaChart from '@/components/charts/EnhancedAreaChart';
 import { format, subMonths, startOfMonth } from 'date-fns';
 
 interface PortfolioMetrics {
@@ -422,21 +409,32 @@ const PortfolioAnalytics: React.FC = () => {
         <TabsContent value="trends" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Portfolio Trends</CardTitle>
+              <CardTitle>Portfolio Growth Trends</CardTitle>
               <CardDescription>ARR and growth trends over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis yAxisId="arr" orientation="left" />
-                  <YAxis yAxisId="growth" orientation="right" />
-                  <Tooltip />
-                  <Area yAxisId="arr" type="monotone" dataKey="totalARR" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} />
-                  <Line yAxisId="growth" type="monotone" dataKey="avgGrowth" stroke="#10B981" strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <EnhancedAreaChart
+                data={trendData}
+                areas={[
+                  {
+                    dataKey: 'totalARR',
+                    color: '#3B82F6',
+                    label: 'Total ARR',
+                    fillOpacity: 0.3,
+                  },
+                  {
+                    dataKey: 'avgGrowth',
+                    color: '#10B981',
+                    label: 'Avg Growth %',
+                    fillOpacity: 0.2,
+                  }
+                ]}
+                xAxisKey="month"
+                height={350}
+                formatValue={(value) => typeof value === 'number' && value > 1000 ? formatCurrency(value) : `${value}%`}
+                showGrid={true}
+                showLegend={true}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -449,23 +447,15 @@ const PortfolioAnalytics: React.FC = () => {
                 <CardDescription>Companies by sector</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={sectorMetrics}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="count"
-                      label={({ sector, count }) => `${sector}: ${count}`}
-                    >
-                      {sectorMetrics.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
+                <EnhancedPieChart
+                  data={sectorMetrics}
+                  dataKey="count"
+                  nameKey="sector"
+                  colors={sectorColors}
+                  height={300}
+                  formatValue={(value) => `${value} companies`}
+                  showLegend={true}
+                />
               </CardContent>
             </Card>
 
@@ -475,15 +465,21 @@ const PortfolioAnalytics: React.FC = () => {
                 <CardDescription>ARR by sector</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={sectorMetrics}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="sector" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Total ARR']} />
-                    <Bar dataKey="totalARR" fill="#3B82F6" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <EnhancedBarChart
+                  data={sectorMetrics}
+                  bars={[
+                    {
+                      dataKey: 'totalARR',
+                      color: '#3B82F6',
+                      label: 'Total ARR',
+                    }
+                  ]}
+                  xAxisKey="sector"
+                  height={300}
+                  formatValue={formatCurrency}
+                  showGrid={true}
+                  showLegend={false}
+                />
               </CardContent>
             </Card>
           </div>
