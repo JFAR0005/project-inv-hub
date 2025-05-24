@@ -48,8 +48,9 @@ export const useCompanyFiles = (companyId: string) => {
             .getPublicUrl(`${companyId}/${file.file_name}`);
           
           let uploaderName = 'Unknown';
-          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
-            uploaderName = (file.uploader as any).name || 'Unknown';
+          // Fix the null check issue by properly handling the uploader field
+          if (file.uploader && file.uploader !== null && typeof file.uploader === 'object' && 'name' in file.uploader) {
+            uploaderName = (file.uploader as { name: string }).name || 'Unknown';
           }
           
           processedFiles.push({
