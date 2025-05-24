@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +15,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   originalRole: UserRole | null;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
@@ -23,6 +23,7 @@ interface AuthContextType {
   resetRole: () => void;
   setTemporaryRole: (role: UserRole) => void;
   clearTemporaryRole: () => void;
+  clearError: () => void;
 }
 
 const ROLE_PERMISSIONS = {
@@ -42,6 +43,7 @@ const ROLE_PERMISSIONS = {
   capital_team: [
     'view:portfolio:full',
     'view:deals',
+    'manage:deals',
     'view:fundraising',
     'manage:fundraising',
     'view:meetings',
@@ -80,10 +82,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+        setError('Failed to restore session. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+      
       if (session?.user) {
         fetchUserData(session.user);
       } else {
@@ -93,6 +103,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setOriginalRole(null);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Don't refetch user data on token refresh, just update the user object
+        setUser(prevUser => prevUser ? { ...prevUser, ...session.user } : null);
+        return;
+      }
+      
       if (session?.user) {
         await fetchUserData(session.user);
       } else {
@@ -107,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserData = async (authUser: User) => {
     try {
+      setError(null);
       const { data: userData, error } = await supabase
         .from('users')
         .select('*')
@@ -115,12 +142,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user data:', error);
-        setUser({ 
-          ...authUser,
-          role: undefined,
-          name: undefined,
-          companyId: undefined
-        } as AuthUser);
+        
+        // If user doesn't exist in users table, create a basic user object
+        if (error.code === 'PGRST116') {
+          setUser({
+            ...authUser,
+            role: 'founder' as UserRole, // Default role
+            name: authUser.email?.split('@')[0],
+            companyId: undefined
+          } as AuthUser);
+          setError('User profile not found. Some features may be limited.');
+        } else {
+          setUser({
+            ...authUser,
+            role: undefined,
+            name: undefined,
+            companyId: undefined
+          } as AuthUser);
+          setError('Failed to load user profile. Please try refreshing the page.');
+        }
       } else {
         setUser({
           ...authUser,
@@ -131,35 +171,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
-      setUser({ 
+      setUser({
         ...authUser,
         role: undefined,
         name: undefined,
         companyId: undefined
       } as AuthUser);
+      setError('An unexpected error occurred while loading your profile.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      setIsLoading(false);
+      throw error; // Re-throw to let the component handle the specific error
     }
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
+    setError(null);
+    
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+        setError('Failed to log out completely. Please clear your browser cache.');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      setError('An error occurred while logging out.');
+    } finally {
+      // Always clear local state
+      setUser(null);
+      setOriginalRole(null);
     }
-    setUser(null);
-    setOriginalRole(null);
+  };
+
+  const clearError = () => {
+    setError(null);
   };
 
   const hasPermission = (permission: string): boolean => {
@@ -202,6 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated,
     isLoading,
     originalRole,
+    error,
     login,
     logout,
     hasPermission,
@@ -209,6 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resetRole,
     setTemporaryRole,
     clearTemporaryRole,
+    clearError,
   };
 
   return (
