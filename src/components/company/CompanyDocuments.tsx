@@ -79,12 +79,12 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
           
           let uploaderName = 'Unknown';
           
-          // Check metadata and extract uploader name with proper null checking
-          if (!metaError && metaData?.uploader) {
+          // Check metadata and extract uploader name with explicit null checking
+          if (!metaError && metaData?.uploader && metaData.uploader !== null) {
             const uploaderData = metaData.uploader;
             
-            // Explicit type guard with null check
-            if (uploaderData !== null && typeof uploaderData === 'object' && 'name' in uploaderData) {
+            // Type guard with proper null and object checking
+            if (typeof uploaderData === 'object' && 'name' in uploaderData) {
               const name = (uploaderData as { name: unknown }).name;
               if (typeof name === 'string' && name.trim()) {
                 uploaderName = name.trim();
