@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, Trash2, Eye } from 'lucide-react';
+import { Download, Trash2, Eye, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { FileObject } from './types';
@@ -94,83 +94,92 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
     }
   };
 
+  const handleView = (file: FileObject) => {
+    if (file.url) {
+      window.open(file.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   if (files.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        <p>No documents have been uploaded yet.</p>
+        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <h3 className="text-lg font-medium mb-2">No documents found</h3>
+        <p>No documents have been uploaded for this company yet.</p>
       </div>
     );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Document Name</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Size</TableHead>
-          <TableHead>Uploaded By</TableHead>
-          <TableHead>Upload Date</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {files.map((file) => (
-          <TableRow key={file.id}>
-            <TableCell className="flex items-center gap-2">
-              <FileIcon fileName={file.name} />
-              <span className="font-medium">{file.name}</span>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline">
-                {getFileExtension(file.name).toUpperCase()}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatFileSize(file.size || 0)}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {file.uploader || 'Unknown'}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {format(new Date(file.created_at), 'MMM d, yyyy')}
-            </TableCell>
-            <TableCell>
-              <div className="flex justify-end gap-2">
-                {file.url && (
+    <div className="border rounded-lg">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Document Name</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>Uploaded By</TableHead>
+            <TableHead>Upload Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {files.map((file) => (
+            <TableRow key={file.id}>
+              <TableCell className="flex items-center gap-2">
+                <FileIcon fileName={file.name} />
+                <span className="font-medium">{file.name}</span>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">
+                  {getFileExtension(file.name).toUpperCase()}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatFileSize(file.size || 0)}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {file.uploader || 'Unknown'}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {format(new Date(file.created_at), 'MMM d, yyyy')}
+              </TableCell>
+              <TableCell>
+                <div className="flex justify-end gap-2">
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => window.open(file.url, '_blank')}
+                    onClick={() => handleView(file)}
                     title="View file"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
-                )}
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => handleDownload(file.name)}
-                  title="Download file"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-                {canUploadFiles && (
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => handleDelete(file.name)}
-                    title="Delete file"
+                    onClick={() => handleDownload(file.name)}
+                    title="Download file"
                   >
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <Download className="h-4 w-4" />
                   </Button>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+                  {canUploadFiles && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleDelete(file.name)}
+                      title="Delete file"
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

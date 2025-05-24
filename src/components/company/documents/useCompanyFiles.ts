@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { FileObject } from './types';
 
 export const useCompanyFiles = (companyId: string) => {
@@ -13,62 +13,79 @@ export const useCompanyFiles = (companyId: string) => {
       setLoading(true);
       setError(null);
       
-      // List all files in the company's folder
-      const { data, error } = await supabase.storage
+      // First, get files from the metadata table with uploader information
+      const { data: metadataFiles, error: metadataError } = await supabase
         .from('company_files')
-        .list(`${companyId}`);
+        .select(`
+          *,
+          uploader:uploader_id(name)
+        `)
+        .eq('company_id', companyId)
+        .order('uploaded_at', { ascending: false });
       
-      if (error) {
-        throw error;
+      if (metadataError) {
+        console.error('Error fetching metadata:', metadataError);
       }
       
-      if (!data || data.length === 0) {
-        setFiles([]);
-        return;
+      // Also list files directly from storage as backup
+      const { data: storageFiles, error: storageError } = await supabase.storage
+        .from('company_files')
+        .list(companyId, {
+          sortBy: { column: 'created_at', order: 'desc' }
+        });
+      
+      if (storageError) {
+        console.error('Error fetching from storage:', storageError);
       }
       
-      // Get more detailed info for each file including metadata
-      const filesWithMetadata = await Promise.all(
-        data.map(async (file) => {
-          const { data: fileData } = await supabase.storage
+      const processedFiles: FileObject[] = [];
+      
+      // Process metadata files first (preferred source)
+      if (metadataFiles && metadataFiles.length > 0) {
+        for (const file of metadataFiles) {
+          const { data: publicUrlData } = supabase.storage
+            .from('company_files')
+            .getPublicUrl(`${companyId}/${file.file_name}`);
+          
+          let uploaderName = 'Unknown';
+          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
+            uploaderName = (file.uploader as any).name || 'Unknown';
+          }
+          
+          processedFiles.push({
+            id: file.id,
+            name: file.file_name || 'Unknown',
+            created_at: file.uploaded_at,
+            updated_at: file.uploaded_at,
+            last_accessed_at: file.uploaded_at,
+            metadata: {},
+            url: publicUrlData.publicUrl,
+            size: 0, // Will be updated if available from storage
+            uploader: uploaderName,
+          });
+        }
+      } else if (storageFiles && storageFiles.length > 0) {
+        // Fallback to storage files if no metadata
+        for (const file of storageFiles) {
+          const { data: publicUrlData } = supabase.storage
             .from('company_files')
             .getPublicUrl(`${companyId}/${file.name}`);
           
-          // Get file metadata from company_files table if available
-          const { data: metaData, error: metaError } = await supabase
-            .from('company_files')
-            .select('*, uploader:uploader_id(*)')
-            .eq('company_id', companyId)
-            .eq('file_name', file.name)
-            .single();
-          
-          let uploaderName = 'Unknown';
-          
-          // Check metadata and extract uploader name with comprehensive null checking
-          if (!metaError && metaData?.uploader) {
-            const uploader = metaData.uploader;
-            // Check if uploader is not null and is an object with name property
-            if (uploader !== null && typeof uploader === 'object') {
-              const uploaderObj = uploader as Record<string, unknown>;
-              if ('name' in uploaderObj) {
-                const name = uploaderObj.name;
-                if (typeof name === 'string' && name.trim()) {
-                  uploaderName = name.trim();
-                }
-              }
-            }
-          }
-          
-          return {
-            ...file,
-            url: fileData.publicUrl,
+          processedFiles.push({
+            id: file.id || file.name,
+            name: file.name,
+            created_at: file.created_at,
+            updated_at: file.updated_at,
+            last_accessed_at: file.last_accessed_at,
+            metadata: file.metadata || {},
+            url: publicUrlData.publicUrl,
             size: file.metadata?.size || 0,
-            uploader: uploaderName,
-          };
-        })
-      );
+            uploader: 'Unknown',
+          });
+        }
+      }
       
-      setFiles(filesWithMetadata);
+      setFiles(processedFiles);
     } catch (err) {
       console.error('Error fetching company files:', err);
       setError('Failed to load company documents. Please try again.');

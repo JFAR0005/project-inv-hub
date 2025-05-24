@@ -40,7 +40,12 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Company Documents</h3>
+        <div>
+          <h3 className="text-lg font-medium">Company Documents</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload and manage documents for this company
+          </p>
+        </div>
         
         {canUploadFiles && (
           <FileUploadDialog companyId={companyId} onUploadComplete={refetch} />
@@ -48,7 +53,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
       </div>
       
       {files.length === 0 ? (
-        <EmptyDocuments />
+        <EmptyDocuments canUpload={canUploadFiles} />
       ) : (
         <DocumentsTable 
           files={files}

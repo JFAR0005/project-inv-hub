@@ -1,19 +1,29 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
+import { FileText, Upload } from 'lucide-react';
 
-const EmptyDocuments: React.FC = () => {
+interface EmptyDocumentsProps {
+  canUpload?: boolean;
+}
+
+const EmptyDocuments: React.FC<EmptyDocumentsProps> = ({ canUpload = false }) => {
   return (
-    <Card>
-      <CardContent className="py-6 text-center">
-        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">No Documents Found</h3>
-        <p className="text-muted-foreground mb-4">
-          There are no documents uploaded for this company yet.
-        </p>
-      </CardContent>
-    </Card>
+    <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
+      <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">No documents uploaded</h3>
+      <p className="text-gray-600 mb-4">
+        {canUpload 
+          ? "Upload documents like pitch decks, financial reports, or legal documents for this company."
+          : "No documents have been uploaded for this company yet."
+        }
+      </p>
+      {canUpload && (
+        <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+          <Upload className="h-4 w-4" />
+          <span>Click "Upload Document" to get started</span>
+        </div>
+      )}
+    </div>
   );
 };
 
