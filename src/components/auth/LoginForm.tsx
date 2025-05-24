@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -76,7 +76,7 @@ const LoginForm = () => {
         description: "Welcome back to Black Nova!",
       });
       
-      navigate("/");
+      // Let AuthRedirect handle the navigation
     } catch (error: any) {
       console.error("Login error:", error);
       const errorMessage = getErrorMessage(error);
@@ -116,7 +116,7 @@ const LoginForm = () => {
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
-              if (error) setError(null); // Clear error when user starts typing
+              if (error) setError(null);
             }}
             required
             disabled={isSubmitting}
@@ -134,7 +134,7 @@ const LoginForm = () => {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              if (error) setError(null); // Clear error when user starts typing
+              if (error) setError(null);
             }}
             required
             disabled={isSubmitting}
@@ -142,7 +142,14 @@ const LoginForm = () => {
         </div>
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Signing in..." : "Sign In"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
         </Button>
       </form>
       

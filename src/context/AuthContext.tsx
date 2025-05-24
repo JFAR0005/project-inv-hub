@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,24 +32,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Error getting session:', error);
-        setError('Failed to restore session. Please log in again.');
-        setIsLoading(false);
-        return;
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          if (mounted) {
+            setError('Failed to restore session. Please log in again.');
+            setIsLoading(false);
+          }
+          return;
+        }
+        
+        if (session?.user && mounted) {
+          await handleFetchUserData(session.user);
+        } else if (mounted) {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setError('Failed to initialize authentication.');
+          setIsLoading(false);
+        }
       }
-      
-      if (session?.user) {
-        handleFetchUserData(session.user);
-      } else {
-        setIsLoading(false);
-      }
-    });
+    };
+
+    // Initialize auth
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_OUT') {
@@ -66,9 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return {
             ...prevUser,
             ...session.user,
-            role: prevUser.role, // Preserve the existing role
-            name: prevUser.name, // Preserve the existing name
-            companyId: prevUser.companyId // Preserve the existing companyId
+            role: prevUser.role,
+            name: prevUser.name,
+            companyId: prevUser.companyId
           } as AuthUser;
         });
         return;
@@ -83,17 +103,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleFetchUserData = async (authUser: User) => {
     setError(null);
-    const { user: userData, error: fetchError } = await fetchUserData(authUser);
-    setUser(userData);
-    if (fetchError) {
-      setError(fetchError);
+    try {
+      const { user: userData, error: fetchError } = await fetchUserData(authUser);
+      setUser(userData);
+      if (fetchError) {
+        setError(fetchError);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setError('Failed to load user profile.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const hasUserPermission = (permission: string): boolean => {
