@@ -78,6 +78,12 @@ const MOCK_USERS: User[] = [
     email: 'lp@example.com',
     role: 'lp',
   },
+  {
+    id: '5',
+    name: 'Capital Team',
+    email: 'capital@blacknova.vc',
+    role: 'capital_team',
+  },
 ];
 
 // Permission mapping based on Black Nova roles

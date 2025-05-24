@@ -54,6 +54,27 @@ const Sidebar = () => {
     },
   ];
 
+  const capitalTeamNavItems = [
+    { 
+      path: '/fundraising', 
+      label: 'Fundraising', 
+      icon: TrendingUp,
+      description: 'LP tracker & fundraising dashboard'
+    },
+    { 
+      path: '/portfolio', 
+      label: 'Portfolio', 
+      icon: BarChart3,
+      description: 'Portfolio overview & analytics'
+    },
+    { 
+      path: '/deals', 
+      label: 'Deals', 
+      icon: TrendingUp,
+      description: 'Deal pipeline & tracking'
+    },
+  ];
+
   const partnerNavItems = [
     { 
       path: '/portfolio', 
@@ -125,6 +146,10 @@ const Sidebar = () => {
     
     if (user?.role === 'admin') {
       items = [...adminNavItems, ...items, ...adminOnlyItems];
+    } else if (user?.role === 'capital_team') {
+      items = [...capitalTeamNavItems, ...items, ...adminOnlyItems.filter(item => 
+        !item.roles || item.roles.includes('capital_team')
+      )];
     } else if (user?.role === 'partner') {
       items = [...partnerNavItems, ...items, ...adminOnlyItems.filter(item => 
         !item.roles || item.roles.includes('partner')

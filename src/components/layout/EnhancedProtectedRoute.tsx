@@ -37,11 +37,12 @@ const EnhancedProtectedRoute: React.FC<EnhancedProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user is actually an admin (either current role or original role)
+  // Check if user is actually an admin or capital_team (either current role or original role)
   const isActualAdmin = (originalRole || user.role) === 'admin';
+  const isCapitalTeam = (originalRole || user.role) === 'capital_team';
 
-  // Admins can always access everything when viewing as their original role
-  if (isActualAdmin && !originalRole) {
+  // Admins and capital_team can always access everything when viewing as their original role
+  if ((isActualAdmin || isCapitalTeam) && !originalRole) {
     return <>{children}</>;
   }
 

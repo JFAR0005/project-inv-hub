@@ -10,27 +10,28 @@ interface RouteAccess {
 
 const ROUTE_ACCESS_RULES: RouteAccess[] = [
   { path: '/submit-update', allowedRoles: ['founder'], requiresOwnership: true },
-  { path: '/portfolio', allowedRoles: ['admin'] }, // Only admin
+  { path: '/portfolio', allowedRoles: ['admin', 'capital_team'] }, 
   { path: '/companies', allowedRoles: ['admin', 'partner', 'founder'], requiresOwnership: true },
   { path: '/company-profile', allowedRoles: ['admin', 'partner', 'founder'], requiresOwnership: true },
-  { path: '/notes', allowedRoles: ['admin', 'partner', 'founder'] },
-  { path: '/deals', allowedRoles: ['admin', 'partner'] }, // Admin and VP only
-  { path: '/dealflow', allowedRoles: ['admin', 'partner'] }, // Admin and VP only
-  { path: '/meetings', allowedRoles: ['admin', 'partner', 'founder'] },
-  { path: '/fundraising', allowedRoles: ['admin'] }, // Admin only for now
+  { path: '/notes', allowedRoles: ['admin', 'partner', 'founder', 'capital_team'] },
+  { path: '/deals', allowedRoles: ['admin', 'partner', 'capital_team'] }, 
+  { path: '/dealflow', allowedRoles: ['admin', 'partner', 'capital_team'] }, 
+  { path: '/meetings', allowedRoles: ['admin', 'partner', 'founder', 'capital_team'] },
+  { path: '/fundraising', allowedRoles: ['admin', 'capital_team'] }, 
 ];
 
 export const useRoleAccess = () => {
   const { user, hasPermission, originalRole } = useAuth();
 
-  // Check if user is actually an admin (either current role or original role)
+  // Check if user is actually an admin or capital_team (either current role or original role)
   const isActualAdmin = (originalRole || user?.role) === 'admin';
+  const isCapitalTeam = (originalRole || user?.role) === 'capital_team';
 
   const canAccessRoute = (path: string, resourceOwnerId?: string): boolean => {
     if (!user) return false;
 
-    // Admins can always access everything, regardless of current view role
-    if (isActualAdmin) return true;
+    // Admins and capital_team can always access everything, regardless of current view role
+    if (isActualAdmin || isCapitalTeam) return true;
 
     const rule = ROUTE_ACCESS_RULES.find(r => path.startsWith(r.path));
     if (!rule) return true; // Allow access to unprotected routes
@@ -55,8 +56,8 @@ export const useRoleAccess = () => {
   const canViewCompany = (companyId: string): boolean => {
     if (!user) return false;
 
-    // Admins can always view everything
-    if (isActualAdmin) return true;
+    // Admins and capital_team can always view everything
+    if (isActualAdmin || isCapitalTeam) return true;
 
     switch (user.role) {
       case 'partner':
@@ -71,8 +72,8 @@ export const useRoleAccess = () => {
   const canEditCompany = (companyId: string): boolean => {
     if (!user) return false;
 
-    // Admins can always edit everything
-    if (isActualAdmin) return true;
+    // Admins and capital_team can always edit everything
+    if (isActualAdmin || isCapitalTeam) return true;
 
     switch (user.role) {
       case 'founder':
@@ -85,8 +86,8 @@ export const useRoleAccess = () => {
   const canViewNotes = (noteAuthorId: string, companyId?: string): boolean => {
     if (!user) return false;
 
-    // Admins can always view everything
-    if (isActualAdmin) return true;
+    // Admins and capital_team can always view everything
+    if (isActualAdmin || isCapitalTeam) return true;
 
     switch (user.role) {
       case 'partner':
@@ -99,21 +100,21 @@ export const useRoleAccess = () => {
   };
 
   const canSubmitUpdate = (): boolean => {
-    // Admins can always submit updates when viewing as founder
-    if (isActualAdmin) return true;
+    // Admins and capital_team can always submit updates when viewing as founder
+    if (isActualAdmin || isCapitalTeam) return true;
     return user?.role === 'founder';
   };
 
   const canViewPortfolio = (): boolean => {
-    // Only admins can view portfolio
-    if (isActualAdmin) return true;
-    return user?.role === 'admin';
+    // Admins and capital_team can view portfolio
+    if (isActualAdmin || isCapitalTeam) return true;
+    return user?.role === 'admin' || user?.role === 'capital_team';
   };
 
   const canViewDeals = (): boolean => {
-    // Admins and partners can view deals
-    if (isActualAdmin) return true;
-    return user?.role === 'admin' || user?.role === 'partner';
+    // Admins, partners, and capital_team can view deals
+    if (isActualAdmin || isCapitalTeam) return true;
+    return user?.role === 'admin' || user?.role === 'partner' || user?.role === 'capital_team';
   };
 
   return {
