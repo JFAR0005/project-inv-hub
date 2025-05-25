@@ -55,10 +55,10 @@ const Header: React.FC<HeaderProps> = ({ mobile, showMobileMenu, setShowMobileMe
         </Button>
       )}
       <Link to="/" className="hidden font-bold sm:inline-flex">
-        Acme Investments
+        Black Nova
       </Link>
       <Link to="/" className="inline-flex font-bold sm:hidden">
-        ACME
+        Black Nova
       </Link>
       <div className="flex1" />
       
