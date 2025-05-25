@@ -49,12 +49,11 @@ export const useCompanyFiles = (companyId: string) => {
           
           let uploaderName = 'Unknown';
           
-          // Extract uploader to a variable first to handle null safety
+          // Extract uploader and handle null safety more explicitly
           const uploader = file.uploader;
-          if (uploader && uploader !== null && typeof uploader === 'object' && 'name' in uploader) {
-            const name = uploader.name;
-            if (typeof name === 'string' && name.trim()) {
-              uploaderName = name;
+          if (uploader !== null && typeof uploader === 'object' && 'name' in uploader && uploader.name) {
+            if (typeof uploader.name === 'string' && uploader.name.trim()) {
+              uploaderName = uploader.name;
             }
           }
           
