@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,11 +23,25 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface NoteFormProps {
-  onSuccess?: () => void;
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  company_id?: string;
+  visibility: 'private' | 'team' | 'shared';
+  author_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
+interface NoteFormProps {
+  note?: Note | null;
+  onSuccess?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+}
+
+const NoteForm: React.FC<NoteFormProps> = ({ note, onSuccess, onSave, onCancel }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
@@ -36,17 +49,30 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Setup form with default values
+  // Setup form with default values, using note data if editing
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: '',
-      content: '',
-      company_id: undefined,
-      visibility: 'admin',
+      title: note?.title || '',
+      content: note?.content || '',
+      company_id: note?.company_id || undefined,
+      visibility: note?.visibility || 'admin',
       tags: '',
     },
   });
+
+  // Reset form when note changes
+  useEffect(() => {
+    if (note) {
+      form.reset({
+        title: note.title,
+        content: note.content,
+        company_id: note.company_id || undefined,
+        visibility: note.visibility,
+        tags: '',
+      });
+    }
+  }, [note, form]);
 
   // Fetch companies for dropdown
   useEffect(() => {
@@ -88,7 +114,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
     }
   };
 
-  // Form submission handler
+  // Form submission handler - updated to handle both create and update
   const onSubmit = async (values: FormValues) => {
     if (!user) {
       toast({
@@ -130,37 +156,55 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
         ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean)
         : [];
       
-      // Insert note into database
-      const { data, error } = await supabase
-        .from('notes')
-        .insert({
-          title: values.title,
-          content: values.content,
-          company_id: values.company_id || null,
-          author_id: user.id,
-          visibility: values.visibility,
-          file_url: fileUrl,
-          tags: tagsList.length > 0 ? tagsList : null,
-        });
+      const noteData = {
+        title: values.title,
+        content: values.content,
+        company_id: values.company_id || null,
+        author_id: user.id,
+        visibility: values.visibility,
+        file_url: fileUrl,
+        tags: tagsList.length > 0 ? tagsList : null,
+      };
+
+      if (note?.id) {
+        // Update existing note
+        const { error } = await supabase
+          .from('notes')
+          .update(noteData)
+          .eq('id', note.id);
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Note created successfully.",
-      });
+        toast({
+          title: "Success",
+          description: "Note updated successfully.",
+        });
+      } else {
+        // Insert new note
+        const { data, error } = await supabase
+          .from('notes')
+          .insert([noteData]);
+          
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Note created successfully.",
+        });
+      }
       
       // Reset form
       form.reset();
       setSelectedFile(null);
       
-      // Call success callback
+      // Call appropriate callback
+      if (onSave) onSave();
       if (onSuccess) onSuccess();
     } catch (error) {
-      console.error('Error creating note:', error);
+      console.error('Error saving note:', error);
       toast({
         title: "Error",
-        description: "Failed to create note. Please try again.",
+        description: `Failed to ${note ? 'update' : 'create'} note. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -316,14 +360,19 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSuccess }) => {
           )}
         </div>
         
-        <div className="flex justify-end">
+        <div className="flex justify-end space-x-2">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
           <Button type="submit" disabled={isSubmitting || isUploading}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {note ? 'Updating...' : 'Creating...'}
               </>
-            ) : "Create Note"}
+            ) : (note ? 'Update Note' : 'Create Note')}
           </Button>
         </div>
       </form>
