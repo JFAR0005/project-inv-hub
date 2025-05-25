@@ -18,6 +18,7 @@ import Notes from '@/pages/Notes';
 import Meetings from '@/pages/Meetings';
 import Search from '@/pages/Search';
 import Team from '@/pages/Team';
+import Integrations from '@/pages/Integrations';
 import SubmitUpdate from '@/pages/SubmitUpdate';
 import NotFound from '@/pages/NotFound';
 
@@ -86,6 +87,11 @@ function App() {
                         <Route path="/team" element={
                           <RouteGuard allowedRoles={['admin']}>
                             <Team />
+                          </RouteGuard>
+                        } />
+                        <Route path="/integrations" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Integrations />
                           </RouteGuard>
                         } />
                         <Route path="/submit-update" element={
