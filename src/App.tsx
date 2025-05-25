@@ -1,15 +1,17 @@
+
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider, RoleBasedRoute } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { RoleBasedRoute } from './components/layout/RoleBasedRoute';
 import Layout from './components/layout/Layout';
-import Dashboard from './components/Dashboard';
+import { Dashboard } from './components/dashboard/Dashboard';
 import LoginForm from './components/auth/LoginForm';
 import AuthRedirect from './components/auth/AuthRedirect';
 import CompanyProfile from './components/company/CompanyProfile';
-import SubmitUpdateForm from './components/updates/SubmitUpdateForm';
+import { SubmitUpdateForm } from './components/company/SubmitUpdateForm';
 import NotesView from './components/notes/NotesView';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import MeetingsCalendar from './components/meetings/MeetingsCalendar';
@@ -26,69 +28,81 @@ function App() {
           <Router>
             <div className="min-h-screen bg-background">
               <Routes>
-                <Route path="/" element={<Layout />}>
+                <Route path="/" element={<Layout><Outlet /></Layout>}>
                   <Route index element={<Dashboard />} />
                   
                   {/* Portfolio Routes */}
                   <Route path="/portfolio" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                       <EnhancedPortfolioView />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Company Routes */}
                   <Route path="/companies/:id" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                       <CompanyProfile />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Updates Routes */}
                   <Route path="/updates" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                       <SubmitUpdateForm />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Notes Routes */}
                   <Route path="/notes" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <NotesView />
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <NotesView 
+                        onCreateNote={() => {}} 
+                        onEditNote={() => {}} 
+                      />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Analytics Routes */}
                   <Route path="/analytics" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                       <AnalyticsDashboard />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Meetings Routes */}
                   <Route path="/meetings" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <MeetingsCalendar />
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <MeetingsCalendar 
+                        view="month"
+                        meetings={[]}
+                        isLoading={false}
+                        onEditMeeting={() => {}}
+                      />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Admin Routes */}
                   <Route path="/admin" element={
-                    <RoleBasedRoute allowedRoles={['admin']}>
+                    <RoleBasedRoute roles={['admin']}>
                       <AdminDashboard />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Deal Tracker Routes */}
                   <Route path="/deals" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
-                      <DealTracker />
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                      <DealTracker 
+                        deal={null}
+                        onEditDeal={() => {}}
+                        onOpenDD={() => {}}
+                      />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Fundraising Routes */}
                   <Route path="/fundraising" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
-                      <FundraisingDashboard />
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                      <FundraisingDashboard lpLeads={[]} />
                     </RoleBasedRoute>
                   } />
                 </Route>

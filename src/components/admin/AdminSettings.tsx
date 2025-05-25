@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -36,14 +35,14 @@ const AdminSettings: React.FC = () => {
       // In a real implementation, this would save to a settings table
       console.log('Saving settings:', newSettings);
       
-      // Log the action
+      // Log the action - convert settings to JSON-compatible object
       await supabase
         .from('audit_logs')
         .insert({
           action: 'system_settings_updated',
           target_type: 'system',
           target_id: 'settings',
-          details: newSettings
+          details: newSettings as any
         });
     },
     onSuccess: () => {

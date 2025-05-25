@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import LoadingSpinner from './LoadingSpinner';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   requireAuth?: boolean;
 }
 
@@ -36,7 +36,11 @@ const Layout: React.FC<LayoutProps> = ({ children, requireAuth = true }) => {
 
   return (
     <div className="flex h-screen">
-      {isAuthenticated && <Sidebar />}
+      {isAuthenticated && (
+        <div className="w-64 flex-shrink-0 bg-white border-r border-gray-200">
+          <Sidebar />
+        </div>
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
         {isAuthenticated && (
           <Header 
@@ -46,7 +50,7 @@ const Layout: React.FC<LayoutProps> = ({ children, requireAuth = true }) => {
           />
         )}
         <main className="flex-1 overflow-y-auto p-4 bg-background">
-          {children}
+          {children || <Outlet />}
         </main>
       </div>
     </div>
