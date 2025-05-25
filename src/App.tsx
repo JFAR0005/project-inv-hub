@@ -24,6 +24,7 @@ const Meetings = lazy(() => import("./pages/Meetings"));
 const Notes = lazy(() => import("./pages/Notes"));
 const SubmitUpdate = lazy(() => import("./pages/SubmitUpdate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PortfolioDashboard = lazy(() => import("./pages/PortfolioDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,109 +59,141 @@ function App() {
                     <Route 
                       path="/login" 
                       element={
-                        <Suspense fallback={<DataLoadingState />}>
-                          <Login />
-                        </Suspense>
+                        <Layout requireAuth={false}>
+                          <Suspense fallback={<DataLoadingState />}>
+                            <Login />
+                          </Suspense>
+                        </Layout>
                       } 
                     />
-                    <Route path="/" element={<Layout />}>
-                      <Route 
-                        index 
-                        element={
+                    <Route 
+                      path="/" 
+                      element={
+                        <Layout>
                           <RouteGuard>
                             <Suspense fallback={<DataLoadingState />}>
                               <Index />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="portfolio" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/portfolio-dashboard" 
+                      element={
+                        <Layout>
+                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                            <Suspense fallback={<DataLoadingState />}>
+                              <PortfolioDashboard />
+                            </Suspense>
+                          </RouteGuard>
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/portfolio" 
+                      element={
+                        <Layout>
                           <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Portfolio />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="analytics" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/analytics" 
+                      element={
+                        <Layout>
                           <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
                             <Suspense fallback={<DataLoadingState />}>
                               <AdvancedAnalytics />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="company/:id" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/company/:id" 
+                      element={
+                        <Layout>
                           <RouteGuard>
                             <Suspense fallback={<DataLoadingState />}>
                               <CompanyDetails />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="deals" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/deals" 
+                      element={
+                        <Layout>
                           <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Deals />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="fundraising" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/fundraising" 
+                      element={
+                        <Layout>
                           <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Fundraising />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="meetings" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/meetings" 
+                      element={
+                        <Layout>
                           <RouteGuard>
                             <Suspense fallback={<DataLoadingState />}>
                               <Meetings />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="notes" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/notes" 
+                      element={
+                        <Layout>
                           <RouteGuard>
                             <Suspense fallback={<DataLoadingState />}>
                               <Notes />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                      <Route 
-                        path="submit-update/:companyId" 
-                        element={
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/submit-update/:companyId" 
+                      element={
+                        <Layout>
                           <RouteGuard allowedRoles={['founder']}>
                             <Suspense fallback={<DataLoadingState />}>
                               <SubmitUpdate />
                             </Suspense>
                           </RouteGuard>
-                        } 
-                      />
-                    </Route>
+                        </Layout>
+                      } 
+                    />
                     <Route 
                       path="*" 
                       element={
-                        <Suspense fallback={<DataLoadingState />}>
-                          <NotFound />
-                        </Suspense>
+                        <Layout requireAuth={false}>
+                          <Suspense fallback={<DataLoadingState />}>
+                            <NotFound />
+                          </Suspense>
+                        </Layout>
                       } 
                     />
                   </Routes>
