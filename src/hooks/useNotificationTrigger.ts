@@ -136,11 +136,12 @@ export const useNotificationTrigger = () => {
     lastUpdateDate: string | null
   ): Promise<boolean> => {
     try {
-      // Get company founder and assigned partners
-      const { data: company } = await supabase
-        .from('companies')
-        .select('founder_email')
-        .eq('id', companyId)
+      // Get company founder from users table by company_id
+      const { data: founder } = await supabase
+        .from('users')
+        .select('email')
+        .eq('company_id', companyId)
+        .eq('role', 'founder')
         .single();
         
       const { data: partners } = await supabase
@@ -149,7 +150,7 @@ export const useNotificationTrigger = () => {
         .eq('role', 'partner');
       
       const recipients = [
-        ...(company?.founder_email ? [company.founder_email] : []),
+        ...(founder?.email ? [founder.email] : []),
         ...(partners?.map(p => p.email) || [])
       ];
       

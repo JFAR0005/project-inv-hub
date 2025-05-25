@@ -48,17 +48,19 @@ const MeetingScheduler: React.FC = () => {
         .map(email => email.trim())
         .filter(email => email.length > 0);
 
+      // Convert date and time to proper start_time and end_time
+      const startDateTime = new Date(`${meetingData.date}T${meetingData.time}`);
+      const endDateTime = new Date(startDateTime.getTime() + parseInt(meetingData.duration) * 60000);
+
       const { data, error } = await supabase
         .from('meetings')
         .insert({
           title: meetingData.title,
           description: meetingData.description || null,
-          date: meetingData.date,
-          time: meetingData.time,
-          duration: parseInt(meetingData.duration),
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
           company_id: meetingData.company_id || null,
           created_by: user?.id,
-          participant_emails: participantEmails
         })
         .select()
         .single();
@@ -71,11 +73,12 @@ const MeetingScheduler: React.FC = () => {
       
       // Trigger notification
       if (data.participant_emails && data.participant_emails.length > 0) {
+        const meetingDate = new Date(data.start_time);
         const notificationSent = await notifyMeetingScheduled(
           data.company_id || '',
           data.title,
-          format(new Date(data.date), 'MMMM d, yyyy'),
-          data.time,
+          format(meetingDate, 'MMMM d, yyyy'),
+          format(meetingDate, 'HH:mm'),
           data.participant_emails
         );
         

@@ -67,10 +67,7 @@ const SubmitUpdate = () => {
         </p>
       </div>
 
-      <SubmitUpdateForm 
-        companyId={user.companyId}
-        companyName={company.name}
-      />
+      <SubmitUpdateForm />
     </div>
   );
 };
