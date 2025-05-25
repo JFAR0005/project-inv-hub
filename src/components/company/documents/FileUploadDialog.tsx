@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, FileText, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,12 +19,14 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({ companyId, onUpload
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      
       // Check file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast({
@@ -34,8 +36,39 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({ companyId, onUpload
         });
         return;
       }
+      
+      // Check for allowed file types
+      const allowedTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "File type not allowed",
+          description: "Please upload PDF, Word, Excel, or image files only",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       setUploadingFile(file);
     }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleFileUpload = async () => {
@@ -57,6 +90,8 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({ companyId, onUpload
       
       if (error) throw error;
       
+      setUploadProgress(75);
+      
       // Get the public URL
       const { data: urlData } = await supabase.storage
         .from('company_files')
@@ -74,12 +109,15 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({ companyId, onUpload
       
       if (metaError) throw metaError;
       
+      setUploadProgress(100);
+      
       toast({
         title: "File uploaded",
-        description: "File has been uploaded successfully"
+        description: `${uploadingFile.name} has been uploaded successfully`
       });
       
       setUploadingFile(null);
+      setIsOpen(false);
       onUploadComplete();
     } catch (err) {
       console.error('Error uploading file:', err);
@@ -90,18 +128,24 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({ companyId, onUpload
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
+  const clearFile = () => {
+    setUploadingFile(null);
+    setUploadProgress(0);
+  };
+
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="flex gap-2">
           <UploadCloud className="h-4 w-4" />
-          Upload File
+          Upload Document
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
         </DialogHeader>
@@ -112,23 +156,66 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({ companyId, onUpload
               id="file"
               type="file"
               onChange={handleFileChange}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
+              disabled={isUploading}
             />
+            <p className="text-xs text-muted-foreground">
+              Supported formats: PDF, Word, Excel, Images, Text
+            </p>
           </div>
+          
+          {uploadingFile && (
+            <div className="border rounded-lg p-3 bg-muted/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <div>
+                    <p className="text-sm font-medium">{uploadingFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(uploadingFile.size)}
+                    </p>
+                  </div>
+                </div>
+                {!isUploading && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={clearFile}
+                    className="h-6 w-6"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           
           {isUploading && (
             <div className="space-y-2">
-              <p className="text-sm text-center">Uploading...</p>
+              <div className="flex justify-between text-sm">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
               <Progress value={uploadProgress} className="h-2" />
             </div>
           )}
           
-          <Button 
-            onClick={handleFileUpload}
-            disabled={!uploadingFile || isUploading}
-            className="w-full"
-          >
-            Upload
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleFileUpload}
+              disabled={!uploadingFile || isUploading}
+              className="flex-1"
+            >
+              {isUploading ? 'Uploading...' : 'Upload Document'}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              disabled={isUploading}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, Trash2, Eye, FileText } from 'lucide-react';
+import { Download, Trash2, Eye, FileText, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { FileObject } from './types';
@@ -100,6 +100,11 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
     }
   };
 
+  const isViewableFile = (fileName: string) => {
+    const ext = getFileExtension(fileName);
+    return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'md'].includes(ext);
+  };
+
   if (files.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -128,7 +133,15 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
             <TableRow key={file.id}>
               <TableCell className="flex items-center gap-2">
                 <FileIcon fileName={file.name} />
-                <span className="font-medium">{file.name}</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">{file.name}</span>
+                  {isViewableFile(file.name) && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      Viewable
+                    </span>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 <Badge variant="outline">
@@ -146,13 +159,23 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-2">
+                  {isViewableFile(file.name) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleView(file)}
+                      title="View file"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => handleView(file)}
-                    title="View file"
+                    onClick={() => file.url && window.open(file.url, '_blank')}
+                    title="Open file"
                   >
-                    <Eye className="h-4 w-4" />
+                    <ExternalLink className="h-4 w-4" />
                   </Button>
                   <Button 
                     variant="ghost" 
