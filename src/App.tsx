@@ -9,11 +9,10 @@ import Layout from '@/components/layout/Layout';
 import RouteGuard from '@/components/layout/RouteGuard';
 import Login from '@/pages/Login';
 import Portfolio from '@/pages/Portfolio';
-import EnhancedPortfolio from '@/pages/EnhancedPortfolio';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Analytics from '@/pages/Analytics';
-import AdvancedAnalytics from '@/pages/AdvancedAnalytics';
 import Deals from '@/pages/Deals';
+import Fundraising from '@/pages/Fundraising';
 import Notes from '@/pages/Notes';
 import Meetings from '@/pages/Meetings';
 import Search from '@/pages/Search';
@@ -44,11 +43,6 @@ function App() {
                             <Portfolio />
                           </RouteGuard>
                         } />
-                        <Route path="/enhanced-portfolio" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
-                            <EnhancedPortfolio />
-                          </RouteGuard>
-                        } />
                         <Route path="/company/:id" element={
                           <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']} requiresOwnership>
                             <CompanyProfile />
@@ -59,14 +53,14 @@ function App() {
                             <Analytics />
                           </RouteGuard>
                         } />
-                        <Route path="/advanced-analytics" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
-                            <AdvancedAnalytics />
-                          </RouteGuard>
-                        } />
                         <Route path="/deals" element={
                           <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
                             <Deals />
+                          </RouteGuard>
+                        } />
+                        <Route path="/fundraising" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Fundraising />
                           </RouteGuard>
                         } />
                         <Route path="/notes" element={

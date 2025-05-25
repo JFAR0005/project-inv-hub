@@ -10,11 +10,10 @@ interface RouteAccess {
 
 const ROUTE_ACCESS: RouteAccess = {
   '/portfolio': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/enhanced-portfolio': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/company': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'], requiresOwnership: true },
   '/analytics': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/advanced-analytics': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/deals': { allowedRoles: ['admin', 'capital_team', 'partner'] },
+  '/fundraising': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/notes': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/meetings': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'] },
   '/search': { allowedRoles: ['admin', 'capital_team', 'partner'] },

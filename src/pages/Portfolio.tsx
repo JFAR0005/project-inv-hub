@@ -1,10 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
+import EnhancedPortfolioView from '@/components/portfolio/EnhancedPortfolioView';
 
 const Portfolio = () => {
   const { user } = useAuth();
@@ -54,37 +56,50 @@ const Portfolio = () => {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {companies?.map((company) => (
-          <Card key={company.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-lg">{company.name}</CardTitle>
-              <CardDescription>{company.sector}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Location: {company.location || 'Not specified'}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Stage: {company.stage || 'Not specified'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs defaultValue="enhanced" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="enhanced">Enhanced View</TabsTrigger>
+          <TabsTrigger value="standard">Standard View</TabsTrigger>
+        </TabsList>
 
-      {companies?.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <h3 className="text-lg font-medium">No companies found</h3>
-            <p className="text-muted-foreground mt-2">
-              Start by adding companies to your portfolio
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="enhanced">
+          <EnhancedPortfolioView />
+        </TabsContent>
+
+        <TabsContent value="standard">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {companies?.map((company) => (
+              <Card key={company.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-lg">{company.name}</CardTitle>
+                  <CardDescription>{company.sector}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Location: {company.location || 'Not specified'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Stage: {company.stage || 'Not specified'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {companies?.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <h3 className="text-lg font-medium">No companies found</h3>
+                <p className="text-muted-foreground mt-2">
+                  Start by adding companies to your portfolio
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

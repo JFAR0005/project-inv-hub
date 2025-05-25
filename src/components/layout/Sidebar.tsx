@@ -12,7 +12,7 @@ import {
   Settings,
   Users,
   TrendingUp,
-  Grid3X3,
+  DollarSign,
   Zap
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -23,10 +23,9 @@ const Sidebar = () => {
 
   const navigation = [
     { name: 'Portfolio', href: '/portfolio', icon: Building2, roles: ['admin', 'capital_team', 'partner'] },
-    { name: 'Enhanced Portfolio', href: '/enhanced-portfolio', icon: Grid3X3, roles: ['admin', 'capital_team', 'partner'] },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin', 'capital_team', 'partner'] },
-    { name: 'Advanced Analytics', href: '/advanced-analytics', icon: BarChart3, roles: ['admin', 'capital_team', 'partner'] },
     { name: 'Deals', href: '/deals', icon: TrendingUp, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Fundraising', href: '/fundraising', icon: DollarSign, roles: ['admin', 'capital_team', 'partner'] },
     { name: 'Notes', href: '/notes', icon: FileText, roles: ['admin', 'capital_team', 'partner', 'founder'] },
     { name: 'Meetings', href: '/meetings', icon: Calendar, roles: ['admin', 'capital_team', 'partner', 'founder'] },
     { name: 'Search', href: '/search', icon: Search, roles: ['admin', 'capital_team', 'partner'] },
