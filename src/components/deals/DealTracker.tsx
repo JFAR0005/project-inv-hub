@@ -11,7 +11,7 @@ import { Database } from '@/integrations/supabase/types';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
   companies?: Database['public']['Tables']['companies']['Row'];
-  users?: Database['public']['Tables']['users']['Row'];
+  lead_partner_user?: Database['public']['Tables']['users']['Row'];
 };
 
 const DealTracker: React.FC = () => {
@@ -25,7 +25,7 @@ const DealTracker: React.FC = () => {
         .select(`
           *,
           companies(*),
-          users(*)
+          lead_partner_user:users!deals_lead_partner_fkey(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -167,7 +167,7 @@ const DealTracker: React.FC = () => {
                         <User className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-gray-600">Lead Partner</p>
-                          <p className="font-medium">{deal.users?.name || 'Unassigned'}</p>
+                          <p className="font-medium">{deal.lead_partner_user?.name || 'Unassigned'}</p>
                         </div>
                       </div>
                     </div>

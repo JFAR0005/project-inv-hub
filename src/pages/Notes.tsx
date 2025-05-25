@@ -48,10 +48,7 @@ const Notes = () => {
         </TabsList>
 
         <TabsContent value="list">
-          <NotesView 
-            onCreateNote={handleCreateNote}
-            onEditNote={handleEditNote}
-          />
+          <NotesView />
         </TabsContent>
 
         {isCreating && (

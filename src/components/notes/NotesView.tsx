@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, FileText, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 interface Note {
   id: string;
@@ -16,14 +17,17 @@ interface Note {
   content: string;
   created_at: string;
   updated_at: string;
-  user_id: string;
+  author_id: string;
+  company_id?: string;
+  visibility: string;
 }
 
 const NotesView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newNote, setNewNote] = useState({ title: '', content: '' });
+  const [newNote, setNewNote] = useState({ title: '', content: '', visibility: 'private' });
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: notes, isLoading, refetch } = useQuery({
     queryKey: ['notes'],
@@ -48,12 +52,23 @@ const NotesView: React.FC = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create notes",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('notes')
         .insert([{
           title: newNote.title,
           content: newNote.content,
+          author_id: user.id,
+          visibility: newNote.visibility,
         }]);
 
       if (error) throw error;
@@ -63,7 +78,7 @@ const NotesView: React.FC = () => {
         description: "Note created successfully",
       });
       
-      setNewNote({ title: '', content: '' });
+      setNewNote({ title: '', content: '', visibility: 'private' });
       setShowCreateModal(false);
       refetch();
     } catch (error) {
@@ -165,6 +180,7 @@ const NotesView: React.FC = () => {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-3 w-3" />
                   {new Date(note.updated_at).toLocaleDateString()}
+                  <Badge variant="outline">{note.visibility}</Badge>
                 </div>
               </CardHeader>
               <CardContent>
