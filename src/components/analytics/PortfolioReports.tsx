@@ -144,7 +144,7 @@ const PortfolioReports: React.FC<PortfolioReportsProps> = ({ companies }) => {
             <div className="text-2xl font-bold text-green-600">
               {companies.filter(c => c.growthRate > 25).length}
             </div>
-            <div className="text-xs text-muted-foreground">Companies with >25% growth</div>
+            <div className="text-xs text-muted-foreground">Companies with {'>'}25% growth</div>
           </CardContent>
         </Card>
 
