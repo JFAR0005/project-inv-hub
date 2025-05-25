@@ -3,20 +3,16 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import PortfolioStats from '@/components/portfolio/PortfolioStats';
 import PortfolioViewToggle from '@/components/portfolio/PortfolioViewToggle';
 import EnhancedCompanyCard from '@/components/portfolio/EnhancedCompanyCard';
 import PortfolioList from '@/components/portfolio/PortfolioList';
-import { Loader2 } from 'lucide-react';
+import PortfolioSearch from '@/components/portfolio/search/PortfolioSearch';
 
 const EnhancedPortfolio = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [stageFilter, setStageFilter] = useState('all');
-  const [sectorFilter, setSectorFilter] = useState('all');
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
 
   const { data: companies, isLoading, error } = useQuery({
     queryKey: ['enhanced-portfolio-companies'],
@@ -40,18 +36,6 @@ const EnhancedPortfolio = () => {
     },
   });
 
-  // Filter companies based on search and filters
-  const filteredCompanies = companies?.filter(company => {
-    const matchesSearch = !searchTerm || 
-      company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.sector?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStage = stageFilter === 'all' || company.stage === stageFilter;
-    const matchesSector = sectorFilter === 'all' || company.sector === sectorFilter;
-    
-    return matchesSearch && matchesStage && matchesSector;
-  }) || [];
-
   // Calculate portfolio stats
   const portfolioStats = {
     totalCompanies: companies?.length || 0,
@@ -61,9 +45,6 @@ const EnhancedPortfolio = () => {
       : 0,
     activeCompanies: companies?.filter(company => company.stage !== 'Exited').length || 0
   };
-
-  // Get unique sectors for filter
-  const sectors = Array.from(new Set(companies?.map(company => company.sector).filter(Boolean))) as string[];
 
   if (isLoading) {
     return (
@@ -93,52 +74,29 @@ const EnhancedPortfolio = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Enhanced Portfolio</h1>
         <p className="text-muted-foreground mt-2">
-          Comprehensive view of your portfolio companies with advanced insights
+          Comprehensive view of your portfolio companies with advanced search and filtering
         </p>
       </div>
 
       <PortfolioStats {...portfolioStats} />
 
-      {/* Filters and Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search companies..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Stage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stages</SelectItem>
-              <SelectItem value="Seed">Seed</SelectItem>
-              <SelectItem value="Series A">Series A</SelectItem>
-              <SelectItem value="Series B">Series B</SelectItem>
-              <SelectItem value="Series C+">Series C+</SelectItem>
-            </SelectContent>
-          </Select>
+      {/* Advanced Search & Filtering */}
+      <div className="mb-6">
+        <PortfolioSearch
+          companies={companies || []}
+          onFilteredCompanies={setFilteredCompanies}
+          showSuggestions={true}
+        />
+      </div>
 
-          <Select value={sectorFilter} onValueChange={setSectorFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Sector" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sectors</SelectItem>
-              {sectors.map(sector => (
-                <SelectItem key={sector} value={sector}>{sector}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <PortfolioViewToggle view={view} onViewChange={setView} />
+      {/* View Controls */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted-foreground">
+            {filteredCompanies.length} of {companies?.length || 0} companies
+          </span>
         </div>
+        <PortfolioViewToggle view={view} onViewChange={setView} />
       </div>
 
       {/* Company Display */}
