@@ -12,6 +12,7 @@ import Portfolio from '@/pages/Portfolio';
 import EnhancedPortfolio from '@/pages/EnhancedPortfolio';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Analytics from '@/pages/Analytics';
+import AdvancedAnalytics from '@/pages/AdvancedAnalytics';
 import Deals from '@/pages/Deals';
 import Notes from '@/pages/Notes';
 import Meetings from '@/pages/Meetings';
@@ -55,6 +56,11 @@ function App() {
                         <Route path="/analytics" element={
                           <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
                             <Analytics />
+                          </RouteGuard>
+                        } />
+                        <Route path="/advanced-analytics" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <AdvancedAnalytics />
                           </RouteGuard>
                         } />
                         <Route path="/deals" element={
