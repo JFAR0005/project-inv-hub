@@ -10,6 +10,7 @@ import RouteGuard from "@/components/layout/RouteGuard";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
 import QueryErrorBoundary from "@/components/error/QueryErrorBoundary";
 import DataLoadingState from "@/components/data/DataLoadingState";
+import RoleBasedRoute, { ROLE_COMBINATIONS } from "@/components/layout/RoleBasedRoute";
 
 // Lazy load components for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -72,11 +73,11 @@ function App() {
                       path="/" 
                       element={
                         <Layout>
-                          <RouteGuard>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ALL_AUTHENTICATED}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Index />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -84,11 +85,11 @@ function App() {
                       path="/admin" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_ONLY}>
                             <Suspense fallback={<DataLoadingState />}>
                               <AdminDashboard />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -96,11 +97,11 @@ function App() {
                       path="/portfolio-dashboard" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_CAPITAL_PARTNER}>
                             <Suspense fallback={<DataLoadingState />}>
                               <PortfolioDashboard />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -108,11 +109,11 @@ function App() {
                       path="/portfolio" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_CAPITAL_PARTNER}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Portfolio />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -120,11 +121,11 @@ function App() {
                       path="/analytics" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_CAPITAL_PARTNER}>
                             <Suspense fallback={<DataLoadingState />}>
                               <AdvancedAnalytics />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -132,11 +133,11 @@ function App() {
                       path="/company/:id" 
                       element={
                         <Layout>
-                          <RouteGuard>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ALL_AUTHENTICATED}>
                             <Suspense fallback={<DataLoadingState />}>
                               <CompanyDetails />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -144,11 +145,11 @@ function App() {
                       path="/deals" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_CAPITAL_PARTNER}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Deals />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -156,11 +157,11 @@ function App() {
                       path="/fundraising" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_CAPITAL}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Fundraising />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -168,11 +169,11 @@ function App() {
                       path="/fundraising/leads/:id" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ADMIN_CAPITAL}>
                             <Suspense fallback={<DataLoadingState />}>
                               <LPLeadDetail />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -180,11 +181,11 @@ function App() {
                       path="/meetings" 
                       element={
                         <Layout>
-                          <RouteGuard>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ALL_AUTHENTICATED}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Meetings />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -192,11 +193,11 @@ function App() {
                       path="/notes" 
                       element={
                         <Layout>
-                          <RouteGuard>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ALL_AUTHENTICATED}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Notes />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -204,11 +205,11 @@ function App() {
                       path="/notifications" 
                       element={
                         <Layout>
-                          <RouteGuard>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.ALL_AUTHENTICATED}>
                             <Suspense fallback={<DataLoadingState />}>
                               <Notifications />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
@@ -216,11 +217,11 @@ function App() {
                       path="/submit-update/:companyId" 
                       element={
                         <Layout>
-                          <RouteGuard allowedRoles={['founder']}>
+                          <RoleBasedRoute roles={ROLE_COMBINATIONS.FOUNDER_ONLY} requireOwnership={true}>
                             <Suspense fallback={<DataLoadingState />}>
                               <SubmitUpdate />
                             </Suspense>
-                          </RouteGuard>
+                          </RoleBasedRoute>
                         </Layout>
                       } 
                     />
