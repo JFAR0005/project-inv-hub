@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { usePortfolioHealth } from '@/hooks/usePortfolioHealth';
+import { useOverdueUpdateChecker } from '@/hooks/useOverdueUpdateChecker';
 import PortfolioHealthMetrics from './health/PortfolioHealthMetrics';
 import PortfolioHealthTabs from './health/PortfolioHealthTabs';
 import DataLoadingState from '@/components/data/DataLoadingState';
@@ -8,6 +9,9 @@ import DataLoadingState from '@/components/data/DataLoadingState';
 const PortfolioHealthDashboard: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'needs-update' | 'raising'>('all');
   const { data: companies = [], isLoading } = usePortfolioHealth();
+  
+  // Enable automatic overdue update checking
+  useOverdueUpdateChecker();
 
   // Calculate health metrics
   const healthMetrics = useMemo(() => {

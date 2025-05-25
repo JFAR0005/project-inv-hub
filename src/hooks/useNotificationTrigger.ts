@@ -8,16 +8,20 @@ interface NotificationData {
   company_name?: string;
   submitter_name?: string;
   update_link?: string;
+  assigned_partner?: string;
   
   // For meeting_scheduled
   meeting_title?: string;
   meeting_date?: string;
   meeting_time?: string;
   participants?: string[];
+  meeting_link?: string;
   
   // For update_overdue
   days_overdue?: number;
   last_update_date?: string;
+  founder_email?: string;
+  partner_email?: string;
 }
 
 type NotificationType =
@@ -76,13 +80,33 @@ export const useNotificationTrigger = () => {
     if (!user) return false;
     
     try {
-      // Get partners associated with this company or all partners for now
+      // Get company details including assigned partner
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', companyId)
+        .single();
+        
+      // Get deals to find assigned partner
+      const { data: deal } = await supabase
+        .from('deals')
+        .select(`
+          lead_partner,
+          users!deals_lead_partner_fkey(name, email)
+        `)
+        .eq('company_id', companyId)
+        .single();
+        
+      // Get all partners as fallback
       const { data: partners } = await supabase
         .from('users')
         .select('email, name')
         .eq('role', 'partner');
-        
-      const recipients = partners?.map(partner => partner.email) || [];
+      
+      const assignedPartner = deal?.users as any;
+      const recipients = assignedPartner?.email 
+        ? [assignedPartner.email] 
+        : partners?.map(partner => partner.email) || [];
       
       if (recipients.length === 0) {
         console.warn('No partners found to notify');
@@ -95,7 +119,8 @@ export const useNotificationTrigger = () => {
         data: {
           company_name: companyName,
           submitter_name: user.name || user.email,
-          update_link: `${window.location.origin}/company-profile/${companyId}?tab=updates`,
+          update_link: `${window.location.origin}/company/${companyId}?tab=updates`,
+          assigned_partner: assignedPartner?.name || 'Unassigned',
         },
         recipients,
       });
@@ -111,7 +136,8 @@ export const useNotificationTrigger = () => {
     meetingTitle: string, 
     meetingDate: string, 
     meetingTime: string, 
-    participantEmails: string[]
+    participantEmails: string[],
+    meetingLink?: string
   ): Promise<boolean> => {
     if (!user) return false;
     
@@ -123,6 +149,7 @@ export const useNotificationTrigger = () => {
         meeting_date: meetingDate,
         meeting_time: meetingTime,
         participants: participantEmails,
+        meeting_link: meetingLink,
       },
       recipients: participantEmails,
     });
@@ -139,19 +166,31 @@ export const useNotificationTrigger = () => {
       // Get company founder from users table by company_id
       const { data: founder } = await supabase
         .from('users')
-        .select('email')
+        .select('email, name')
         .eq('company_id', companyId)
         .eq('role', 'founder')
         .single();
         
+      // Get assigned partner from deals
+      const { data: deal } = await supabase
+        .from('deals')
+        .select(`
+          lead_partner,
+          users!deals_lead_partner_fkey(name, email)
+        `)
+        .eq('company_id', companyId)
+        .single();
+        
+      // Get all partners as fallback
       const { data: partners } = await supabase
         .from('users')
         .select('email')
         .eq('role', 'partner');
       
+      const assignedPartner = deal?.users as any;
       const recipients = [
         ...(founder?.email ? [founder.email] : []),
-        ...(partners?.map(p => p.email) || [])
+        ...(assignedPartner?.email ? [assignedPartner.email] : partners?.map(p => p.email) || [])
       ];
       
       if (recipients.length === 0) {
@@ -166,6 +205,8 @@ export const useNotificationTrigger = () => {
           company_name: companyName,
           days_overdue: daysOverdue,
           last_update_date: lastUpdateDate,
+          founder_email: founder?.email,
+          partner_email: assignedPartner?.email,
         },
         recipients,
       });
