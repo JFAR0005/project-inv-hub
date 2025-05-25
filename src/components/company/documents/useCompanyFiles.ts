@@ -52,10 +52,10 @@ export const useCompanyFiles = (companyId: string) => {
           // Handle uploader name extraction with proper null safety
           if (file.uploader !== null && file.uploader !== undefined) {
             const uploaderData = file.uploader as { name?: string };
-            if (typeof uploaderData === 'object' && 'name' in uploaderData) {
-              const uploaderName_temp = uploaderData.name;
-              if (typeof uploaderName_temp === 'string' && uploaderName_temp.trim()) {
-                uploaderName = uploaderName_temp;
+            if (typeof uploaderData === 'object' && 'name' in uploaderData && uploaderData.name) {
+              const uploaderNameValue = uploaderData.name;
+              if (typeof uploaderNameValue === 'string' && uploaderNameValue.trim()) {
+                uploaderName = uploaderNameValue;
               }
             }
           }
