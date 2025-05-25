@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,12 +78,18 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
             .from('company_files')
             .getPublicUrl(`${companyId}/${file.file_name}`);
 
+          // Handle uploader data safely
+          let uploaderData: { name: string; } | null = null;
+          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
+            uploaderData = { name: file.uploader.name as string };
+          }
+
           processedFiles.push({
             id: file.id,
             file_name: file.file_name || 'Unknown',
             file_url: publicUrlData.publicUrl,
             uploaded_at: file.uploaded_at,
-            uploader: file.uploader,
+            uploader: uploaderData,
             size: 0,
           });
         }
