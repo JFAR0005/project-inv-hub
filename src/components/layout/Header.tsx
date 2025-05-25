@@ -6,11 +6,11 @@ import { LogOut, User } from 'lucide-react';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const Header: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
     } catch (error) {
       console.error('Error signing out:', error);
     }
