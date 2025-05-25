@@ -48,9 +48,9 @@ export const useCompanyFiles = (companyId: string) => {
             .getPublicUrl(`${companyId}/${file.file_name}`);
           
           let uploaderName = 'Unknown';
-          // Extract uploader to a variable first to handle null checks properly
+          // Extract uploader and add explicit null check
           const uploader = file.uploader;
-          if (uploader && typeof uploader === 'object' && 'name' in uploader) {
+          if (uploader !== null && uploader !== undefined && typeof uploader === 'object' && 'name' in uploader) {
             const name = uploader.name;
             if (typeof name === 'string' && name.trim()) {
               uploaderName = name;
