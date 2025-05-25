@@ -26,7 +26,7 @@ const UpdateStatusBadge: React.FC<UpdateStatusBadgeProps> = ({
 
   if (daysSince <= 7) {
     return (
-      <Badge className="bg-green-500 hover:bg-green-600 flex items-center gap-1" className={className}>
+      <Badge className={`bg-green-500 hover:bg-green-600 flex items-center gap-1 ${className}`}>
         <CheckCircle className="h-3 w-3" />
         Recent
       </Badge>

@@ -25,7 +25,7 @@ import {
   Activity
 } from 'lucide-react';
 
-interface Company {
+interface CompanyWithHealth {
   id: string;
   name: string;
   sector: string;
@@ -45,12 +45,21 @@ interface Company {
   last_update?: string;
   raise_status?: string;
   needs_attention?: boolean;
+  needsUpdate: boolean;
+  isRaising: boolean;
+  daysSinceUpdate: number;
+  latest_update?: {
+    submitted_at: string;
+    arr?: number;
+    mrr?: number;
+    raise_status?: string;
+  };
 }
 
 const EnhancedPortfolioView: React.FC = () => {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'table' | 'overview'>('grid');
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
+  const [filteredCompanies, setFilteredCompanies] = useState<CompanyWithHealth[]>([]);
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
 
@@ -62,7 +71,7 @@ const EnhancedPortfolioView: React.FC = () => {
     refetch 
   } = useQuery({
     queryKey: ['enhanced-portfolio', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<CompanyWithHealth[]> => {
       console.log('Fetching portfolio data with update freshness...');
       
       const { data: companiesData, error: companiesError } = await supabase
@@ -134,7 +143,16 @@ const EnhancedPortfolioView: React.FC = () => {
           mrr: latestUpdate?.mrr || company.mrr,
           last_update: lastUpdateDate,
           raise_status: latestUpdate?.raise_status,
-          needs_attention: needsAttention
+          needs_attention: needsAttention,
+          needsUpdate: needsAttention,
+          isRaising,
+          daysSinceUpdate,
+          latest_update: latestUpdate ? {
+            submitted_at: latestUpdate.submitted_at,
+            arr: latestUpdate.arr,
+            mrr: latestUpdate.mrr,
+            raise_status: latestUpdate.raise_status
+          } : undefined
         };
       });
     },
@@ -177,13 +195,10 @@ const EnhancedPortfolioView: React.FC = () => {
     };
   }, [companies]);
 
-  // Memoized suggestion handler
   const handleSuggestionClick = useCallback((suggestion: string) => {
     console.log('Applying suggestion filter:', suggestion);
-    // This would typically trigger filter updates in the AdvancedSearch component
   }, []);
 
-  // Optimized export function
   const exportData = useCallback(() => {
     const csvContent = [
       ['Company', 'Sector', 'Stage', 'Location', 'ARR', 'Growth Rate', 'Headcount', 'Risk Level', 'Burn Rate', 'Runway', 'Last Update', 'Raise Status', 'Needs Attention'].join(','),
@@ -228,7 +243,6 @@ const EnhancedPortfolioView: React.FC = () => {
     );
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -256,7 +270,6 @@ const EnhancedPortfolioView: React.FC = () => {
     );
   }
 
-  // Empty state
   if (!companies.length) {
     return (
       <div className="space-y-6">
@@ -280,7 +293,6 @@ const EnhancedPortfolioView: React.FC = () => {
           <p className="text-gray-600 mt-1">
             Advanced portfolio management and insights
           </p>
-          {/* Health Summary */}
           <div className="flex items-center gap-4 mt-2 text-sm">
             <span className="text-gray-600">{healthMetrics.total} companies</span>
             {healthMetrics.needingUpdates > 0 && (
@@ -322,7 +334,6 @@ const EnhancedPortfolioView: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main Content */}
         <div className="lg:col-span-3 space-y-6">
           {/* View Controls */}
           <div className="flex justify-between items-center">
