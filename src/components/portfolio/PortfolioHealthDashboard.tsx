@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,26 +42,33 @@ const PortfolioHealthDashboard: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'needs-update' | 'raising'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   
-  const { data: companies = [], isLoading, error } = usePortfolioHealth();
+  const { data: portfolioData, isLoading, error } = usePortfolioHealth();
   
   // Enable overdue update checking
   useOverdueUpdateChecker();
 
+  const companies = portfolioData?.companies || [];
   const healthMetrics = React.useMemo(() => {
-    const total = companies.length;
-    const needingUpdates = companies.filter(c => c.needsUpdate).length;
-    const raising = companies.filter(c => c.isRaising).length;
-    const healthy = total - needingUpdates;
-    
+    if (!portfolioData) {
+      return {
+        total: 0,
+        needingUpdates: 0,
+        raising: 0,
+        healthy: 0,
+        percentageNeedingUpdates: 0,
+        percentageRaising: 0,
+      };
+    }
+
     return {
-      total,
-      needingUpdates,
-      raising,
-      healthy,
-      percentageNeedingUpdates: total > 0 ? Math.round((needingUpdates / total) * 100) : 0,
-      percentageRaising: total > 0 ? Math.round((raising / total) * 100) : 0,
+      total: portfolioData.totalCompanies,
+      needingUpdates: portfolioData.companiesNeedingUpdate,
+      raising: portfolioData.companiesRaising,
+      healthy: portfolioData.totalCompanies - portfolioData.companiesNeedingUpdate,
+      percentageNeedingUpdates: portfolioData.totalCompanies > 0 ? Math.round((portfolioData.companiesNeedingUpdate / portfolioData.totalCompanies) * 100) : 0,
+      percentageRaising: portfolioData.totalCompanies > 0 ? Math.round((portfolioData.companiesRaising / portfolioData.totalCompanies) * 100) : 0,
     };
-  }, [companies]);
+  }, [portfolioData]);
 
   if (isLoading) {
     return (

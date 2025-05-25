@@ -5,7 +5,7 @@ import { useNotificationTrigger } from './useNotificationTrigger';
 import { useAuth } from '@/context/AuthContext';
 
 export const useOverdueUpdateChecker = () => {
-  const { data: companies = [] } = usePortfolioHealth();
+  const { data: portfolioData } = usePortfolioHealth();
   const { notifyUpdateOverdue } = useNotificationTrigger();
   const { user } = useAuth();
 
@@ -15,10 +15,14 @@ export const useOverdueUpdateChecker = () => {
       return;
     }
 
+    if (!portfolioData?.companies) {
+      return;
+    }
+
     const checkOverdueUpdates = async () => {
       console.log('Checking for overdue updates...');
       
-      const overdueCompanies = companies.filter(company => 
+      const overdueCompanies = portfolioData.companies.filter(company => 
         company.needsUpdate && company.daysSinceUpdate > 30
       );
 
@@ -53,5 +57,5 @@ export const useOverdueUpdateChecker = () => {
     const interval = setInterval(checkOverdueUpdates, 60 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [companies, notifyUpdateOverdue, user]);
+  }, [portfolioData, notifyUpdateOverdue, user]);
 };
