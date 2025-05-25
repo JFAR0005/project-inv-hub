@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,7 +81,7 @@ const CompanyDocuments: React.FC<CompanyDocumentsProps> = ({ companyId }) => {
 
           // Handle uploader data safely
           let uploaderData: { name: string; } | null = null;
-          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
+          if (file.uploader && file.uploader !== null && typeof file.uploader === 'object' && 'name' in file.uploader) {
             uploaderData = { name: file.uploader.name as string };
           }
 
