@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,7 @@ export interface SearchFilters {
   riskLevels: string[];
 }
 
-interface Company {
+interface CompanyWithHealth {
   id: string;
   name: string;
   sector: string;
@@ -43,11 +42,20 @@ interface Company {
   growth: number;
   headcount: number;
   riskLevel: 'Low' | 'Medium' | 'High';
+  needsUpdate: boolean;
+  isRaising: boolean;
+  daysSinceUpdate: number;
+  latest_update?: {
+    submitted_at: string;
+    arr?: number;
+    mrr?: number;
+    raise_status?: string;
+  };
 }
 
 interface AdvancedSearchProps {
-  companies: Company[];
-  onFiltersChange: (companies: Company[]) => void;
+  companies: CompanyWithHealth[];
+  onFiltersChange: (companies: CompanyWithHealth[]) => void;
   onFiltersUpdate?: (filters: SearchFilters) => void;
 }
 
