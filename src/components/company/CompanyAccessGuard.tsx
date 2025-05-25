@@ -20,6 +20,7 @@ const CompanyAccessGuard: React.FC<CompanyAccessGuardProps> = ({
     return (
       <AccessDenied 
         userRole={userRole}
+        requiredRoles={['admin', 'capital_team', 'partner', 'founder']}
         message="Company ID is required to access this page."
       />
     );
@@ -31,6 +32,7 @@ const CompanyAccessGuard: React.FC<CompanyAccessGuardProps> = ({
     return (
       <AccessDenied 
         userRole={userRole}
+        requiredRoles={['admin', 'capital_team', 'partner', 'founder']}
         message={`You don't have permission to ${requireEdit ? 'edit' : 'view'} this company.`}
       />
     );
