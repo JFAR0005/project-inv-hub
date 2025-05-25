@@ -21,14 +21,15 @@ const Sidebar = () => {
   const { user } = useAuth();
 
   const navigation = [
-    { name: 'Portfolio', href: '/portfolio', icon: Building2, roles: ['admin', 'partner'] },
-    { name: 'Enhanced Portfolio', href: '/enhanced-portfolio', icon: Grid3X3, roles: ['admin', 'partner'] },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin', 'partner'] },
-    { name: 'Deals', href: '/deals', icon: TrendingUp, roles: ['admin', 'partner'] },
-    { name: 'Notes', href: '/notes', icon: FileText, roles: ['admin', 'partner', 'founder'] },
-    { name: 'Meetings', href: '/meetings', icon: Calendar, roles: ['admin', 'partner', 'founder'] },
-    { name: 'Search', href: '/search', icon: Search, roles: ['admin', 'partner'] },
-    { name: 'Team', href: '/team', icon: Users, roles: ['admin', 'partner'] },
+    { name: 'Portfolio', href: '/portfolio', icon: Building2, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Enhanced Portfolio', href: '/enhanced-portfolio', icon: Grid3X3, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Advanced Analytics', href: '/advanced-analytics', icon: BarChart3, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Deals', href: '/deals', icon: TrendingUp, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Notes', href: '/notes', icon: FileText, roles: ['admin', 'capital_team', 'partner', 'founder'] },
+    { name: 'Meetings', href: '/meetings', icon: Calendar, roles: ['admin', 'capital_team', 'partner', 'founder'] },
+    { name: 'Search', href: '/search', icon: Search, roles: ['admin', 'capital_team', 'partner'] },
+    { name: 'Team', href: '/team', icon: Users, roles: ['admin'] },
     { name: 'Submit Update', href: '/submit-update', icon: FileText, roles: ['founder'] },
   ];
 

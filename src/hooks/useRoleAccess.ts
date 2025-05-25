@@ -14,6 +14,7 @@ const ROUTE_ACCESS: RouteAccess = {
   '/enhanced-portfolio': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/company': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'], requiresOwnership: true },
   '/analytics': { allowedRoles: ['admin', 'capital_team', 'partner'] },
+  '/advanced-analytics': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/deals': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/notes': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/meetings': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'] },
@@ -50,7 +51,7 @@ export const useRoleAccess = () => {
   };
 
   const canAccessCapitalFeatures = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'capital_team';
+    return user?.role === 'admin' || user?.role === 'capital_team' || user?.role === 'partner';
   };
 
   const canAccessPartnerFeatures = (): boolean => {
