@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -62,7 +61,7 @@ const CompanyProfile = () => {
             </TabsList>
             
             <TabsContent value="overview">
-              <CompanyOverview company={company} />
+              <CompanyOverview company={company} companyId={id!} />
             </TabsContent>
             
             <TabsContent value="metrics">

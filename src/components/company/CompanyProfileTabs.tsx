@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, BarChart3, Activity, Users, Building } from 'lucide-react';
@@ -42,7 +41,7 @@ const CompanyProfileTabs: React.FC<CompanyProfileTabsProps> = ({ company, compan
       </TabsList>
 
       <TabsContent value="overview" className="mt-6">
-        <CompanyOverview company={company} />
+        <CompanyOverview company={company} companyId={companyId} />
       </TabsContent>
 
       <TabsContent value="metrics" className="mt-6">
