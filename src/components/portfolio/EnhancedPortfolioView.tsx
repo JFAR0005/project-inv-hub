@@ -49,7 +49,7 @@ interface Company {
 
 const EnhancedPortfolioView: React.FC = () => {
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'health'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'overview'>('grid');
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -344,9 +344,9 @@ const EnhancedPortfolioView: React.FC = () => {
                 Table
               </Button>
               <Button
-                variant={viewMode === 'health' ? 'default' : 'outline'}
+                variant={viewMode === 'overview' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setViewMode('health')}
+                onClick={() => setViewMode('overview')}
               >
                 <Activity className="h-4 w-4 mr-2" />
                 Health
@@ -374,7 +374,7 @@ const EnhancedPortfolioView: React.FC = () => {
               <TabsContent value="table" className="mt-0">
                 <PortfolioTable companies={filteredCompanies} />
               </TabsContent>
-              <TabsContent value="health" className="mt-0">
+              <TabsContent value="overview" className="mt-0">
                 <PortfolioHealthDashboard />
               </TabsContent>
             </Tabs>
