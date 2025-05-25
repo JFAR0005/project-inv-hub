@@ -55,7 +55,7 @@ const AdminCompanyAssignments: React.FC = () => {
         .select(`
           *,
           companies(name),
-          users(name, email)
+          users!company_users_user_id_fkey(name, email)
         `)
         .order('assigned_at', { ascending: false });
 
