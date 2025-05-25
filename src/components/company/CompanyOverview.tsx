@@ -1,57 +1,18 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Database } from '@/integrations/supabase/types';
-import { Building2, MapPin, Globe, Users, DollarSign, TrendingUp, Calendar, AlertCircle, ChevronRight } from 'lucide-react';
+import { DollarSign, Users, Calendar, TrendingUp, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import CommentSection from '@/components/comments/CommentSection';
-import ActivityFeed from '@/components/activity/ActivityFeed';
-import RecentFounderUpdates from './RecentFounderUpdates';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type Company = Database['public']['Tables']['companies']['Row'];
-type FounderUpdate = Database['public']['Tables']['founder_updates']['Row'];
 
 interface CompanyOverviewProps {
   company: Company;
 }
 
 const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
-  const [recentUpdates, setRecentUpdates] = useState<FounderUpdate[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchRecentUpdates = async () => {
-      if (!company.id) return;
-
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('founder_updates')
-          .select('*')
-          .eq('company_id', company.id)
-          .order('submitted_at', { ascending: false })
-          .limit(3);
-
-        if (error) throw error;
-        setRecentUpdates(data || []);
-      } catch (err) {
-        console.error('Error fetching recent updates:', err);
-        setError('Failed to load recent updates.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchRecentUpdates();
-  }, [company.id]);
-
   const formatCurrency = (amount: number | null) => {
     if (!amount) return 'Not specified';
     return new Intl.NumberFormat('en-US', {
@@ -67,129 +28,127 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
     return new Intl.NumberFormat('en-US').format(num);
   };
 
+  const metrics = [
+    {
+      title: 'Annual Recurring Revenue',
+      value: formatCurrency(company.arr),
+      icon: DollarSign,
+      color: 'text-green-600',
+    },
+    {
+      title: 'Monthly Recurring Revenue',
+      value: formatCurrency(company.mrr),
+      icon: TrendingUp,
+      color: 'text-blue-600',
+    },
+    {
+      title: 'Team Size',
+      value: formatNumber(company.headcount),
+      icon: Users,
+      color: 'text-purple-600',
+    },
+    {
+      title: 'Monthly Burn Rate',
+      value: formatCurrency(company.burn_rate),
+      icon: DollarSign,
+      color: 'text-red-600',
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Main Company Info */}
-      <div className="lg:col-span-2 space-y-6">
-        {/* Basic Information */}
+    <div className="space-y-6">
+      {/* Company Description */}
+      {company.description && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Company Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {company.description && (
-              <div>
-                <h4 className="font-medium mb-2">Description</h4>
-                <p className="text-muted-foreground">{company.description}</p>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {company.sector && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{company.sector}</Badge>
-                  <span className="text-sm text-muted-foreground">Sector</span>
-                </div>
-              )}
-              
-              {company.stage && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{company.stage}</Badge>
-                  <span className="text-sm text-muted-foreground">Stage</span>
-                </div>
-              )}
-              
-              {company.location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{company.location}</span>
-                </div>
-              )}
-              
-              {company.website && (
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <a
-                    href={company.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    {new URL(company.website).hostname}
-                  </a>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Founder Updates */}
-        <RecentFounderUpdates 
-          updates={recentUpdates}
-          isLoading={isLoading}
-          error={error}
-          companyId={company.id}
-        />
-
-        {/* Key Metrics */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Key Metrics
+              About {company.name}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="text-center p-4 border rounded-lg">
-                <DollarSign className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                <p className="text-2xl font-bold">{formatCurrency(company.arr)}</p>
-                <p className="text-sm text-muted-foreground">ARR</p>
+            <p className="text-muted-foreground leading-relaxed">{company.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map((metric, index) => {
+          const IconComponent = metric.icon;
+          return (
+            <Card key={index}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <IconComponent className={`h-4 w-4 ${metric.color}`} />
+                  <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
+                </div>
+                <p className="text-2xl font-bold">{metric.value}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Company Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Sector</p>
+                <p className="text-sm">{company.sector || 'Not specified'}</p>
               </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <DollarSign className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                <p className="text-2xl font-bold">{formatCurrency(company.mrr)}</p>
-                <p className="text-sm text-muted-foreground">MRR</p>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Stage</p>
+                {company.stage ? (
+                  <Badge variant="outline">{company.stage}</Badge>
+                ) : (
+                  <p className="text-sm">Not specified</p>
+                )}
               </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <Users className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                <p className="text-2xl font-bold">{formatNumber(company.headcount)}</p>
-                <p className="text-sm text-muted-foreground">Headcount</p>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Location</p>
+                <p className="text-sm">{company.location || 'Not specified'}</p>
               </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-red-600" />
-                <p className="text-2xl font-bold">{formatCurrency(company.burn_rate)}</p>
-                <p className="text-sm text-muted-foreground">Monthly Burn</p>
-              </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <Calendar className="h-8 w-8 mx-auto mb-2 text-orange-600" />
-                <p className="text-2xl font-bold">{company.runway ? `${company.runway}mo` : 'N/A'}</p>
-                <p className="text-sm text-muted-foreground">Runway</p>
-              </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                <p className="text-2xl font-bold">{company.churn_rate ? `${company.churn_rate}%` : 'N/A'}</p>
-                <p className="text-sm text-muted-foreground">Churn Rate</p>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Founded</p>
+                <p className="text-sm">{company.created_at ? format(new Date(company.created_at), 'yyyy') : 'Not specified'}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Comments Section */}
-        <CommentSection companyId={company.id} />
-      </div>
-
-      {/* Sidebar */}
-      <div className="space-y-6">
-        <ActivityFeed companyId={company.id} limit={10} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Health</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              {company.runway && (
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Runway</span>
+                  <span className="text-sm">{company.runway} months</span>
+                </div>
+              )}
+              {company.churn_rate && (
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Churn Rate</span>
+                  <span className="text-sm">{(company.churn_rate * 100).toFixed(1)}%</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-sm font-medium text-muted-foreground">Last Updated</span>
+                <span className="text-sm">
+                  {company.updated_at ? format(new Date(company.updated_at), 'MMM d, yyyy') : 'Never'}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -1,26 +1,22 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Save, ExternalLink, Globe, FileText, Users, Activity, BarChart3 } from 'lucide-react';
-import CompanyOverview from './CompanyOverview';
-import CompanyMetrics from './CompanyMetrics';
-import CompanyDocuments from './CompanyDocuments';
-import CompanyUpdates from './CompanyUpdates';
+import CompanyProfileHeader from './CompanyProfileHeader';
+import CompanyProfileTabs from './CompanyProfileTabs';
+import CompanyProfileSkeleton from './CompanyProfileSkeleton';
+import CompanyNotFound from './CompanyNotFound';
 
 type Company = Database['public']['Tables']['companies']['Row'];
 
 const CompanyProfile = () => {
   const { id } = useParams<{ id: string }>();
-  const { user, hasPermission } = useAuth();
-  const { canViewCompany, canEditCompany } = useRoleAccess();
+  const { user } = useAuth();
+  const { canViewCompany, canEditCompany } = useRolePermissions();
   const { toast } = useToast();
   const [company, setCompany] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +33,6 @@ const CompanyProfile = () => {
       try {
         if (!id) return;
 
-        // Check access before fetching
         if (!canView) {
           setCompany(null);
           return;
@@ -73,22 +68,6 @@ const CompanyProfile = () => {
 
     fetchCompany();
   }, [id, toast, canView]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value === '' ? null : parseFloat(value)
-    }));
-  };
 
   const handleSave = async () => {
     if (!id) return;
@@ -131,158 +110,26 @@ const CompanyProfile = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-16 w-16 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-        <Skeleton className="h-[400px] w-full" />
-      </div>
-    );
+    return <CompanyProfileSkeleton />;
   }
 
   if (!canView || !company) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-800">Company not found</h2>
-        <p className="text-gray-600 mt-2">The company you're looking for doesn't exist or you don't have permission to view it.</p>
-      </div>
-    );
+    return <CompanyNotFound />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            {company.logo_url ? (
-              <AvatarImage src={company.logo_url} alt={company.name} />
-            ) : (
-              <AvatarFallback className="text-lg bg-primary/10 text-primary">
-                {company.name.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            )}
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{company.name}</h1>
-            <div className="flex items-center text-muted-foreground mt-1">
-              {company.website && (
-                <a 
-                  href={company.website} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-primary transition-colors"
-                >
-                  <Globe className="h-4 w-4" />
-                  <span className="text-sm">{new URL(company.website).hostname}</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
+      <CompanyProfileHeader
+        company={company}
+        canEdit={canEdit}
+        isEditing={isEditing}
+        isSaving={isSaving}
+        onEdit={() => setIsEditing(true)}
+        onSave={handleSave}
+        onCancel={handleCancel}
+      />
 
-        {canEdit && (
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <Button 
-                  onClick={handleCancel} 
-                  variant="outline"
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSave} 
-                  disabled={isSaving}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setIsEditing(true)} variant="outline">
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Profile
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Content Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="metrics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Metrics
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Documents
-          </TabsTrigger>
-          <TabsTrigger value="updates" data-value="updates" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Updates
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Team
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-6">
-          <CompanyOverview company={company} />
-        </TabsContent>
-
-        <TabsContent value="metrics" className="mt-6">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Key Metrics</h2>
-              <p className="text-muted-foreground">Financial and operational performance indicators</p>
-            </div>
-            <CompanyMetrics companyId={id!} />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="documents" className="mt-6">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Documents</h2>
-              <p className="text-muted-foreground">Files and resources related to {company?.name}</p>
-            </div>
-            <CompanyDocuments companyId={id!} />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="updates" className="mt-6">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Founder Updates</h2>
-              <p className="text-muted-foreground">Regular updates from the company founders</p>
-            </div>
-            <CompanyUpdates companyId={id!} />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="team" className="mt-6">
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Team Management</h3>
-            <p>Team member management will be available soon</p>
-          </div>
-        </TabsContent>
-      </Tabs>
+      <CompanyProfileTabs company={company} companyId={id!} />
     </div>
   );
 };
