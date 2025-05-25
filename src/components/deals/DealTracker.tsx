@@ -11,7 +11,7 @@ import { Database } from '@/integrations/supabase/types';
 
 type Deal = Database['public']['Tables']['deals']['Row'] & {
   companies?: Database['public']['Tables']['companies']['Row'];
-  lead_partner_user?: Database['public']['Tables']['users']['Row'];
+  lead_partner_user?: Database['public']['Tables']['users']['Row'] | null;
 };
 
 const DealTracker: React.FC = () => {
@@ -20,17 +20,38 @@ const DealTracker: React.FC = () => {
   const { data: deals, isLoading } = useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get deals with companies
+      const { data: dealsData, error: dealsError } = await supabase
         .from('deals')
         .select(`
           *,
-          companies(*),
-          lead_partner_user:users!deals_lead_partner_fkey(*)
+          companies(*)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (dealsError) throw dealsError;
+
+      // Then get users for lead partners
+      const dealsWithUsers = await Promise.all(
+        (dealsData || []).map(async (deal) => {
+          let leadPartnerUser = null;
+          if (deal.lead_partner) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', deal.lead_partner)
+              .single();
+            leadPartnerUser = userData;
+          }
+          
+          return {
+            ...deal,
+            lead_partner_user: leadPartnerUser
+          };
+        })
+      );
+
+      return dealsWithUsers;
     }
   });
 
