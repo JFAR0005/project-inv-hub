@@ -14,13 +14,15 @@ import PortfolioTable from './PortfolioTable';
 import PortfolioSkeleton from './PortfolioSkeleton';
 import PortfolioError from './PortfolioError';
 import PortfolioEmpty from './PortfolioEmpty';
+import PortfolioHealthDashboard from './PortfolioHealthDashboard';
 import { 
   LayoutGrid, 
   List, 
   Download,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
+  Activity
 } from 'lucide-react';
 
 interface Company {
@@ -40,11 +42,14 @@ interface Company {
   runway?: number;
   churn_rate?: number;
   mrr?: number;
+  last_update?: string;
+  raise_status?: string;
+  needs_attention?: boolean;
 }
 
 const EnhancedPortfolioView: React.FC = () => {
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'health'>('grid');
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -58,7 +63,7 @@ const EnhancedPortfolioView: React.FC = () => {
   } = useQuery({
     queryKey: ['enhanced-portfolio', user?.id],
     queryFn: async () => {
-      console.log('Fetching portfolio data...');
+      console.log('Fetching portfolio data with update freshness...');
       
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
@@ -97,6 +102,16 @@ const EnhancedPortfolioView: React.FC = () => {
         const burnRate = latestUpdate?.burn_rate || company.burn_rate || 0;
         const runway = latestUpdate?.runway || company.runway || 0;
 
+        // Calculate update freshness
+        const lastUpdateDate = latestUpdate?.submitted_at;
+        const daysSinceUpdate = lastUpdateDate 
+          ? Math.floor((new Date().getTime() - new Date(lastUpdateDate).getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+        
+        const needsAttention = !lastUpdateDate || daysSinceUpdate > 30;
+        const isRaising = latestUpdate?.raise_status?.toLowerCase().includes('raising') || 
+                         latestUpdate?.raise_status?.toLowerCase().includes('active') || false;
+
         // Optimized risk calculation
         const riskLevel = calculateRiskLevel(growth, runway, burnRate, arr);
 
@@ -116,7 +131,10 @@ const EnhancedPortfolioView: React.FC = () => {
           burn_rate: burnRate,
           runway,
           churn_rate: latestUpdate?.churn || company.churn_rate,
-          mrr: latestUpdate?.mrr || company.mrr
+          mrr: latestUpdate?.mrr || company.mrr,
+          last_update: lastUpdateDate,
+          raise_status: latestUpdate?.raise_status,
+          needs_attention: needsAttention
         };
       });
     },
@@ -144,6 +162,21 @@ const EnhancedPortfolioView: React.FC = () => {
     return riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
   }, []);
 
+  // Calculate health metrics
+  const healthMetrics = useMemo(() => {
+    const total = companies.length;
+    const needingUpdates = companies.filter(c => c.needs_attention).length;
+    const raising = companies.filter(c => c.raise_status?.toLowerCase().includes('raising') || c.raise_status?.toLowerCase().includes('active')).length;
+    
+    return {
+      total,
+      needingUpdates,
+      raising,
+      percentageNeedingUpdates: total ? Math.round((needingUpdates / total) * 100) : 0,
+      percentageRaising: total ? Math.round((raising / total) * 100) : 0
+    };
+  }, [companies]);
+
   // Memoized suggestion handler
   const handleSuggestionClick = useCallback((suggestion: string) => {
     console.log('Applying suggestion filter:', suggestion);
@@ -153,7 +186,7 @@ const EnhancedPortfolioView: React.FC = () => {
   // Optimized export function
   const exportData = useCallback(() => {
     const csvContent = [
-      ['Company', 'Sector', 'Stage', 'Location', 'ARR', 'Growth Rate', 'Headcount', 'Risk Level', 'Burn Rate', 'Runway'].join(','),
+      ['Company', 'Sector', 'Stage', 'Location', 'ARR', 'Growth Rate', 'Headcount', 'Risk Level', 'Burn Rate', 'Runway', 'Last Update', 'Raise Status', 'Needs Attention'].join(','),
       ...filteredCompanies.map(company => [
         `"${company.name}"`,
         `"${company.sector}"`,
@@ -164,7 +197,10 @@ const EnhancedPortfolioView: React.FC = () => {
         company.headcount || 0,
         company.riskLevel,
         company.burn_rate || 0,
-        company.runway || 0
+        company.runway || 0,
+        company.last_update || 'Never',
+        company.raise_status || 'Not specified',
+        company.needs_attention ? 'Yes' : 'No'
       ].join(','))
     ].join('\n');
 
@@ -244,6 +280,20 @@ const EnhancedPortfolioView: React.FC = () => {
           <p className="text-gray-600 mt-1">
             Advanced portfolio management and insights
           </p>
+          {/* Health Summary */}
+          <div className="flex items-center gap-4 mt-2 text-sm">
+            <span className="text-gray-600">{healthMetrics.total} companies</span>
+            {healthMetrics.needingUpdates > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {healthMetrics.needingUpdates} need updates
+              </Badge>
+            )}
+            {healthMetrics.raising > 0 && (
+              <Badge className="bg-green-500 text-xs">
+                {healthMetrics.raising} raising
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -293,6 +343,14 @@ const EnhancedPortfolioView: React.FC = () => {
                 <List className="h-4 w-4 mr-2" />
                 Table
               </Button>
+              <Button
+                variant={viewMode === 'health' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('health')}
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Health
+              </Button>
             </div>
             
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -315,6 +373,9 @@ const EnhancedPortfolioView: React.FC = () => {
               </TabsContent>
               <TabsContent value="table" className="mt-0">
                 <PortfolioTable companies={filteredCompanies} />
+              </TabsContent>
+              <TabsContent value="health" className="mt-0">
+                <PortfolioHealthDashboard />
               </TabsContent>
             </Tabs>
           )}
