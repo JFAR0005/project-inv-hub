@@ -5,13 +5,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from './context/AuthContext';
-import { RoleBasedRoute } from './components/layout/RoleBasedRoute';
+import RoleBasedRoute from './components/layout/RoleBasedRoute';
 import Layout from './components/layout/Layout';
-import { Dashboard } from './components/dashboard/Dashboard';
+import Dashboard from './components/dashboard/Dashboard';
 import LoginForm from './components/auth/LoginForm';
 import AuthRedirect from './components/auth/AuthRedirect';
 import CompanyProfile from './components/company/CompanyProfile';
-import { SubmitUpdateForm } from './components/company/SubmitUpdateForm';
+import SubmitUpdateForm from './components/company/SubmitUpdateForm';
 import NotesView from './components/notes/NotesView';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import MeetingsCalendar from './components/meetings/MeetingsCalendar';
