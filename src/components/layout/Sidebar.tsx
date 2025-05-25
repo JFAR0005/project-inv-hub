@@ -15,8 +15,7 @@ import {
   TrendingUp,
   LucideIcon,
   FileSliders,
-  Zap,
-  Settings
+  Zap
 } from 'lucide-react';
 
 interface NavItem {
@@ -100,13 +99,6 @@ const Sidebar: React.FC = () => {
       href: '/integrations',
       icon: Zap,
       current: location.pathname === '/integrations',
-      roles: ['admin', 'partner', 'capital_team']
-    },
-    {
-      name: 'Integration Hub',
-      href: '/integration-hub',
-      icon: Settings,
-      current: location.pathname === '/integration-hub',
       roles: ['admin', 'partner', 'capital_team']
     },
     

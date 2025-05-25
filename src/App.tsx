@@ -19,7 +19,6 @@ import EnhancedPortfolioView from './components/portfolio/EnhancedPortfolioView'
 import DealTracker from './components/deals/DealTracker';
 import FundraisingTracker from './components/fundraising/FundraisingTracker';
 import AdminDashboard from './components/admin/AdminDashboard';
-import IntegrationHub from './pages/IntegrationHub';
 import Integrations from './pages/Integrations';
 
 function App() {
@@ -100,12 +99,6 @@ function App() {
                   <Route path="/integrations" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                       <Integrations />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  <Route path="/integration-hub" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <IntegrationHub />
                     </RoleBasedRoute>
                   } />
                 </Route>

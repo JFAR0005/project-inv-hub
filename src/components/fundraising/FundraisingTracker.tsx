@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LPLeadsTable from './LPLeadsTable';
 import FundraisingDashboard from './FundraisingDashboard';
+import FundraisingMetrics from './FundraisingMetrics';
 import FollowUpTasks from './FollowUpTasks';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -44,6 +45,9 @@ const FundraisingTracker = () => {
           Add LP Lead
         </Button>
       </div>
+
+      {/* Key Metrics Overview */}
+      <FundraisingMetrics lpLeads={lpLeads || []} />
 
       <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList>
