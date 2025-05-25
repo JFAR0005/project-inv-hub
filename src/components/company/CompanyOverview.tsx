@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import CommentSection from '@/components/comments/CommentSection';
 import ActivityFeed from '@/components/activity/ActivityFeed';
-import RecentUpdates from './RecentUpdates';
+import RecentFounderUpdates from './RecentFounderUpdates';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type Company = Database['public']['Tables']['companies']['Row'];
@@ -125,25 +126,13 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company }) => {
           </CardContent>
         </Card>
 
-        {/* Recent Updates - Now using the extracted component */}
-        <RecentUpdates 
+        {/* Recent Founder Updates */}
+        <RecentFounderUpdates 
           updates={recentUpdates}
           isLoading={isLoading}
           error={error}
+          companyId={company.id}
         />
-        {recentUpdates.length > 0 && (
-          <div className="flex justify-end">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => navigate(`/company-profile/${company.id}/updates`)}
-              className="flex items-center gap-1"
-            >
-              View All Updates
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
 
         {/* Key Metrics */}
         <Card>
