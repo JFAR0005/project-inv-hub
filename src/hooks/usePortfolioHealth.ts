@@ -19,10 +19,18 @@ interface CompanyWithHealth {
   daysSinceUpdate: number;
 }
 
+interface PortfolioHealthData {
+  companies: CompanyWithHealth[];
+  totalCompanies: number;
+  companiesNeedingUpdate: number;
+  companiesRaising: number;
+  totalUpdates: number;
+}
+
 export const usePortfolioHealth = () => {
   return useQuery({
     queryKey: ['portfolio-health'],
-    queryFn: async (): Promise<CompanyWithHealth[]> => {
+    queryFn: async (): Promise<PortfolioHealthData> => {
       // Fetch companies
       const { data: companiesData, error } = await supabase
         .from('companies')
@@ -30,6 +38,13 @@ export const usePortfolioHealth = () => {
         .order('name');
       
       if (error) throw error;
+
+      // Fetch all updates to count total
+      const { data: allUpdates, error: updatesError } = await supabase
+        .from('founder_updates')
+        .select('id');
+      
+      if (updatesError) throw updatesError;
       
       // For each company, fetch its latest update
       const companiesWithUpdates = await Promise.all(
@@ -61,8 +76,20 @@ export const usePortfolioHealth = () => {
           };
         })
       );
+
+      // Calculate summary stats
+      const totalCompanies = companiesWithUpdates.length;
+      const companiesNeedingUpdate = companiesWithUpdates.filter(c => c.needsUpdate).length;
+      const companiesRaising = companiesWithUpdates.filter(c => c.isRaising).length;
+      const totalUpdates = allUpdates?.length || 0;
       
-      return companiesWithUpdates;
+      return {
+        companies: companiesWithUpdates,
+        totalCompanies,
+        companiesNeedingUpdate,
+        companiesRaising,
+        totalUpdates
+      };
     },
   });
 };

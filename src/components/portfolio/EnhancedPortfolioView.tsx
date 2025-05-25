@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import AdvancedSearch, { SearchFilters } from './search/AdvancedSearchComponent';
+import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
 import SmartSuggestions from './SmartSuggestions';
 import PortfolioGrid from './PortfolioGrid';
 import PortfolioTable from './PortfolioTable';
