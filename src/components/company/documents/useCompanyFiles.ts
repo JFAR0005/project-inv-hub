@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileObject } from './types';
@@ -49,12 +48,11 @@ export const useCompanyFiles = (companyId: string) => {
             .getPublicUrl(`${companyId}/${file.file_name}`);
           
           let uploaderName = 'Unknown';
-          // Fix the null check issue with proper null handling
-          const uploader = file.uploader;
-          if (uploader && typeof uploader === 'object' && 'name' in uploader) {
-            const uploaderNameValue = uploader.name;
-            if (uploaderNameValue) {
-              uploaderName = uploaderNameValue;
+          // Properly handle the uploader object with comprehensive null checks
+          if (file.uploader && typeof file.uploader === 'object' && 'name' in file.uploader) {
+            const name = file.uploader.name;
+            if (typeof name === 'string' && name.trim()) {
+              uploaderName = name;
             }
           }
           
@@ -113,4 +111,3 @@ export const useCompanyFiles = (companyId: string) => {
     refetch: fetchCompanyFiles
   };
 };
-
