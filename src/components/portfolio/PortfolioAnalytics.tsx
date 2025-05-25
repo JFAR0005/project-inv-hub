@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -260,13 +259,13 @@ const PortfolioAnalytics: React.FC = () => {
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Companies with runway > 12 months</span>
+                <span className="text-sm font-medium">Companies with runway {'>'}12 months</span>
                 <Badge variant="secondary">
                   {enrichedCompanies.filter(c => (c.currentRunway || 0) > 12).length}
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Companies needing updates (>30 days)</span>
+                <span className="text-sm font-medium">Companies needing updates ({'>'}30 days)</span>
                 <Badge variant="destructive">
                   {enrichedCompanies.filter(c => {
                     if (!c.lastUpdate) return true;
