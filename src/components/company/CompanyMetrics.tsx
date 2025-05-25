@@ -1,133 +1,178 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { AlertCircle, RefreshCw, TrendingUp } from 'lucide-react';
-import MetricsCharts from './MetricsChartsFixed';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CompanyMetricsCharts from './CompanyMetricsCharts';
+import DataLoadingState from '@/components/data/DataLoadingState';
 
 interface CompanyMetricsProps {
-  companyId: string;
+  companyId?: string;
 }
 
 const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
-  const { data: latestMetrics, isLoading, error, refetch } = useQuery({
-    queryKey: ['latest-metrics', companyId],
+  // Fetch latest founder update for current metrics
+  const { data: latestUpdate, isLoading: updatesLoading } = useQuery({
+    queryKey: ['latest-founder-update', companyId],
     queryFn: async () => {
-      // Get the latest metrics for each type
+      if (!companyId) return null;
+      
       const { data, error } = await supabase
-        .from('metrics')
+        .from('founder_updates')
         .select('*')
         .eq('company_id', companyId)
-        .order('date', { ascending: false })
-        .limit(10);
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .single();
       
-      if (error) throw error;
-      
-      // Group by metric_name and get the latest value for each
-      const latestByType = data?.reduce((acc: Record<string, any>, metric) => {
-        if (!acc[metric.metric_name] || metric.date > acc[metric.metric_name].date) {
-          acc[metric.metric_name] = metric;
-        }
-        return acc;
-      }, {});
-      
-      return latestByType || {};
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
     },
     enabled: !!companyId,
   });
-  
-  if (isLoading) {
+
+  // Fetch company data for fallback metrics
+  const { data: company, isLoading: companyLoading } = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  if (!companyId) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <h3 className="text-lg font-medium">No company selected</h3>
+          <p className="text-muted-foreground mt-2">
+            Please select a company to view metrics
+          </p>
+        </CardContent>
+      </Card>
     );
   }
-  
-  if (error) {
-    return (
-      <Alert variant="destructive" className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Failed to load company metrics. Please try again.
-        </AlertDescription>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-2">
-          <RefreshCw className="h-4 w-4 mr-2" /> Retry
-        </Button>
-      </Alert>
-    );
+
+  if (updatesLoading || companyLoading) {
+    return <DataLoadingState />;
   }
-  
+
+  // Use latest update data or fallback to company data
+  const currentARR = latestUpdate?.arr || company?.arr || 0;
+  const currentMRR = latestUpdate?.mrr || company?.mrr || 0;
+  const currentBurn = latestUpdate?.burn_rate || company?.burn_rate || 0;
+  const currentHeadcount = latestUpdate?.headcount || company?.headcount || 0;
+  const currentRunway = latestUpdate?.runway || company?.runway || 0;
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+
   return (
     <div className="space-y-6">
       {/* Current Metrics Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {latestMetrics?.ARR && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Annual Recurring Revenue</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${latestMetrics.ARR.value.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                As of {new Date(latestMetrics.ARR.date).toLocaleDateString()}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-        
-        {latestMetrics?.['Burn Rate'] && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Burn Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${latestMetrics['Burn Rate'].value.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                As of {new Date(latestMetrics['Burn Rate'].date).toLocaleDateString()}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-        
-        {latestMetrics?.Headcount && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Team Size</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{latestMetrics.Headcount.value}</div>
-              <p className="text-xs text-muted-foreground">
-                As of {new Date(latestMetrics.Headcount.date).toLocaleDateString()}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-      
-      {/* Charts */}
-      <div>
-        <h3 className="text-lg font-medium mb-4">Historical Trends</h3>
-        <MetricsCharts companyId={companyId} />
-      </div>
-      
-      {Object.keys(latestMetrics || {}).length === 0 && (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="py-6 text-center">
-            <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Metrics Available</h3>
-            <p className="text-muted-foreground">
-              No metrics data has been recorded for this company yet.
-            </p>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Annual Recurring Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(currentARR)}</div>
           </CardContent>
         </Card>
-      )}
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Monthly Recurring Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(currentMRR)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Monthly Burn Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(currentBurn)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Team Size
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currentHeadcount}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Runway (Months)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {currentRunway ? `${currentRunway} months` : 'N/A'}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Burn Multiple
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {currentARR > 0 && currentBurn > 0 
+                ? `${(currentBurn / (currentARR / 12)).toFixed(1)}x`
+                : 'N/A'
+              }
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Tab */}
+      <Tabs defaultValue="charts" className="w-full">
+        <TabsList>
+          <TabsTrigger value="charts">Historical Charts</TabsTrigger>
+        </TabsList>
+        <TabsContent value="charts" className="mt-6">
+          <CompanyMetricsCharts companyId={companyId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
