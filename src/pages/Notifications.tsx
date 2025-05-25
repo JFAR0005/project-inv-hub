@@ -7,6 +7,13 @@ import NotificationSettings from '@/components/notifications/NotificationSetting
 const Notifications = () => {
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+        <p className="text-muted-foreground">
+          Manage your notification preferences and view notification history
+        </p>
+      </div>
+      
       <Tabs defaultValue="center" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="center">Notification Center</TabsTrigger>

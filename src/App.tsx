@@ -20,8 +20,10 @@ const AdvancedAnalytics = lazy(() => import("./pages/AdvancedAnalytics"));
 const CompanyDetails = lazy(() => import("./pages/CompanyDetails"));
 const Deals = lazy(() => import("./pages/Deals"));
 const Fundraising = lazy(() => import("./pages/Fundraising"));
+const LPLeadDetail = lazy(() => import("./pages/LPLeadDetail"));
 const Meetings = lazy(() => import("./pages/Meetings"));
 const Notes = lazy(() => import("./pages/Notes"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 const SubmitUpdate = lazy(() => import("./pages/SubmitUpdate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PortfolioDashboard = lazy(() => import("./pages/PortfolioDashboard"));
@@ -151,6 +153,18 @@ function App() {
                       } 
                     />
                     <Route 
+                      path="/fundraising/leads/:id" 
+                      element={
+                        <Layout>
+                          <RouteGuard allowedRoles={['admin', 'partner', 'capital_team']}>
+                            <Suspense fallback={<DataLoadingState />}>
+                              <LPLeadDetail />
+                            </Suspense>
+                          </RouteGuard>
+                        </Layout>
+                      } 
+                    />
+                    <Route 
                       path="/meetings" 
                       element={
                         <Layout>
@@ -169,6 +183,18 @@ function App() {
                           <RouteGuard>
                             <Suspense fallback={<DataLoadingState />}>
                               <Notes />
+                            </Suspense>
+                          </RouteGuard>
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/notifications" 
+                      element={
+                        <Layout>
+                          <RouteGuard>
+                            <Suspense fallback={<DataLoadingState />}>
+                              <Notifications />
                             </Suspense>
                           </RouteGuard>
                         </Layout>
