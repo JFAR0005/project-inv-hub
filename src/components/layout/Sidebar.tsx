@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +15,8 @@ import {
   LogOut,
   PlusCircle,
   TrendingUp,
-  MessageSquare
+  MessageSquare,
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -28,6 +30,12 @@ const Sidebar = () => {
   };
 
   const adminNavItems = [
+    { 
+      path: '/admin', 
+      label: 'Admin Dashboard', 
+      icon: Shield,
+      description: 'System administration'
+    },
     { 
       path: '/portfolio', 
       label: 'Portfolio', 

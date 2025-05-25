@@ -1,4 +1,3 @@
-
 import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +26,7 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const SubmitUpdate = lazy(() => import("./pages/SubmitUpdate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PortfolioDashboard = lazy(() => import("./pages/PortfolioDashboard"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +75,18 @@ function App() {
                           <RouteGuard>
                             <Suspense fallback={<DataLoadingState />}>
                               <Index />
+                            </Suspense>
+                          </RouteGuard>
+                        </Layout>
+                      } 
+                    />
+                    <Route 
+                      path="/admin" 
+                      element={
+                        <Layout>
+                          <RouteGuard allowedRoles={['admin']}>
+                            <Suspense fallback={<DataLoadingState />}>
+                              <AdminDashboard />
                             </Suspense>
                           </RouteGuard>
                         </Layout>

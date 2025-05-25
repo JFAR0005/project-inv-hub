@@ -13,7 +13,9 @@ export const ROLE_PERMISSIONS = {
     'manage:meetings',
     'view:notes',
     'edit:notes',
-    'manage:users'
+    'manage:users',
+    'view:admin:dashboard',
+    'manage:audit:logs'
   ],
   capital_team: [
     'view:portfolio:full',

@@ -54,6 +54,44 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string | null
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string | null
@@ -655,6 +693,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          is_active: boolean | null
           last_seen_at: string | null
           name: string | null
           role: string | null
@@ -665,6 +704,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id: string
+          is_active?: boolean | null
           last_seen_at?: string | null
           name?: string | null
           role?: string | null
@@ -675,6 +715,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           last_seen_at?: string | null
           name?: string | null
           role?: string | null
