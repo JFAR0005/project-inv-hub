@@ -1,221 +1,238 @@
 
 import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import MeetingsList from './MeetingsList';
-import IntegrationsPanel from '../integrations/IntegrationsPanel';
-import { Meeting } from './types';
 
-const MeetingScheduler = () => {
+interface MeetingFormData {
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  duration: string;
+  company_id: string;
+  participant_emails: string;
+}
+
+const MeetingScheduler: React.FC = () => {
   const { user } = useAuth();
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedTime, setSelectedTime] = useState<string>('');
-  const [meetingType, setMeetingType] = useState<string>('1on1');
-  const [title, setTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [attendees, setAttendees] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('upcoming');
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { notifyMeetingScheduled } = useNotificationTrigger();
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState<MeetingFormData>({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    duration: '60',
+    company_id: '',
+    participant_emails: ''
+  });
 
-  // Mock time slots - in a real app these would come from calendar integration
-  const availableTimeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', 
-    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
-  ];
+  const createMeetingMutation = useMutation({
+    mutationFn: async (meetingData: MeetingFormData) => {
+      const participantEmails = meetingData.participant_emails
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email.length > 0);
 
-  // Mock attendees - in a real app these would come from user database
-  const possibleAttendees = [
-    { id: '1', name: 'Admin User', role: 'admin' },
-    { id: '2', name: 'Venture Partner', role: 'partner' },
-    { id: '3', name: 'Founder User', role: 'founder' },
-  ].filter(a => a.id !== user?.id);
+      const { data, error } = await supabase
+        .from('meetings')
+        .insert({
+          title: meetingData.title,
+          description: meetingData.description || null,
+          date: meetingData.date,
+          time: meetingData.time,
+          duration: parseInt(meetingData.duration),
+          company_id: meetingData.company_id || null,
+          created_by: user?.id,
+          participant_emails: participantEmails
+        })
+        .select()
+        .single();
 
-  const handleScheduleMeeting = () => {
-    if (!date || !selectedTime || !title || attendees.length === 0) {
-      toast.error("Please fill out all required fields");
+      if (error) throw error;
+      return { ...data, participant_emails: participantEmails };
+    },
+    onSuccess: async (data) => {
+      console.log('Meeting created successfully:', data);
+      
+      // Trigger notification
+      if (data.participant_emails && data.participant_emails.length > 0) {
+        const notificationSent = await notifyMeetingScheduled(
+          data.company_id || '',
+          data.title,
+          format(new Date(data.date), 'MMMM d, yyyy'),
+          data.time,
+          data.participant_emails
+        );
+        
+        if (notificationSent) {
+          console.log('Meeting notification sent successfully');
+        }
+      }
+      
+      // Reset form and close dialog
+      setFormData({
+        title: '',
+        description: '',
+        date: '',
+        time: '',
+        duration: '60',
+        company_id: '',
+        participant_emails: ''
+      });
+      setIsOpen(false);
+      
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      
+      toast({
+        title: "Meeting scheduled successfully",
+        description: "The meeting has been created and participants have been notified.",
+      });
+    },
+    onError: (error) => {
+      console.error('Error creating meeting:', error);
+      toast({
+        title: "Error scheduling meeting",
+        description: "There was a problem creating the meeting. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.title || !formData.date || !formData.time) {
+      toast({
+        title: "Validation error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
       return;
     }
-
-    // In a real app, this would connect to calendar APIs and send invites
-    toast.success(`Meeting "${title}" has been scheduled for ${format(date, 'PPPP')} at ${selectedTime}`);
-
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setAttendees([]);
-    setActiveTab('upcoming');
+    
+    createMeetingMutation.mutate(formData);
   };
 
-  const handleSelectAttendee = (attendeeId: string) => {
-    if (attendees.includes(attendeeId)) {
-      setAttendees(attendees.filter(id => id !== attendeeId));
-    } else {
-      setAttendees([...attendees, attendeeId]);
-    }
-  };
-
-  const handleEditMeeting = (meeting: Meeting) => {
-    // In a real implementation, this would open a modal or form to edit the meeting
-    toast.success(`Editing meeting: ${meeting.title}`);
+  const handleInputChange = (field: keyof MeetingFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="schedule" className="w-full" onValueChange={setActiveTab} value={activeTab}>
-        <TabsList className="grid w-full sm:w-auto grid-cols-3">
-          <TabsTrigger value="schedule">Schedule Meeting</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming Meetings</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-        </TabsList>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Schedule Meeting
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Schedule New Meeting
+          </DialogTitle>
+        </DialogHeader>
         
-        <TabsContent value="schedule" className="space-y-4 pt-4">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Date & Time</CardTitle>
-                <CardDescription>
-                  Choose when you want to schedule your meeting
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-center">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    className="rounded-md border"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Select Time</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {availableTimeSlots.map((time) => (
-                      <Button
-                        key={time}
-                        variant={selectedTime === time ? "default" : "outline"}
-                        className="text-sm"
-                        onClick={() => setSelectedTime(time)}
-                      >
-                        {time}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Meeting Details</CardTitle>
-                <CardDescription>
-                  Enter details about your meeting
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Meeting Title*</Label>
-                  <Input
-                    id="title"
-                    placeholder="Enter meeting title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="What is this meeting about?"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="type">Meeting Type</Label>
-                  <Select value={meetingType} onValueChange={setMeetingType}>
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Select meeting type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1on1">One-on-One</SelectItem>
-                      <SelectItem value="group">Group Meeting</SelectItem>
-                      <SelectItem value="review">Portfolio Review</SelectItem>
-                      <SelectItem value="pitch">Pitch Session</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Attendees*</Label>
-                  <div className="border rounded-md p-2 space-y-2">
-                    {possibleAttendees.map((attendee) => (
-                      <div 
-                        key={attendee.id}
-                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer ${
-                          attendees.includes(attendee.id) ? 'bg-primary/10' : 'hover:bg-muted'
-                        }`}
-                        onClick={() => handleSelectAttendee(attendee.id)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                            {attendee.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-medium">{attendee.name}</div>
-                            <div className="text-xs text-muted-foreground capitalize">{attendee.role}</div>
-                          </div>
-                        </div>
-                        <div className={`h-4 w-4 rounded-full ${
-                          attendees.includes(attendee.id) ? 'bg-primary' : 'border border-gray-300'
-                        }`}>
-                          {attendees.includes(attendee.id) && (
-                            <div className="h-full w-full flex items-center justify-center text-white">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Meeting Title *</Label>
+            <Input
+              id="title"
+              placeholder="e.g., Quarterly Review with Acme Corp"
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              required
+            />
           </div>
 
-          <div className="flex justify-end">
-            <Button onClick={handleScheduleMeeting}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              Schedule Meeting
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Meeting agenda and notes..."
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => handleInputChange('date', e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="time">Time *</Label>
+              <Input
+                id="time"
+                type="time"
+                value={formData.time}
+                onChange={(e) => handleInputChange('time', e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="duration">Duration</Label>
+            <Select value={formData.duration} onValueChange={(value) => handleInputChange('duration', value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 minutes</SelectItem>
+                <SelectItem value="60">1 hour</SelectItem>
+                <SelectItem value="90">1.5 hours</SelectItem>
+                <SelectItem value="120">2 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="participant_emails">Participant Emails</Label>
+            <Input
+              id="participant_emails"
+              placeholder="email1@example.com, email2@example.com"
+              value={formData.participant_emails}
+              onChange={(e) => handleInputChange('participant_emails', e.target.value)}
+            />
+            <p className="text-xs text-gray-500">Separate multiple emails with commas</p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createMeetingMutation.isPending}>
+              {createMeetingMutation.isPending ? 'Scheduling...' : 'Schedule Meeting'}
             </Button>
           </div>
-        </TabsContent>
-
-        <TabsContent value="upcoming" className="pt-4">
-          <MeetingsList 
-            meetings={meetings} 
-            isLoading={isLoading} 
-            onEditMeeting={handleEditMeeting} 
-          />
-        </TabsContent>
-
-        <TabsContent value="integrations" className="pt-4">
-          <IntegrationsPanel />
-        </TabsContent>
-      </Tabs>
-    </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

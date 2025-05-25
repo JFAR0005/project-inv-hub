@@ -38,32 +38,19 @@ export const useNotificationTrigger = () => {
 
   const triggerNotification = async (payload: NotificationPayload): Promise<boolean> => {
     try {
-      // Use the environment variable or hardcoded URL for Supabase
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://guikdtwcpagcpyqieftm.supabase.co';
-      const functionUrl = `${supabaseUrl}/functions/v1/send-notifications`;
+      console.log('Triggering notification:', payload);
       
-      // Get a fresh Supabase token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({ notification: payload }),
+      // Call the send-notifications edge function
+      const { data, error } = await supabase.functions.invoke('send-notifications', {
+        body: { notification: payload }
       });
       
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Notification failed: ${error}`);
+      if (error) {
+        console.error('Notification error:', error);
+        throw error;
       }
       
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Unknown error sending notification');
-      }
+      console.log('Notification sent successfully:', data);
       
       toast({
         title: "Notification sent",
@@ -88,24 +75,34 @@ export const useNotificationTrigger = () => {
   const notifyUpdateSubmitted = async (companyId: string, companyName: string, updateId: string): Promise<boolean> => {
     if (!user) return false;
     
-    // Get partners associated with this company
-    const { data: partners } = await supabase
-      .from('users')
-      .select('email')
-      .eq('role', 'partner');
+    try {
+      // Get partners associated with this company or all partners for now
+      const { data: partners } = await supabase
+        .from('users')
+        .select('email, name')
+        .eq('role', 'partner');
+        
+      const recipients = partners?.map(partner => partner.email) || [];
       
-    const recipients = partners?.map(partner => partner.email) || [];
-    
-    return triggerNotification({
-      type: 'update_submitted',
-      company_id: companyId,
-      data: {
-        company_name: companyName,
-        submitter_name: user.name,
-        update_link: `${window.location.origin}/company/${companyId}/updates`,
-      },
-      recipients,
-    });
+      if (recipients.length === 0) {
+        console.warn('No partners found to notify');
+        return false;
+      }
+      
+      return triggerNotification({
+        type: 'update_submitted',
+        company_id: companyId,
+        data: {
+          company_name: companyName,
+          submitter_name: user.name || user.email,
+          update_link: `${window.location.origin}/company-profile/${companyId}?tab=updates`,
+        },
+        recipients,
+      });
+    } catch (error) {
+      console.error('Error in notifyUpdateSubmitted:', error);
+      return false;
+    }
   };
   
   // Helper for when a meeting is scheduled
@@ -131,9 +128,56 @@ export const useNotificationTrigger = () => {
     });
   };
   
+  // Helper for overdue updates
+  const notifyUpdateOverdue = async (
+    companyId: string,
+    companyName: string,
+    daysOverdue: number,
+    lastUpdateDate: string | null
+  ): Promise<boolean> => {
+    try {
+      // Get company founder and assigned partners
+      const { data: company } = await supabase
+        .from('companies')
+        .select('founder_email')
+        .eq('id', companyId)
+        .single();
+        
+      const { data: partners } = await supabase
+        .from('users')
+        .select('email')
+        .eq('role', 'partner');
+      
+      const recipients = [
+        ...(company?.founder_email ? [company.founder_email] : []),
+        ...(partners?.map(p => p.email) || [])
+      ];
+      
+      if (recipients.length === 0) {
+        console.warn('No recipients found for overdue notification');
+        return false;
+      }
+      
+      return triggerNotification({
+        type: 'update_overdue',
+        company_id: companyId,
+        data: {
+          company_name: companyName,
+          days_overdue: daysOverdue,
+          last_update_date: lastUpdateDate,
+        },
+        recipients,
+      });
+    } catch (error) {
+      console.error('Error in notifyUpdateOverdue:', error);
+      return false;
+    }
+  };
+  
   return {
     triggerNotification,
     notifyUpdateSubmitted,
     notifyMeetingScheduled,
+    notifyUpdateOverdue,
   };
 };
