@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ interface Note {
   title: string;
   content: string;
   company_id?: string;
-  visibility: 'private' | 'team' | 'shared';
+  visibility: 'private' | 'team' | 'public';
 }
 
 interface Company {
@@ -143,7 +144,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, companies, onSave, onCanc
             <Label htmlFor="visibility">Visibility</Label>
             <Select 
               value={formData.visibility} 
-              onValueChange={(value: 'private' | 'team' | 'shared') => setFormData({ ...formData, visibility: value })}
+              onValueChange={(value: 'private' | 'team' | 'public') => setFormData({ ...formData, visibility: value })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -151,7 +152,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, companies, onSave, onCanc
               <SelectContent>
                 <SelectItem value="private">Private (Only you)</SelectItem>
                 <SelectItem value="team">Team (Partners & Admins)</SelectItem>
-                <SelectItem value="shared">Shared (All users)</SelectItem>
+                <SelectItem value="public">Public (All users)</SelectItem>
               </SelectContent>
             </Select>
           </div>

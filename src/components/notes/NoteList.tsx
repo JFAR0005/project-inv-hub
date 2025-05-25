@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,15 +15,18 @@ interface Note {
   id: string;
   title: string;
   content: string;
-  company_id: string | null;
-  company_name?: string;
+  company_id?: string;
+  visibility: 'private' | 'team' | 'public';
   author_id: string;
-  author_name?: string;
-  visibility: string;
-  file_url?: string | null;
-  tags?: string[] | null;
   created_at: string;
   updated_at?: string;
+  companies?: {
+    name: string;
+  };
+  company_name?: string;
+  author_name?: string;
+  file_url?: string | null;
+  tags?: string[] | null;
 }
 
 // Define the component's ref type
@@ -105,6 +107,8 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
         company_name: note.companies?.name || 'No company',
         // Use the userMap to get author name
         author_name: userMap.get(note.author_id) || 'Unknown user',
+        // Ensure visibility is properly typed
+        visibility: note.visibility as 'private' | 'team' | 'public',
       }));
       
       // Extract all unique tags
@@ -225,9 +229,9 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Visibility</SelectItem>
-              <SelectItem value="admin">Admins Only</SelectItem>
-              <SelectItem value="partner">Partners & Admins</SelectItem>
-              <SelectItem value="founder">Everyone</SelectItem>
+              <SelectItem value="private">Private</SelectItem>
+              <SelectItem value="team">Team</SelectItem>
+              <SelectItem value="public">Public</SelectItem>
             </SelectContent>
           </Select>
           
@@ -277,7 +281,8 @@ const NoteList = forwardRef<NoteListRef, {}>((props, ref) => {
             <NoteCard 
               key={note.id} 
               note={note} 
-              onClick={handleNoteClick}
+              onEdit={() => {}}
+              onDelete={() => fetchNotesData()}
             />
           ))}
         </div>

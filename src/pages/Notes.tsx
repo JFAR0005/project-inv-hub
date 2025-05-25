@@ -10,7 +10,7 @@ interface Note {
   title: string;
   content: string;
   company_id?: string;
-  visibility: 'private' | 'team' | 'shared';
+  visibility: 'private' | 'team' | 'public';
   author_id: string;
   created_at: string;
   updated_at: string;
