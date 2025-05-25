@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileObject } from './types';
@@ -48,9 +49,10 @@ export const useCompanyFiles = (companyId: string) => {
           
           let uploaderName = 'Unknown';
           
-          // Simplified type checking - check if uploader exists and has a name property
-          if (file.uploader && typeof file.uploader === 'object' && file.uploader !== null && 'name' in file.uploader) {
-            const name = file.uploader.name;
+          // Extract uploader to a variable first to handle null safety
+          const uploader = file.uploader;
+          if (uploader && typeof uploader === 'object' && 'name' in uploader) {
+            const name = uploader.name;
             if (typeof name === 'string' && name.trim()) {
               uploaderName = name;
             }
