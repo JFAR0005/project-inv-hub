@@ -1,55 +1,75 @@
 
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Users, Building, TrendingUp } from 'lucide-react';
+import { UserRole } from '@/context/auth/authTypes';
+import { Shield, Users, Building2, User } from 'lucide-react';
 
-const RoleBadge: React.FC = () => {
-  const { user, originalRole } = useAuth();
+interface RoleBadgeProps {
+  role: UserRole;
+  size?: 'sm' | 'md' | 'lg';
+  showIcon?: boolean;
+  variant?: 'default' | 'secondary' | 'outline';
+}
 
-  if (!user) return null;
+const roleConfig: Record<UserRole, {
+  label: string;
+  icon: React.ComponentType<any>;
+  color: string;
+}> = {
+  admin: {
+    label: 'Administrator',
+    icon: Shield,
+    color: 'bg-red-500 text-white'
+  },
+  capital_team: {
+    label: 'Capital Team',
+    icon: Building2,
+    color: 'bg-blue-500 text-white'
+  },
+  partner: {
+    label: 'Partner',
+    icon: Users,
+    color: 'bg-green-500 text-white'
+  },
+  founder: {
+    label: 'Founder',
+    icon: User,
+    color: 'bg-purple-500 text-white'
+  }
+};
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Shield className="h-3 w-3" />;
-      case 'partner':
-        return <TrendingUp className="h-3 w-3" />;
-      case 'founder':
-        return <Building className="h-3 w-3" />;
-      case 'capital_team':
-        return <Users className="h-3 w-3" />;
-      default:
-        return <Users className="h-3 w-3" />;
-    }
+const RoleBadge: React.FC<RoleBadgeProps> = ({ 
+  role, 
+  size = 'md', 
+  showIcon = true, 
+  variant = 'default' 
+}) => {
+  const config = roleConfig[role];
+  const Icon = config.icon;
+
+  const sizeClasses = {
+    sm: 'text-xs px-2 py-1',
+    md: 'text-sm px-3 py-1',
+    lg: 'text-base px-4 py-2'
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'partner':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'founder':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'capital_team':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const formatRoleName = (role: string) => {
-    return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  const iconSizes = {
+    sm: 'w-3 h-3',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5'
   };
 
   return (
-    <Badge variant="outline" className={`flex items-center gap-1 ${getRoleColor(user.role)}`}>
-      {getRoleIcon(user.role)}
-      <span>{formatRoleName(user.role)}</span>
-      {originalRole && (
-        <span className="text-xs opacity-75">(viewing)</span>
-      )}
+    <Badge 
+      variant={variant}
+      className={`
+        ${sizeClasses[size]} 
+        ${variant === 'default' ? config.color : ''} 
+        gap-1 font-medium
+      `}
+    >
+      {showIcon && <Icon className={iconSizes[size]} />}
+      {config.label}
     </Badge>
   );
 };

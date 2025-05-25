@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Layout from '@/components/layout/Layout';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import RouteGuard from '@/components/layout/RouteGuard';
 import Login from '@/pages/Login';
 import Portfolio from '@/pages/Portfolio';
 import EnhancedPortfolio from '@/pages/EnhancedPortfolio';
@@ -34,23 +34,63 @@ function App() {
                 <Route path="/" element={<Navigate to="/portfolio" replace />} />
                 
                 <Route path="/*" element={
-                  <ProtectedRoute allowedRoles={['admin', 'capital_team', 'partner', 'founder']}>
+                  <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']}>
                     <Layout>
                       <Routes>
-                        <Route path="/portfolio" element={<Portfolio />} />
-                        <Route path="/enhanced-portfolio" element={<EnhancedPortfolio />} />
-                        <Route path="/company/:id" element={<CompanyProfile />} />
-                        <Route path="/analytics" element={<Analytics />} />
-                        <Route path="/deals" element={<Deals />} />
-                        <Route path="/notes" element={<Notes />} />
-                        <Route path="/meetings" element={<Meetings />} />
-                        <Route path="/search" element={<Search />} />
-                        <Route path="/team" element={<Team />} />
-                        <Route path="/submit-update" element={<SubmitUpdate />} />
+                        <Route path="/portfolio" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Portfolio />
+                          </RouteGuard>
+                        } />
+                        <Route path="/enhanced-portfolio" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <EnhancedPortfolio />
+                          </RouteGuard>
+                        } />
+                        <Route path="/company/:id" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']} requiresOwnership>
+                            <CompanyProfile />
+                          </RouteGuard>
+                        } />
+                        <Route path="/analytics" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Analytics />
+                          </RouteGuard>
+                        } />
+                        <Route path="/deals" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Deals />
+                          </RouteGuard>
+                        } />
+                        <Route path="/notes" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Notes />
+                          </RouteGuard>
+                        } />
+                        <Route path="/meetings" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']}>
+                            <Meetings />
+                          </RouteGuard>
+                        } />
+                        <Route path="/search" element={
+                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                            <Search />
+                          </RouteGuard>
+                        } />
+                        <Route path="/team" element={
+                          <RouteGuard allowedRoles={['admin']}>
+                            <Team />
+                          </RouteGuard>
+                        } />
+                        <Route path="/submit-update" element={
+                          <RouteGuard allowedRoles={['founder']}>
+                            <SubmitUpdate />
+                          </RouteGuard>
+                        } />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </Layout>
-                  </ProtectedRoute>
+                  </RouteGuard>
                 } />
               </Routes>
             </div>
