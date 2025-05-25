@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/context/auth/authTypes';
 
@@ -20,6 +19,7 @@ const ROUTE_ACCESS: RouteAccess = {
   '/meetings': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'] },
   '/search': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/team': { allowedRoles: ['admin'] },
+  '/integrations': { allowedRoles: ['admin', 'capital_team', 'partner'] },
   '/submit-update': { allowedRoles: ['founder'] }
 };
 

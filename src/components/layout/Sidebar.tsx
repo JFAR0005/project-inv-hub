@@ -12,7 +12,8 @@ import {
   Settings,
   Users,
   TrendingUp,
-  Grid3X3
+  Grid3X3,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -30,6 +31,7 @@ const Sidebar = () => {
     { name: 'Meetings', href: '/meetings', icon: Calendar, roles: ['admin', 'capital_team', 'partner', 'founder'] },
     { name: 'Search', href: '/search', icon: Search, roles: ['admin', 'capital_team', 'partner'] },
     { name: 'Team', href: '/team', icon: Users, roles: ['admin'] },
+    { name: 'Integrations', href: '/integrations', icon: Zap, roles: ['admin', 'capital_team', 'partner'] },
     { name: 'Submit Update', href: '/submit-update', icon: FileText, roles: ['founder'] },
   ];
 

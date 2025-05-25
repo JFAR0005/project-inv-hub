@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/components/ui/sonner';
-import { Calendar, Mail, Bell, Slack, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar, FileText, Bell, Zap, Calendar as CalendarIcon, Workflow } from 'lucide-react';
 import IntegrationCard from './IntegrationCard';
 import ApiDocumentation from './ApiDocumentation';
 
@@ -27,6 +27,13 @@ const IntegrationsPanel = () => {
       connected: false,
     },
     {
+      id: 'google-drive',
+      name: 'Google Drive',
+      description: 'Access and manage documents in Google Drive',
+      icon: <FileText className="h-8 w-8" />,
+      connected: false,
+    },
+    {
       id: 'calendly',
       name: 'Calendly',
       description: 'Schedule meetings using Calendly',
@@ -34,28 +41,21 @@ const IntegrationsPanel = () => {
       connected: false,
     },
     {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Get notifications in your Slack workspace',
-      icon: <Slack className="h-8 w-8" />,
-      connected: false,
-      adminOnly: true,
-    },
-    {
       id: 'zapier',
       name: 'Zapier',
-      description: 'Connect with thousands of apps via Zapier',
-      icon: <Bell className="h-8 w-8" />,
+      description: 'Connect with 6000+ apps via Zapier',
+      icon: <Zap className="h-8 w-8" />,
       connected: false,
       key: '',
       adminOnly: true,
     },
     {
-      id: 'gmail',
-      name: 'Gmail',
-      description: 'Send and receive email notifications',
-      icon: <Mail className="h-8 w-8" />,
+      id: 'n8n',
+      name: 'n8n',
+      description: 'Self-hosted workflow automation',
+      icon: <Workflow className="h-8 w-8" />,
       connected: false,
+      adminOnly: true,
     },
   ]);
 
@@ -73,6 +73,20 @@ const IntegrationsPanel = () => {
 
   const handleConnect = (id: string) => {
     setIsLoading(true);
+    
+    // Simulate OAuth flow for Google services
+    if (id === 'google-calendar' || id === 'google-drive') {
+      // In production, this would redirect to Google OAuth
+      const authUrl = `https://accounts.google.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=${encodeURIComponent(window.location.origin + '/auth/google/callback')}&scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive.readonly')}&response_type=code&access_type=offline`;
+      
+      toast(`Connect to ${integrations.find(i => i.id === id)?.name}`, {
+        description: `In production, you would be redirected to: ${authUrl}`,
+        action: {
+          label: "Open OAuth",
+          onClick: () => window.open(authUrl, '_blank')
+        }
+      });
+    }
     
     setTimeout(() => {
       updateIntegrationStatus(id, true);
@@ -113,7 +127,7 @@ const IntegrationsPanel = () => {
       <div>
         <h2 className="text-xl font-semibold mb-2">External Integrations</h2>
         <p className="text-muted-foreground mb-4">
-          Connect Black Nova platform with your favorite tools and services
+          Connect Black Nova platform with your favorite tools and services for seamless workflow automation
         </p>
       </div>
 
