@@ -1,594 +1,284 @@
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  BarChart3, 
-  PieChart, 
-  Download,
-  AlertTriangle,
-  Target,
-  DollarSign,
-  Users,
-  Activity
-} from 'lucide-react';
-import EnhancedLineChart from '@/components/charts/EnhancedLineChart';
-import EnhancedBarChart from '@/components/charts/EnhancedBarChart';
-import EnhancedPieChart from '@/components/charts/EnhancedPieChart';
-import EnhancedAreaChart from '@/components/charts/EnhancedAreaChart';
-import { format, subMonths, startOfMonth } from 'date-fns';
-
-interface PortfolioMetrics {
-  totalCompanies: number;
-  totalARR: number;
-  avgGrowthRate: number;
-  totalHeadcount: number;
-  avgBurnMultiple: number;
-  companiesRaising: number;
-  portfolioHealthScore: number;
-}
-
-interface CompanyPerformance {
-  id: string;
-  name: string;
-  sector: string;
-  stage: string;
-  arr: number;
-  growth: number;
-  burnMultiple: number;
-  healthScore: number;
-  riskLevel: 'Low' | 'Medium' | 'High';
-}
-
-interface SectorMetrics {
-  sector: string;
-  count: number;
-  totalARR: number;
-  avgGrowthRate: number;
-  color: string;
-}
-
-interface TrendData {
-  month: string;
-  totalARR: number;
-  avgGrowth: number;
-  headcount: number;
-}
-
-interface MetricData {
-  id: string;
-  company_id: string;
-  metric_name: string;
-  value: number;
-  date: string;
-}
+import { Building2, TrendingUp, DollarSign, Users, Activity } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import DataLoadingState from '@/components/data/DataLoadingState';
 
 const PortfolioAnalytics: React.FC = () => {
-  const { user } = useAuth();
-  const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null);
-  const [companyPerformance, setCompanyPerformance] = useState<CompanyPerformance[]>([]);
-  const [sectorMetrics, setSectorMetrics] = useState<SectorMetrics[]>([]);
-  const [trendData, setTrendData] = useState<TrendData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const sectorColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
-
-  useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'partner' || user.role === 'capital_team')) {
-      fetchPortfolioAnalytics();
-    }
-  }, [user]);
-
-  const fetchPortfolioAnalytics = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch companies and their latest updates
-      const { data: companies, error: companiesError } = await supabase
+  // Fetch portfolio companies with latest metrics
+  const { data: companies, isLoading: companiesLoading } = useQuery({
+    queryKey: ['portfolio-companies-analytics'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('companies')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-      if (companiesError) throw companiesError;
-
-      const { data: updates, error: updatesError } = await supabase
+  // Fetch latest founder updates for each company
+  const { data: latestUpdates, isLoading: updatesLoading } = useQuery({
+    queryKey: ['latest-founder-updates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('founder_updates')
-        .select('*')
+        .select('company_id, arr, mrr, burn_rate, headcount, runway, submitted_at')
         .order('submitted_at', { ascending: false });
-
-      if (updatesError) throw updatesError;
-
-      // Fetch metrics data
-      const { data: metricsData, error: metricsError } = await supabase
-        .from('metrics')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (metricsError) throw metricsError;
-
-      // Process data for analytics
-      const updatesByCompany = updates.reduce((acc: Record<string, any>, update) => {
+      
+      if (error) throw error;
+      
+      // Get only the latest update for each company
+      const latestByCompany = (data || []).reduce((acc, update) => {
         if (!acc[update.company_id] || new Date(update.submitted_at) > new Date(acc[update.company_id].submitted_at)) {
           acc[update.company_id] = update;
         }
         return acc;
-      }, {});
+      }, {} as Record<string, any>);
+      
+      return Object.values(latestByCompany);
+    },
+  });
 
-      // Process metrics by company (get latest values)
-      const metricsByCompany = metricsData.reduce((acc: Record<string, Record<string, number | string>>, metric: MetricData) => {
-        if (!acc[metric.company_id]) {
-          acc[metric.company_id] = {};
-        }
-        
-        // Convert value to number and only keep the latest value for each metric
-        const numericValue = Number(metric.value) || 0;
-        const dateKey = `${metric.metric_name}_date`;
-        
-        if (!acc[metric.company_id][metric.metric_name] || 
-            new Date(metric.date) > new Date((acc[metric.company_id][dateKey] as string) || '1970-01-01')) {
-          acc[metric.company_id][metric.metric_name] = numericValue;
-          acc[metric.company_id][dateKey] = metric.date;
-        }
-        
-        return acc;
-      }, {});
+  // Fetch historical metrics for trends
+  const { data: historicalMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['historical-metrics'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('metrics')
+        .select('*')
+        .order('date', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-      // Calculate company performance metrics
-      const performanceData: CompanyPerformance[] = companies.map(company => {
-        const latestUpdate = updatesByCompany[company.id];
-        const companyMetrics = metricsByCompany[company.id] || {};
-        
-        // Use metrics data first, fall back to founder updates, then company data
-        const arr = (companyMetrics.arr as number) || latestUpdate?.arr || company.arr || 0;
-        const burnRate = (companyMetrics.burn_rate as number) || latestUpdate?.burn_rate || company.burn_rate || 0;
-        const headcount = (companyMetrics.headcount as number) || latestUpdate?.headcount || company.headcount || 0;
-        
-        // Calculate growth from historical data (simplified for now)
-        const growth = latestUpdate?.growth || 0;
-        const burnMultiple = arr > 0 && burnRate > 0 ? burnRate / (arr / 12) : 0;
-        
-        // Calculate health score (0-100)
-        let healthScore = 50; // Base score
-        if (growth > 20) healthScore += 20;
-        else if (growth > 10) healthScore += 10;
-        else if (growth < 0) healthScore -= 20;
-        
-        if (burnMultiple > 0 && burnMultiple < 2) healthScore += 15;
-        else if (burnMultiple > 4) healthScore -= 15;
-        
-        if (latestUpdate?.runway && latestUpdate.runway > 12) healthScore += 15;
-        else if (latestUpdate?.runway && latestUpdate.runway < 6) healthScore -= 20;
-
-        healthScore = Math.max(0, Math.min(100, healthScore));
-
-        return {
-          id: company.id,
-          name: company.name,
-          sector: company.sector || 'Other',
-          stage: company.stage || 'Unknown',
-          arr,
-          growth,
-          burnMultiple,
-          healthScore,
-          riskLevel: healthScore > 70 ? 'Low' : healthScore > 40 ? 'Medium' : 'High'
-        };
-      });
-
-      setCompanyPerformance(performanceData);
-
-      // Calculate portfolio-wide metrics
-      const totalCompanies = companies.length;
-      const totalARR = performanceData.reduce((sum, company) => sum + company.arr, 0);
-      const companiesWithGrowth = performanceData.filter(c => c.growth !== 0);
-      const avgGrowthRate = companiesWithGrowth.length > 0 
-        ? companiesWithGrowth.reduce((sum, c) => sum + c.growth, 0) / companiesWithGrowth.length
-        : 0;
-      const totalHeadcount = performanceData.reduce((sum, company) => sum + ((metricsByCompany[company.id]?.headcount as number) || 0), 0);
-      const avgBurnMultiple = performanceData
-        .filter(c => c.burnMultiple > 0)
-        .reduce((sum, c, _, arr) => sum + c.burnMultiple / arr.length, 0);
-      const companiesRaising = updates.filter(u => u.raise_status === 'Raising').length;
-      const portfolioHealthScore = performanceData.reduce((sum, c) => sum + c.healthScore, 0) / totalCompanies;
-
-      setMetrics({
-        totalCompanies,
-        totalARR,
-        avgGrowthRate,
-        totalHeadcount,
-        avgBurnMultiple,
-        companiesRaising,
-        portfolioHealthScore
-      });
-
-      // Calculate sector metrics
-      const sectorData = performanceData.reduce((acc: Record<string, any>, company) => {
-        const sector = company.sector;
-        if (!acc[sector]) {
-          acc[sector] = { sector, count: 0, totalARR: 0, growthSum: 0, growthCount: 0 };
-        }
-        acc[sector].count++;
-        acc[sector].totalARR += company.arr;
-        if (company.growth !== 0) {
-          acc[sector].growthSum += company.growth;
-          acc[sector].growthCount++;
-        }
-        return acc;
-      }, {});
-
-      const sectorMetricsData: SectorMetrics[] = Object.values(sectorData).map((sector: any, index) => ({
-        sector: sector.sector,
-        count: sector.count,
-        totalARR: sector.totalARR,
-        avgGrowthRate: sector.growthCount > 0 ? sector.growthSum / sector.growthCount : 0,
-        color: sectorColors[index % sectorColors.length]
-      }));
-
-      setSectorMetrics(sectorMetricsData);
-
-      // Generate trend data from metrics table
-      const trendDataPoints: TrendData[] = [];
-      const monthlyMetrics: Record<string, { totalARR: number, headcount: number, companies: Set<string> }> = {};
-
-      // Process metrics data for trends
-      metricsData.forEach((metric: MetricData) => {
-        const monthKey = format(new Date(metric.date), 'MMM yyyy');
-        
-        if (!monthlyMetrics[monthKey]) {
-          monthlyMetrics[monthKey] = { totalARR: 0, headcount: 0, companies: new Set() };
-        }
-        
-        monthlyMetrics[monthKey].companies.add(metric.company_id);
-        
-        const numericValue = Number(metric.value) || 0;
-        if (metric.metric_name === 'arr') {
-          monthlyMetrics[monthKey].totalARR += numericValue;
-        } else if (metric.metric_name === 'headcount') {
-          monthlyMetrics[monthKey].headcount += numericValue;
-        }
-      });
-
-      // Convert to array and fill in missing months if needed
-      for (let i = 11; i >= 0; i--) {
-        const month = startOfMonth(subMonths(new Date(), i));
-        const monthStr = format(month, 'MMM yyyy');
-        
-        const monthData = monthlyMetrics[monthStr];
-        
-        trendDataPoints.push({
-          month: monthStr,
-          totalARR: monthData ? monthData.totalARR : (totalARR * (0.7 + (11 - i) * 0.03)),
-          avgGrowth: avgGrowthRate * (0.8 + Math.random() * 0.4), // Simplified for demo
-          headcount: monthData ? monthData.headcount : (totalHeadcount * (0.8 + (11 - i) * 0.02))
-        });
-      }
-
-      setTrendData(trendDataPoints);
-    } catch (error) {
-      console.error('Error fetching portfolio analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(1)}K`;
-    }
-    return `$${value.toFixed(0)}`;
-  };
-
-  const exportData = () => {
-    const csvContent = [
-      ['Company', 'Sector', 'Stage', 'ARR', 'Growth Rate', 'Burn Multiple', 'Health Score', 'Risk Level'].join(','),
-      ...companyPerformance.map(company => [
-        company.name,
-        company.sector,
-        company.stage,
-        company.arr,
-        company.growth,
-        company.burnMultiple.toFixed(1),
-        company.healthScore.toFixed(0),
-        company.riskLevel
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'portfolio-analytics.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-32" />
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-        <Skeleton className="h-[400px] w-full" />
-      </div>
-    );
+  if (companiesLoading || updatesLoading || metricsLoading) {
+    return <DataLoadingState />;
   }
 
-  if (!metrics) return null;
+  // Combine company data with latest metrics
+  const enrichedCompanies = companies?.map(company => {
+    const latestUpdate = latestUpdates?.find(u => u.company_id === company.id);
+    return {
+      ...company,
+      currentARR: latestUpdate?.arr || company.arr || 0,
+      currentMRR: latestUpdate?.mrr || company.mrr || 0,
+      currentBurn: latestUpdate?.burn_rate || company.burn_rate || 0,
+      currentHeadcount: latestUpdate?.headcount || company.headcount || 0,
+      currentRunway: latestUpdate?.runway || company.runway || 0,
+      lastUpdate: latestUpdate?.submitted_at,
+    };
+  }) || [];
+
+  // Calculate portfolio totals
+  const totalARR = enrichedCompanies.reduce((sum, company) => sum + (company.currentARR || 0), 0);
+  const totalMRR = enrichedCompanies.reduce((sum, company) => sum + (company.currentMRR || 0), 0);
+  const totalBurn = enrichedCompanies.reduce((sum, company) => sum + (company.currentBurn || 0), 0);
+  const totalHeadcount = enrichedCompanies.reduce((sum, company) => sum + (company.currentHeadcount || 0), 0);
+
+  // Prepare chart data
+  const arrByCompany = enrichedCompanies
+    .filter(c => c.currentARR > 0)
+    .sort((a, b) => (b.currentARR || 0) - (a.currentARR || 0))
+    .slice(0, 10)
+    .map(c => ({
+      name: c.name,
+      arr: c.currentARR,
+    }));
+
+  const sectorData = enrichedCompanies.reduce((acc, company) => {
+    const sector = company.sector || 'Unknown';
+    acc[sector] = (acc[sector] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const sectorChartData = Object.entries(sectorData).map(([sector, count]) => ({
+    name: sector,
+    value: count,
+  }));
+
+  const stageData = enrichedCompanies.reduce((acc, company) => {
+    const stage = company.stage || 'Unknown';
+    acc[stage] = (acc[stage] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const stageChartData = Object.entries(stageData).map(([stage, count]) => ({
+    name: stage,
+    value: count,
+  }));
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
     <div className="space-y-6">
-      {/* Key Analytics Cards */}
+      {/* Portfolio Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Portfolio Health Score</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics.portfolioHealthScore.toFixed(0)}/100
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.portfolioHealthScore > 70 ? 'Excellent' : 
-               metrics.portfolioHealthScore > 50 ? 'Good' : 'Needs Attention'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Burn Multiple</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics.avgBurnMultiple.toFixed(1)}x
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.avgBurnMultiple < 2 ? 'Excellent' : 
-               metrics.avgBurnMultiple < 3 ? 'Good' : 'High'}
-            </p>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Portfolio ARR</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(metrics.totalARR)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalARR)}</div>
             <p className="text-xs text-muted-foreground">
-              Across {metrics.totalCompanies} companies
+              Across {enrichedCompanies.length} companies
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Companies Raising</CardTitle>
+            <CardTitle className="text-sm font-medium">Total MRR</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.companiesRaising}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently fundraising
-            </p>
+            <div className="text-2xl font-bold">{formatCurrency(totalMRR)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Burn</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalBurn)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Headcount</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalHeadcount}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Analytics Tabs */}
-      <Tabs defaultValue="trends" className="w-full">
-        <div className="flex justify-between items-center">
-          <TabsList className="grid w-full max-w-md grid-cols-4">
-            <TabsTrigger value="trends">Trends</TabsTrigger>
-            <TabsTrigger value="sectors">Sectors</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
-          </TabsList>
-          <Button onClick={exportData} variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Data
-          </Button>
-        </div>
-
-        <TabsContent value="trends" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Portfolio Growth Trends</CardTitle>
-              <CardDescription>ARR and growth trends over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EnhancedAreaChart
-                data={trendData}
-                areas={[
-                  {
-                    dataKey: 'totalARR',
-                    color: '#3B82F6',
-                    label: 'Total ARR',
-                    fillOpacity: 0.3,
-                  },
-                  {
-                    dataKey: 'avgGrowth',
-                    color: '#10B981',
-                    label: 'Avg Growth %',
-                    fillOpacity: 0.2,
-                  }
-                ]}
-                xAxisKey="month"
-                height={350}
-                formatValue={(value) => typeof value === 'number' && value > 1000 ? formatCurrency(value) : `${value}%`}
-                showGrid={true}
-                showLegend={true}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="sectors" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sector Distribution</CardTitle>
-                <CardDescription>Companies by sector</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EnhancedPieChart
-                  data={sectorMetrics}
-                  dataKey="count"
-                  nameKey="sector"
-                  colors={sectorColors}
-                  height={300}
-                  formatValue={(value) => `${value} companies`}
-                  showLegend={true}
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ARR by Company */}
+        <Card>
+          <CardHeader>
+            <CardTitle>ARR by Company (Top 10)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={arrByCompany}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
                 />
-              </CardContent>
-            </Card>
+                <YAxis tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`} />
+                <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                <Bar dataKey="arr" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Sector Performance</CardTitle>
-                <CardDescription>ARR by sector</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EnhancedBarChart
-                  data={sectorMetrics}
-                  bars={[
-                    {
-                      dataKey: 'totalARR',
-                      color: '#3B82F6',
-                      label: 'Total ARR',
-                    }
-                  ]}
-                  xAxisKey="sector"
-                  height={300}
-                  formatValue={formatCurrency}
-                  showGrid={true}
-                  showLegend={false}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+        {/* Companies by Sector */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Companies by Sector</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={sectorChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {sectorChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="performance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Performance Matrix</CardTitle>
-              <CardDescription>Growth vs ARR analysis</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {companyPerformance.slice(0, 10).map((company) => (
-                  <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div>
-                        <div className="font-medium">{company.name}</div>
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Badge variant="outline">{company.sector}</Badge>
-                          <Badge variant="secondary">{company.stage}</Badge>
-                          <Badge variant={company.riskLevel === 'Low' ? 'default' : 
-                                        company.riskLevel === 'Medium' ? 'secondary' : 'destructive'}>
-                            {company.riskLevel} Risk
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <div className="font-bold">{formatCurrency(company.arr)}</div>
-                      <div className="flex items-center text-sm">
-                        {company.growth >= 0 ? (
-                          <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
-                        )}
-                        <span className={company.growth >= 0 ? 'text-green-500' : 'text-red-500'}>
-                          {company.growth}%
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Health: {company.healthScore.toFixed(0)}/100
-                      </div>
-                    </div>
-                  </div>
-                ))}
+        {/* Companies by Stage */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Companies by Stage</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stageChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Company Performance Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Portfolio Health Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Companies with positive ARR growth</span>
+                <Badge variant="secondary">
+                  {enrichedCompanies.filter(c => c.currentARR > 0).length}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="benchmarks" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Industry Benchmarks</CardTitle>
-                <CardDescription>How your portfolio compares</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Growth Rate</span>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">{metrics.avgGrowthRate.toFixed(1)}%</span>
-                    <Badge variant={metrics.avgGrowthRate > 15 ? 'default' : 'secondary'}>
-                      {metrics.avgGrowthRate > 15 ? 'Above' : 'Below'} Benchmark
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Burn Multiple</span>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">{metrics.avgBurnMultiple.toFixed(1)}x</span>
-                    <Badge variant={metrics.avgBurnMultiple < 3 ? 'default' : 'secondary'}>
-                      {metrics.avgBurnMultiple < 3 ? 'Good' : 'High'}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Risk Assessment</CardTitle>
-                <CardDescription>Portfolio risk distribution</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {['Low', 'Medium', 'High'].map((risk) => {
-                    const count = companyPerformance.filter(c => c.riskLevel === risk).length;
-                    const percentage = (count / companyPerformance.length) * 100;
-                    return (
-                      <div key={risk} className="flex justify-between items-center">
-                        <span className="text-sm">{risk} Risk</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium">{count} companies</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({percentage.toFixed(0)}%)
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Companies with runway > 12 months</span>
+                <Badge variant="secondary">
+                  {enrichedCompanies.filter(c => (c.currentRunway || 0) > 12).length}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Companies needing updates (>30 days)</span>
+                <Badge variant="destructive">
+                  {enrichedCompanies.filter(c => {
+                    if (!c.lastUpdate) return true;
+                    const daysSinceUpdate = (Date.now() - new Date(c.lastUpdate).getTime()) / (1000 * 60 * 60 * 24);
+                    return daysSinceUpdate > 30;
+                  }).length}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

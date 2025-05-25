@@ -50,6 +50,24 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
     enabled: !!companyId,
   });
 
+  // Fetch historical metrics data
+  const { data: historicalMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['company-metrics', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      
+      const { data, error } = await supabase
+        .from('metrics')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('date', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
   if (!companyId) {
     return (
       <Card>
@@ -63,7 +81,7 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
     );
   }
 
-  if (updatesLoading || companyLoading) {
+  if (updatesLoading || companyLoading || metricsLoading) {
     return <DataLoadingState />;
   }
 
@@ -83,6 +101,30 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
     }).format(value);
   };
 
+  // Calculate growth rates from historical data
+  const getLatestMetricValue = (metricName: string) => {
+    const metricData = historicalMetrics
+      .filter(m => m.metric_name === metricName)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    return metricData.length > 0 ? metricData[0].value : 0;
+  };
+
+  const getGrowthRate = (metricName: string) => {
+    const metricData = historicalMetrics
+      .filter(m => m.metric_name === metricName)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    if (metricData.length < 2) return null;
+    
+    const latest = metricData[0].value;
+    const previous = metricData[1].value;
+    
+    if (previous === 0) return null;
+    
+    return ((latest - previous) / previous) * 100;
+  };
+
   return (
     <div className="space-y-6">
       {/* Current Metrics Summary */}
@@ -95,6 +137,11 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(currentARR)}</div>
+            {getGrowthRate('arr') && (
+              <p className={`text-sm ${getGrowthRate('arr')! >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {getGrowthRate('arr')! >= 0 ? '↗' : '↘'} {Math.abs(getGrowthRate('arr')!).toFixed(1)}%
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -106,6 +153,11 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(currentMRR)}</div>
+            {getGrowthRate('mrr') && (
+              <p className={`text-sm ${getGrowthRate('mrr')! >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {getGrowthRate('mrr')! >= 0 ? '↗' : '↘'} {Math.abs(getGrowthRate('mrr')!).toFixed(1)}%
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -117,6 +169,11 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(currentBurn)}</div>
+            {getGrowthRate('burn_rate') && (
+              <p className={`text-sm ${getGrowthRate('burn_rate')! <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {getGrowthRate('burn_rate')! <= 0 ? '↘' : '↗'} {Math.abs(getGrowthRate('burn_rate')!).toFixed(1)}%
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -128,6 +185,11 @@ const CompanyMetrics: React.FC<CompanyMetricsProps> = ({ companyId }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{currentHeadcount}</div>
+            {getGrowthRate('headcount') && (
+              <p className={`text-sm ${getGrowthRate('headcount')! >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {getGrowthRate('headcount')! >= 0 ? '↗' : '↘'} {Math.abs(getGrowthRate('headcount')!).toFixed(1)}%
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
