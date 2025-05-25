@@ -34,7 +34,7 @@ function App() {
                 <Route path="/" element={<Navigate to="/portfolio" replace />} />
                 
                 <Route path="/*" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'capital_team', 'partner', 'founder']}>
                     <Layout>
                       <Routes>
                         <Route path="/portfolio" element={<Portfolio />} />
