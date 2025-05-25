@@ -10,6 +10,7 @@ import { Users, Building2, TrendingUp, DollarSign, Activity, Calendar } from 'lu
 import DataLoadingState from '@/components/data/DataLoadingState';
 import AdminUserManagement from '@/components/admin/AdminUserManagement';
 import AdminAuditLogs from '@/components/admin/AdminAuditLogs';
+import AdminCompanyAssignments from '@/components/admin/AdminCompanyAssignments';
 
 const AdminDashboard = () => {
   const { user, hasPermission } = useAuth();
@@ -87,9 +88,10 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">User Management</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="assignments">Assignments</TabsTrigger>
           <TabsTrigger value="audit">Audit Logs</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -214,6 +216,10 @@ const AdminDashboard = () => {
 
         <TabsContent value="users">
           <AdminUserManagement />
+        </TabsContent>
+
+        <TabsContent value="assignments">
+          <AdminCompanyAssignments />
         </TabsContent>
 
         <TabsContent value="audit">
