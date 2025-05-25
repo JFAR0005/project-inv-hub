@@ -1,123 +1,107 @@
-
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '@/components/theme-provider';
-import { AuthProvider } from '@/context/AuthContext';
-import { Toaster } from '@/components/ui/toaster';
-import Layout from '@/components/layout/Layout';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import Login from '@/pages/Login';
-import Portfolio from '@/pages/Portfolio';
-import CompanyProfile from '@/pages/CompanyProfile';
-import Analytics from '@/pages/Analytics';
-import Deals from '@/pages/Deals';
-import Fundraising from '@/pages/Fundraising';
-import Notes from '@/pages/Notes';
-import Meetings from '@/pages/Meetings';
-import Search from '@/pages/Search';
-import Team from '@/pages/Team';
-import Integrations from '@/pages/Integrations';
-import SubmitUpdate from '@/pages/SubmitUpdate';
-import NotFound from '@/pages/NotFound';
-
-const queryClient = new QueryClient();
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider, RoleBasedRoute } from './context/AuthContext';
+import Layout from './components/layout/Layout';
+import Dashboard from './components/Dashboard';
+import LoginForm from './components/auth/LoginForm';
+import AuthRedirect from './components/auth/AuthRedirect';
+import CompanyProfile from './components/company/CompanyProfile';
+import SubmitUpdateForm from './components/updates/SubmitUpdateForm';
+import NotesView from './components/notes/NotesView';
+import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
+import MeetingsCalendar from './components/meetings/MeetingsCalendar';
+import EnhancedPortfolioView from './components/portfolio/EnhancedPortfolioView';
+import DealTracker from './components/deals/DealTracker';
+import FundraisingDashboard from './components/fundraising/FundraisingDashboard';
+import AdminDashboard from './components/admin/AdminDashboard';
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-        <AuthProvider>
+    <QueryClientProvider client={new QueryClient()}>
+      <AuthProvider>
+        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
           <Router>
             <div className="min-h-screen bg-background">
               <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/" element={<Navigate to="/portfolio" replace />} />
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Dashboard />} />
+                  
+                  {/* Portfolio Routes */}
+                  <Route path="/portfolio" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
+                      <EnhancedPortfolioView />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Company Routes */}
+                  <Route path="/companies/:id" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <CompanyProfile />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Updates Routes */}
+                  <Route path="/updates" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <SubmitUpdateForm />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Notes Routes */}
+                  <Route path="/notes" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <NotesView />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Analytics Routes */}
+                  <Route path="/analytics" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
+                      <AnalyticsDashboard />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Meetings Routes */}
+                  <Route path="/meetings" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <MeetingsCalendar />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Admin Routes */}
+                  <Route path="/admin" element={
+                    <RoleBasedRoute allowedRoles={['admin']}>
+                      <AdminDashboard />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Deal Tracker Routes */}
+                  <Route path="/deals" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
+                      <DealTracker />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Fundraising Routes */}
+                  <Route path="/fundraising" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'partner', 'capital_team']}>
+                      <FundraisingDashboard />
+                    </RoleBasedRoute>
+                  } />
+                </Route>
                 
-                <Route path="/*" element={
-                  <ProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
-                    <Layout>
-                      <Routes>
-                        <Route path="/portfolio" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
-                            <Portfolio />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/company/:id" element={
-                          <ProtectedRoute 
-                            allowedRoles={['admin', 'partner', 'founder']} 
-                            requiresCompanyAccess={true}
-                          >
-                            <CompanyProfile />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/analytics" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
-                            <Analytics />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/deals" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
-                            <Deals />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/fundraising" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
-                            <Fundraising />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/notes" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
-                            <Notes />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/meetings" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
-                            <Meetings />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/search" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
-                            <Search />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/team" element={
-                          <ProtectedRoute requiresRole="admin">
-                            <Team />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/integrations" element={
-                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
-                            <Integrations />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/submit-update" element={
-                          <ProtectedRoute requiresRole="founder">
-                            <SubmitUpdate />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
+                {/* Auth Routes */}
+                <Route path="/login" element={<LoginForm />} />
+                <Route path="/auth" element={<AuthRedirect />} />
               </Routes>
             </div>
-            <Toaster />
           </Router>
-        </AuthProvider>
-      </ThemeProvider>
+          <Toaster />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
