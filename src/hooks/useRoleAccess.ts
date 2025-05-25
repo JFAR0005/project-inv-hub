@@ -30,7 +30,7 @@ export const useRoleAccess = () => {
     
     // Founders can only view their own company
     if (user.role === 'founder') {
-      return user.company_id === companyId;
+      return user.companyId === companyId;
     }
     
     return false;
@@ -51,7 +51,7 @@ export const useRoleAccess = () => {
     
     // Founders can edit their own company
     if (user.role === 'founder') {
-      return user.company_id === companyId;
+      return user.companyId === companyId;
     }
     
     return false;
@@ -81,6 +81,39 @@ export const useRoleAccess = () => {
     return user?.role && ['admin', 'partner'].includes(user.role);
   };
 
+  const canAccessCapitalFeatures = () => {
+    return user?.role && ['admin', 'capital_team', 'partner'].includes(user.role);
+  };
+
+  const canAccessRoute = (pathname: string, resourceId?: string) => {
+    if (!user) return false;
+
+    // Route-based access control
+    switch (true) {
+      case pathname.startsWith('/portfolio'):
+        return canViewPortfolio();
+      case pathname.startsWith('/deals'):
+        return canViewDeals();
+      case pathname.startsWith('/analytics'):
+        return canViewAnalytics();
+      case pathname.startsWith('/team'):
+        return canViewTeam();
+      case pathname.startsWith('/search'):
+        return canViewSearch();
+      case pathname.startsWith('/company/'):
+        const companyId = pathname.split('/')[2] || resourceId;
+        return companyId ? canViewCompany(companyId) : false;
+      case pathname.startsWith('/submit-update'):
+        return canSubmitUpdates();
+      case pathname.startsWith('/notes'):
+        return canViewNotes();
+      case pathname.startsWith('/meetings'):
+        return canViewMeetings();
+      default:
+        return true; // Allow access to general pages
+    }
+  };
+
   return {
     canViewPortfolio,
     canViewDeals,
@@ -94,6 +127,8 @@ export const useRoleAccess = () => {
     canViewMeetings,
     canScheduleMeetings,
     canViewSearch,
+    canAccessCapitalFeatures,
+    canAccessRoute,
     userRole: user?.role,
     isFounder: user?.role === 'founder',
     isPartner: user?.role === 'partner',

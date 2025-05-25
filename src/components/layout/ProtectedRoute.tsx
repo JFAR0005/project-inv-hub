@@ -11,13 +11,17 @@ interface ProtectedRouteProps {
   requiresRole?: 'admin' | 'partner' | 'founder';
   allowedRoles?: string[];
   requiresCompanyAccess?: boolean;
+  requireOwnership?: boolean;
+  resourceId?: string;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiresRole,
   allowedRoles,
-  requiresCompanyAccess = false
+  requiresCompanyAccess = false,
+  requireOwnership = false,
+  resourceId
 }) => {
   const { user, isLoading } = useAuth();
   const { canViewCompany } = useRoleAccess();
@@ -77,6 +81,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         </Alert>
       </div>
     );
+  }
+
+  // Check ownership requirements for founders
+  if (requireOwnership && user.role === 'founder' && (resourceId || companyId)) {
+    const targetId = resourceId || companyId;
+    if (user.companyId !== targetId) {
+      return (
+        <div className="container mx-auto px-4 py-8">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              You can only access resources that belong to your company.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
   }
 
   return <>{children}</>;
