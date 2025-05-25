@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -88,11 +87,13 @@ const AdminUserManagement: React.FC = () => {
 
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserData) => {
-      // In a real implementation, you'd create the auth user first
-      // For now, we'll just create the user record
+      // Generate a UUID for the new user
+      const newUserId = crypto.randomUUID();
+      
       const { error } = await supabase
         .from('users')
         .insert({
+          id: newUserId,
           email: userData.email,
           name: userData.name,
           role: userData.role,
@@ -107,6 +108,7 @@ const AdminUserManagement: React.FC = () => {
         .insert({
           action: 'user_created',
           target_type: 'user',
+          target_id: newUserId,
           details: userData
         });
     },
