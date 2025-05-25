@@ -120,12 +120,12 @@ const AdvancedPortfolioAnalytics: React.FC<AdvancedPortfolioAnalyticsProps> = ({
   // Growth vs Burn analysis
   const growthBurnData = useMemo(() => {
     return filteredCompanies
-      .filter(c => c.mrr && c.burn_rate)
+      .filter(company => company.mrr && company.burn_rate)
       .map(company => ({
         name: company.name,
-        growth: (c.mrr || 0) * 12, // Annualized
-        burn: c.burn_rate || 0,
-        efficiency: c.mrr && c.burn_rate ? (c.mrr * 12) / c.burn_rate : 0
+        growth: (company.mrr || 0) * 12, // Annualized
+        burn: company.burn_rate || 0,
+        efficiency: company.mrr && company.burn_rate ? (company.mrr * 12) / company.burn_rate : 0
       }));
   }, [filteredCompanies]);
 
