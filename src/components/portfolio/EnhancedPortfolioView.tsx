@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import AdvancedSearch, { SearchFilters } from './AdvancedSearch';
+import AdvancedSearch, { SearchFilters } from './search/AdvancedSearchComponent';
 import SmartSuggestions from './SmartSuggestions';
 import PortfolioGrid from './PortfolioGrid';
 import PortfolioTable from './PortfolioTable';
@@ -15,6 +14,8 @@ import PortfolioSkeleton from './PortfolioSkeleton';
 import PortfolioError from './PortfolioError';
 import PortfolioEmpty from './PortfolioEmpty';
 import PortfolioHealthDashboard from './PortfolioHealthDashboard';
+import NotificationBanner from '@/components/notifications/NotificationBanner';
+import { useNotificationSystem } from '@/hooks/useNotificationSystem';
 import { 
   LayoutGrid, 
   List, 
@@ -62,6 +63,9 @@ const EnhancedPortfolioView: React.FC = () => {
   const [filteredCompanies, setFilteredCompanies] = useState<CompanyWithHealth[]>([]);
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
+
+  // Initialize notification system
+  useNotificationSystem();
 
   // Fetch companies and their latest updates with optimized query
   const { 
@@ -325,6 +329,9 @@ const EnhancedPortfolioView: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Notification Banner */}
+      <NotificationBanner />
 
       {/* Search and Filters */}
       <AdvancedSearch
