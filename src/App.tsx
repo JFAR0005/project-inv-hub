@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Layout from '@/components/layout/Layout';
-import RouteGuard from '@/components/layout/RouteGuard';
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import Login from '@/pages/Login';
 import Portfolio from '@/pages/Portfolio';
 import CompanyProfile from '@/pages/CompanyProfile';
@@ -35,68 +35,82 @@ function App() {
                 <Route path="/" element={<Navigate to="/portfolio" replace />} />
                 
                 <Route path="/*" element={
-                  <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']}>
+                  <ProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
                     <Layout>
                       <Routes>
                         <Route path="/portfolio" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
                             <Portfolio />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/company/:id" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']} requiresOwnership>
+                          <ProtectedRoute 
+                            allowedRoles={['admin', 'partner', 'founder']} 
+                            requiresCompanyAccess={true}
+                          >
                             <CompanyProfile />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/analytics" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
                             <Analytics />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/deals" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
                             <Deals />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/fundraising" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
                             <Fundraising />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/notes" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
                             <Notes />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/meetings" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner', 'founder']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner', 'founder']}>
                             <Meetings />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/search" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
                             <Search />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/team" element={
-                          <RouteGuard allowedRoles={['admin']}>
+                          <ProtectedRoute requiresRole="admin">
                             <Team />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/integrations" element={
-                          <RouteGuard allowedRoles={['admin', 'capital_team', 'partner']}>
+                          <ProtectedRoute allowedRoles={['admin', 'partner']}>
                             <Integrations />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="/submit-update" element={
-                          <RouteGuard allowedRoles={['founder']}>
+                          <ProtectedRoute requiresRole="founder">
                             <SubmitUpdate />
-                          </RouteGuard>
+                          </ProtectedRoute>
                         } />
+                        
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </Layout>
-                  </RouteGuard>
+                  </ProtectedRoute>
                 } />
               </Routes>
             </div>

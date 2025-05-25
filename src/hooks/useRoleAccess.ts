@@ -1,116 +1,102 @@
+
 import { useAuth } from '@/context/AuthContext';
-import { UserRole } from '@/context/auth/authTypes';
-
-interface RouteAccess {
-  [key: string]: {
-    allowedRoles: UserRole[];
-    requiresOwnership?: boolean;
-  };
-}
-
-const ROUTE_ACCESS: RouteAccess = {
-  '/portfolio': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/company': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'], requiresOwnership: true },
-  '/analytics': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/deals': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/fundraising': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/notes': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/meetings': { allowedRoles: ['admin', 'capital_team', 'partner', 'founder'] },
-  '/search': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/team': { allowedRoles: ['admin'] },
-  '/integrations': { allowedRoles: ['admin', 'capital_team', 'partner'] },
-  '/submit-update': { allowedRoles: ['founder'] }
-};
 
 export const useRoleAccess = () => {
   const { user } = useAuth();
 
-  const canAccessRoute = (path: string, resourceOwnerId?: string): boolean => {
-    if (!user?.role) return false;
-
-    // Find matching route configuration
-    const routeKey = Object.keys(ROUTE_ACCESS).find(route => path.startsWith(route));
-    if (!routeKey) return true; // Allow access to unprotected routes
-
-    const routeConfig = ROUTE_ACCESS[routeKey];
-    const hasRoleAccess = routeConfig.allowedRoles.includes(user.role);
-
-    if (!hasRoleAccess) return false;
-
-    // Check ownership for founders
-    if (routeConfig.requiresOwnership && user.role === 'founder' && resourceOwnerId) {
-      return user.companyId === resourceOwnerId;
-    }
-
-    return true;
+  const canViewPortfolio = () => {
+    return user?.role && ['admin', 'partner'].includes(user.role);
   };
 
-  const canAccessAdmin = (): boolean => {
+  const canViewDeals = () => {
+    return user?.role && ['admin', 'partner'].includes(user.role);
+  };
+
+  const canViewAnalytics = () => {
+    return user?.role && ['admin', 'partner'].includes(user.role);
+  };
+
+  const canViewTeam = () => {
     return user?.role === 'admin';
   };
 
-  const canAccessCapitalFeatures = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'capital_team' || user?.role === 'partner';
+  const canViewCompany = (companyId: string) => {
+    if (!user) return false;
+    
+    // Admins and partners can view all companies
+    if (user.role === 'admin' || user.role === 'partner') {
+      return true;
+    }
+    
+    // Founders can only view their own company
+    if (user.role === 'founder') {
+      return user.company_id === companyId;
+    }
+    
+    return false;
   };
 
-  const canAccessPartnerFeatures = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'capital_team' || user?.role === 'partner';
+  const canEditCompany = (companyId: string) => {
+    if (!user) return false;
+    
+    // Admins can edit all companies
+    if (user.role === 'admin') {
+      return true;
+    }
+    
+    // Partners can edit companies they're assigned to
+    if (user.role === 'partner') {
+      return true; // For now, partners can edit all companies
+    }
+    
+    // Founders can edit their own company
+    if (user.role === 'founder') {
+      return user.company_id === companyId;
+    }
+    
+    return false;
   };
 
-  const canSubmitUpdates = (): boolean => {
+  const canSubmitUpdates = () => {
     return user?.role === 'founder';
   };
 
-  const canManageUsers = (): boolean => {
-    return user?.role === 'admin';
+  const canViewNotes = () => {
+    return user?.role && ['admin', 'partner', 'founder'].includes(user.role);
   };
 
-  const canViewCompany = (companyId: string): boolean => {
-    if (!user) return false;
-    
-    // Admin and capital team can view all companies
-    if (user.role === 'admin' || user.role === 'capital_team') return true;
-    
-    // Partners can view assigned companies
-    if (user.role === 'partner') return true;
-    
-    // Founders can only view their own company
-    if (user.role === 'founder') return user.companyId === companyId;
-    
-    return false;
+  const canCreateNotes = () => {
+    return user?.role && ['admin', 'partner'].includes(user.role);
   };
 
-  const canEditCompany = (companyId: string): boolean => {
-    if (!user) return false;
-    
-    // Admin and capital team can edit all companies
-    if (user.role === 'admin' || user.role === 'capital_team') return true;
-    
-    // Founders can only edit their own company
-    if (user.role === 'founder') return user.companyId === companyId;
-    
-    return false;
+  const canViewMeetings = () => {
+    return user?.role && ['admin', 'partner', 'founder'].includes(user.role);
   };
 
-  const getAccessibleRoutes = (): string[] => {
-    if (!user?.role) return [];
-    
-    return Object.entries(ROUTE_ACCESS)
-      .filter(([_, config]) => config.allowedRoles.includes(user.role!))
-      .map(([route]) => route);
+  const canScheduleMeetings = () => {
+    return user?.role && ['admin', 'partner'].includes(user.role);
+  };
+
+  const canViewSearch = () => {
+    return user?.role && ['admin', 'partner'].includes(user.role);
   };
 
   return {
-    canAccessRoute,
-    canAccessAdmin,
-    canAccessCapitalFeatures,
-    canAccessPartnerFeatures,
-    canSubmitUpdates,
-    canManageUsers,
+    canViewPortfolio,
+    canViewDeals,
+    canViewAnalytics,
+    canViewTeam,
     canViewCompany,
     canEditCompany,
-    getAccessibleRoutes,
+    canSubmitUpdates,
+    canViewNotes,
+    canCreateNotes,
+    canViewMeetings,
+    canScheduleMeetings,
+    canViewSearch,
     userRole: user?.role,
-    isAuthenticated: !!user,
+    isFounder: user?.role === 'founder',
+    isPartner: user?.role === 'partner',
+    isAdmin: user?.role === 'admin'
   };
 };
