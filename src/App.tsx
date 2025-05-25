@@ -17,8 +17,10 @@ import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import MeetingsCalendar from './components/meetings/MeetingsCalendar';
 import EnhancedPortfolioView from './components/portfolio/EnhancedPortfolioView';
 import DealTracker from './components/deals/DealTracker';
-import FundraisingDashboard from './components/fundraising/FundraisingDashboard';
+import FundraisingTracker from './components/fundraising/FundraisingTracker';
 import AdminDashboard from './components/admin/AdminDashboard';
+import IntegrationHub from './pages/IntegrationHub';
+import Integrations from './pages/Integrations';
 
 function App() {
   return (
@@ -55,10 +57,7 @@ function App() {
                   {/* Notes Routes */}
                   <Route path="/notes" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <NotesView 
-                        onCreateNote={() => {}} 
-                        onEditNote={() => {}} 
-                      />
+                      <NotesView />
                     </RoleBasedRoute>
                   } />
                   
@@ -72,12 +71,7 @@ function App() {
                   {/* Meetings Routes */}
                   <Route path="/meetings" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <MeetingsCalendar 
-                        view="month"
-                        meetings={[]}
-                        isLoading={false}
-                        onEditMeeting={() => {}}
-                      />
+                      <MeetingsCalendar />
                     </RoleBasedRoute>
                   } />
                   
@@ -91,18 +85,27 @@ function App() {
                   {/* Deal Tracker Routes */}
                   <Route path="/deals" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <DealTracker 
-                        deal={null}
-                        onEditDeal={() => {}}
-                        onOpenDD={() => {}}
-                      />
+                      <DealTracker />
                     </RoleBasedRoute>
                   } />
                   
                   {/* Fundraising Routes */}
                   <Route path="/fundraising" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <FundraisingDashboard lpLeads={[]} />
+                      <FundraisingTracker />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Integration Routes */}
+                  <Route path="/integrations" element={
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                      <Integrations />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  <Route path="/integration-hub" element={
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                      <IntegrationHub />
                     </RoleBasedRoute>
                   } />
                 </Route>

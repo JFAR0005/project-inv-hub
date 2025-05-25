@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -13,7 +14,9 @@ import {
   Shield,
   TrendingUp,
   LucideIcon,
-  FileSliders
+  FileSliders,
+  Zap,
+  Settings
 } from 'lucide-react';
 
 interface NavItem {
@@ -78,17 +81,6 @@ const Sidebar: React.FC = () => {
       current: location.pathname === '/meetings',
       roles: ['admin', 'partner', 'capital_team', 'founder']
     },
-    
-    // Admin section - only for admins
-    ...(hasPermission('admin') ? [
-      {
-        name: 'Admin',
-        href: '/admin',
-        icon: Shield,
-        current: location.pathname === '/admin',
-        roles: ['admin']
-      }
-    ] : []),
     {
       name: 'Deals',
       href: '/deals',
@@ -103,6 +95,31 @@ const Sidebar: React.FC = () => {
       current: location.pathname === '/fundraising',
       roles: ['admin', 'partner', 'capital_team']
     },
+    {
+      name: 'Integrations',
+      href: '/integrations',
+      icon: Zap,
+      current: location.pathname === '/integrations',
+      roles: ['admin', 'partner', 'capital_team']
+    },
+    {
+      name: 'Integration Hub',
+      href: '/integration-hub',
+      icon: Settings,
+      current: location.pathname === '/integration-hub',
+      roles: ['admin', 'partner', 'capital_team']
+    },
+    
+    // Admin section - only for admins
+    ...(hasPermission('admin') ? [
+      {
+        name: 'Admin',
+        href: '/admin',
+        icon: Shield,
+        current: location.pathname === '/admin',
+        roles: ['admin']
+      }
+    ] : []),
   ];
 
   return (
