@@ -55,18 +55,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Check allowed roles
-  if (allowedRoles && !allowedRoles.includes(user.role || '')) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Access denied. You don't have permission to view this page.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
+  // Check allowed roles - simplified logic
+  if (allowedRoles && allowedRoles.length > 0) {
+    const hasRequiredRole = allowedRoles.includes(user.role || '');
+    if (!hasRequiredRole) {
+      return (
+        <div className="container mx-auto px-4 py-8">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Access denied. You don't have permission to view this page.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
   }
 
   // Check company-specific access

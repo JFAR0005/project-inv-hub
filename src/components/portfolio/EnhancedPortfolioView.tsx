@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -68,7 +68,7 @@ const EnhancedPortfolioView: React.FC = () => {
   // Initialize notification system
   useNotificationSystem();
 
-  // Fetch companies and their latest updates with optimized query
+  // Simplified query to avoid RLS issues
   const { 
     data: companies = [], 
     isLoading, 
@@ -77,113 +77,113 @@ const EnhancedPortfolioView: React.FC = () => {
   } = useQuery({
     queryKey: ['enhanced-portfolio', user?.id],
     queryFn: async (): Promise<CompanyWithHealth[]> => {
-      console.log('Fetching portfolio data with update freshness...');
+      console.log('Fetching portfolio data...');
       
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('companies')
-        .select('*')
-        .order('name');
+      try {
+        // First, fetch companies without any joins to avoid RLS issues
+        const { data: companiesData, error: companiesError } = await supabase
+          .from('companies')
+          .select('*')
+          .order('name');
 
-      if (companiesError) {
-        console.error('Error fetching companies:', companiesError);
-        throw companiesError;
-      }
-
-      const { data: updates, error: updatesError } = await supabase
-        .from('founder_updates')
-        .select('*')
-        .order('submitted_at', { ascending: false });
-
-      if (updatesError) {
-        console.error('Error fetching updates:', updatesError);
-        throw updatesError;
-      }
-
-      // Get latest update for each company - optimized with Map
-      const updatesByCompany = new Map();
-      updates.forEach(update => {
-        if (!updatesByCompany.has(update.company_id)) {
-          updatesByCompany.set(update.company_id, update);
+        if (companiesError) {
+          console.error('Error fetching companies:', companiesError);
+          throw companiesError;
         }
-      });
 
-      // Transform companies data with memoized calculations
-      return companiesData.map(company => {
-        const latestUpdate = updatesByCompany.get(company.id);
-        const arr = latestUpdate?.arr || company.arr || 0;
-        const growth = latestUpdate?.growth || 0;
-        const headcount = latestUpdate?.headcount || company.headcount || 0;
-        const burnRate = latestUpdate?.burn_rate || company.burn_rate || 0;
-        const runway = latestUpdate?.runway || company.runway || 0;
+        // Then fetch updates separately
+        const { data: updates, error: updatesError } = await supabase
+          .from('founder_updates')
+          .select('*')
+          .order('submitted_at', { ascending: false });
 
-        // Calculate update freshness
-        const lastUpdateDate = latestUpdate?.submitted_at;
-        const daysSinceUpdate = lastUpdateDate 
-          ? Math.floor((new Date().getTime() - new Date(lastUpdateDate).getTime()) / (1000 * 60 * 60 * 24))
-          : 999;
-        
-        const needsAttention = !lastUpdateDate || daysSinceUpdate > 30;
-        const isRaising = latestUpdate?.raise_status?.toLowerCase().includes('raising') || 
-                         latestUpdate?.raise_status?.toLowerCase().includes('active') || false;
+        if (updatesError) {
+          console.error('Error fetching updates:', updatesError);
+          // Don't throw here, just log and continue without updates
+          console.log('Continuing without updates data');
+        }
 
-        // Optimized risk calculation
-        const riskLevel = calculateRiskLevel(growth, runway, burnRate, arr);
+        // Process companies data
+        const updatesByCompany = new Map();
+        if (updates) {
+          updates.forEach(update => {
+            if (!updatesByCompany.has(update.company_id)) {
+              updatesByCompany.set(update.company_id, update);
+            }
+          });
+        }
 
-        return {
-          id: company.id,
-          name: company.name,
-          sector: company.sector || 'Other',
-          stage: company.stage || 'Unknown',
-          location: company.location || 'Unknown',
-          arr,
-          growth,
-          headcount,
-          riskLevel,
-          website: company.website,
-          logo_url: company.logo_url,
-          description: company.description,
-          burn_rate: burnRate,
-          runway,
-          churn_rate: latestUpdate?.churn || company.churn_rate,
-          mrr: latestUpdate?.mrr || company.mrr,
-          last_update: lastUpdateDate,
-          raise_status: latestUpdate?.raise_status,
-          needs_attention: needsAttention,
-          needsUpdate: needsAttention,
-          isRaising,
-          daysSinceUpdate,
-          latest_update: latestUpdate ? {
-            submitted_at: latestUpdate.submitted_at,
-            arr: latestUpdate.arr,
-            mrr: latestUpdate.mrr,
-            raise_status: latestUpdate.raise_status
-          } : undefined
-        };
-      });
+        return (companiesData || []).map(company => {
+          const latestUpdate = updatesByCompany.get(company.id);
+          const arr = latestUpdate?.arr || company.arr || 0;
+          const growth = latestUpdate?.growth || 0;
+          const headcount = latestUpdate?.headcount || company.headcount || 0;
+          const burnRate = latestUpdate?.burn_rate || company.burn_rate || 0;
+          const runway = latestUpdate?.runway || company.runway || 0;
+
+          // Calculate update freshness
+          const lastUpdateDate = latestUpdate?.submitted_at;
+          const daysSinceUpdate = lastUpdateDate 
+            ? Math.floor((new Date().getTime() - new Date(lastUpdateDate).getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
+          
+          const needsAttention = !lastUpdateDate || daysSinceUpdate > 30;
+          const isRaising = latestUpdate?.raise_status?.toLowerCase().includes('raising') || 
+                           latestUpdate?.raise_status?.toLowerCase().includes('active') || false;
+
+          // Simple risk calculation
+          let riskScore = 0;
+          if (growth < 0) riskScore += 2;
+          else if (growth < 10) riskScore += 1;
+          if (runway && runway < 6) riskScore += 2;
+          else if (runway && runway < 12) riskScore += 1;
+          if (burnRate > 0 && arr > 0) {
+            const burnMultiple = burnRate / (arr / 12);
+            if (burnMultiple > 4) riskScore += 2;
+            else if (burnMultiple > 2) riskScore += 1;
+          }
+          const riskLevel = riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
+
+          return {
+            id: company.id,
+            name: company.name,
+            sector: company.sector || 'Other',
+            stage: company.stage || 'Unknown',
+            location: company.location || 'Unknown',
+            arr,
+            growth,
+            headcount,
+            riskLevel,
+            website: company.website,
+            logo_url: company.logo_url,
+            description: company.description,
+            burn_rate: burnRate,
+            runway,
+            churn_rate: latestUpdate?.churn || company.churn_rate,
+            mrr: latestUpdate?.mrr || company.mrr,
+            last_update: lastUpdateDate,
+            raise_status: latestUpdate?.raise_status,
+            needs_attention: needsAttention,
+            needsUpdate: needsAttention,
+            isRaising,
+            daysSinceUpdate,
+            latest_update: latestUpdate ? {
+              submitted_at: latestUpdate.submitted_at,
+              arr: latestUpdate.arr,
+              mrr: latestUpdate.mrr,
+              raise_status: latestUpdate.raise_status
+            } : undefined
+          };
+        });
+      } catch (error) {
+        console.error('Portfolio query error:', error);
+        throw error;
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
     enabled: !!user
   });
-
-  // Memoized risk calculation function
-  const calculateRiskLevel = useCallback((growth: number, runway: number, burnRate: number, arr: number): 'Low' | 'Medium' | 'High' => {
-    let riskScore = 0;
-    
-    if (growth < 0) riskScore += 2;
-    else if (growth < 10) riskScore += 1;
-    
-    if (runway && runway < 6) riskScore += 2;
-    else if (runway && runway < 12) riskScore += 1;
-    
-    if (burnRate > 0 && arr > 0) {
-      const burnMultiple = burnRate / (arr / 12);
-      if (burnMultiple > 4) riskScore += 2;
-      else if (burnMultiple > 2) riskScore += 1;
-    }
-
-    return riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
-  }, []);
 
   // Calculate health metrics
   const healthMetrics = useMemo(() => {

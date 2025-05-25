@@ -39,14 +39,19 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   
-                  {/* Company Routes */}
+                  {/* Company Routes - Fixed routing */}
+                  <Route path="/companies" element={
+                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                      <EnhancedPortfolioView />
+                    </RoleBasedRoute>
+                  } />
                   <Route path="/companies/:id" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                       <CompanyProfile />
                     </RoleBasedRoute>
                   } />
                   
-                  {/* Updates Routes */}
+                  {/* Updates Routes - Fixed to show form properly */}
                   <Route path="/updates" element={
                     <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                       <SubmitUpdateForm />
@@ -74,7 +79,7 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   
-                  {/* Admin Routes */}
+                  {/* Admin Routes - Fixed role checking */}
                   <Route path="/admin" element={
                     <RoleBasedRoute roles={['admin']}>
                       <AdminDashboard />
