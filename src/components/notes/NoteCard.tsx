@@ -21,6 +21,10 @@ interface Note {
   companies?: {
     name: string;
   };
+  company_name?: string;
+  author_name?: string;
+  file_url?: string | null;
+  tags?: string[] | null;
 }
 
 interface NoteCardProps {
@@ -81,9 +85,9 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, onEdit, onDelete }) => {
             {note.visibility.charAt(0).toUpperCase() + note.visibility.slice(1)}
           </Badge>
         </div>
-        {note.companies?.name && (
+        {note.company_name && (
           <div className="text-sm text-muted-foreground">
-            Company: {note.companies.name}
+            Company: {note.company_name}
           </div>
         )}
       </CardHeader>
