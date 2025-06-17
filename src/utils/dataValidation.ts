@@ -1,4 +1,6 @@
 
+import { z } from 'zod';
+
 export const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -43,4 +45,33 @@ export const sanitizeHtml = (input: string): string => {
 export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
+};
+
+// Add missing exports for search functionality
+export const searchQuerySchema = z.object({
+  query: z.string().min(1, 'Search query is required'),
+  filters: z.object({
+    types: z.array(z.string()).optional(),
+    sectors: z.array(z.string()).optional(),
+    stages: z.array(z.string()).optional(),
+    statuses: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+export const validateData = <T>(schema: z.ZodSchema<T>, data: unknown): { success: boolean; data?: T; errors?: string[] } => {
+  try {
+    const result = schema.parse(data);
+    return { success: true, data: result };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        errors: error.errors.map(err => err.message) 
+      };
+    }
+    return { 
+      success: false, 
+      errors: ['Validation failed'] 
+    };
+  }
 };
