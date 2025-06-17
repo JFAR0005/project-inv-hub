@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -16,7 +15,6 @@ const LoginForm = () => {
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const getErrorMessage = (error: any): string => {
     const errorMessage = error?.message || '';
@@ -77,8 +75,7 @@ const LoginForm = () => {
         description: "Welcome back to Black Nova!",
       });
       
-      // Navigate to dashboard after successful login
-      navigate('/', { replace: true });
+      // Don't navigate here - let the auth state change handle it
     } catch (error: any) {
       console.error("Login error:", error);
       const errorMessage = getErrorMessage(error);

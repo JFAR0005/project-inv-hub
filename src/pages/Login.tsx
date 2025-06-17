@@ -1,14 +1,23 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
 import DemoUserSetup from '@/components/auth/DemoUserSetup';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import LoadingSpinner from '@/components/layout/LoadingSpinner';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect authenticated users to home
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      console.log('User is authenticated, redirecting to home');
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   // Show loading while auth state is being determined
   if (isLoading) {
@@ -19,9 +28,13 @@ const Login = () => {
     );
   }
 
-  // Redirect authenticated users to home
+  // If user is authenticated, show loading while redirecting
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova">
+        <LoadingSpinner size="lg" className="text-white" />
+      </div>
+    );
   }
 
   return (

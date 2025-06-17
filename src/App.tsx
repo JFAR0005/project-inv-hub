@@ -8,7 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 import RoleBasedRoute from './components/layout/RoleBasedRoute';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
-import LoginForm from './components/auth/LoginForm';
+import Login from './pages/Login';
 import AuthRedirect from './components/auth/AuthRedirect';
 import CompanyProfile from './components/company/CompanyProfile';
 import SubmitUpdateForm from './components/company/SubmitUpdateForm';
@@ -109,7 +109,7 @@ function App() {
                 </Route>
                 
                 {/* Auth Routes */}
-                <Route path="/login" element={<LoginForm />} />
+                <Route path="/login" element={<Login />} />
                 <Route path="/auth" element={<AuthRedirect />} />
               </Routes>
             </div>

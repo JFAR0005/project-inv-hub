@@ -125,15 +125,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       console.log('Fetching user data for:', authUser.email);
-      // For now, let's create a mock admin user to bypass the database issue
-      const mockAdminUser: AuthUser = {
+      
+      // Create a proper user based on the demo credentials
+      let role: UserRole = 'founder'; // default role
+      let name = 'User';
+      
+      if (authUser.email === 'admin@blacknova.vc') {
+        role = 'admin';
+        name = 'Admin User';
+      } else if (authUser.email === 'capital@blacknova.vc') {
+        role = 'capital_team';
+        name = 'Capital Team Member';
+      } else if (authUser.email === 'partner@blacknova.vc') {
+        role = 'partner';
+        name = 'Partner';
+      } else if (authUser.email === 'founder@blacknova.vc') {
+        role = 'founder';
+        name = 'Founder';
+      }
+
+      const userData: AuthUser = {
         ...authUser,
-        role: 'admin' as UserRole,
-        name: 'Admin User',
+        role,
+        name,
         companyId: undefined
       };
-      console.log('Setting mock admin user:', mockAdminUser);
-      setUser(mockAdminUser);
+      
+      console.log('Setting user data:', userData);
+      setUser(userData);
     } catch (error) {
       console.error('Error fetching user data:', error);
       setError('Failed to load user profile.');
