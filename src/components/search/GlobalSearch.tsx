@@ -1,301 +1,249 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  X, 
-  Briefcase, 
-  FileText, 
-  CalendarDays, 
-  Users,
-  BarChart3
-} from 'lucide-react';
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from '@/components/ui/command';
+import React, { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { SearchResult } from './SearchResultCard';
+import SearchResultCard from './SearchResultCard';
+import { EmptySearchState } from './EmptySearchState';
+import { SearchSkeleton } from './SearchSkeleton';
+import { SearchErrorBoundary } from '@/components/error/SearchErrorBoundary';
+import { supabase } from '@/integrations/supabase/client';
+import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 import { Button } from '@/components/ui/button';
-import { useSearch } from '@/context/SearchContext';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import SearchErrorBoundary from '../error/SearchErrorBoundary';
-import SearchSkeleton from './SearchSkeleton';
-import EmptySearchState from './EmptySearchState';
-import { getSupabaseErrorMessage } from '@/utils/errorMessages';
+import { MessageSquare } from 'lucide-react';
+import EnhancedSearchInput from './EnhancedSearchInput';
+import UserFeedback from '@/components/feedback/UserFeedback';
 
-interface SearchResult {
-  id: string;
-  name: string;
-  type: 'company' | 'note' | 'meeting' | 'document';
-  subtitle?: string;
-  url: string;
-}
+type SearchCategory = 'all' | 'companies' | 'notes' | 'meetings';
 
 interface CompanyResult {
   id: string;
   name: string;
-  sector?: string;
+  description?: string;
+  type: 'company';
 }
 
 interface NoteResult {
   id: string;
   title: string;
-  company_id?: string;
-  companies: CompanyResult[] | null;
+  content: string;
+  type: 'note';
 }
 
 interface MeetingResult {
   id: string;
   title: string;
-  company_id?: string;
-  companies: CompanyResult[] | null;
+  description?: string;
+  type: 'meeting';
 }
 
-const GlobalSearch = () => {
-  const [open, setOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  const { globalQuery, setGlobalQuery, recentSearches, addRecentSearch } = useSearch();
-  
+const searchCompanies = async (query: string): Promise<CompanyResult[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('id, name, description')
+      .ilike('name', `%${query}%`)
+      .limit(5);
+
+    if (error) {
+      console.error('Company search error:', error);
+      return [];
+    }
+
+    return (data || []).map(company => ({
+      ...company,
+      type: 'company' as const,
+    }));
+  } catch (error) {
+    console.error('Company search failed:', error);
+    return [];
+  }
+};
+
+const searchNotes = async (query: string): Promise<NoteResult[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('id, title, content')
+      .ilike('title', `%${query}%`)
+      .limit(5);
+
+    if (error) {
+      console.error('Notes search error:', error);
+      return [];
+    }
+
+    return (data || []).map(note => ({
+      ...note,
+      type: 'note' as const,
+    }));
+  } catch (error) {
+    console.error('Notes search failed:', error);
+    return [];
+  }
+};
+
+const searchMeetings = async (query: string): Promise<MeetingResult[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('meetings')
+      .select('id, title, description')
+      .ilike('title', `%${query}%`)
+      .limit(5);
+
+    if (error) {
+      console.error('Meetings search error:', error);
+      return [];
+    }
+
+    return (data || []).map(meeting => ({
+      ...meeting,
+      type: 'meeting' as const,
+    }));
+  } catch (error) {
+    console.error('Meetings search failed:', error);
+    return [];
+  }
+};
+
+const GlobalSearch: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<SearchCategory>('all');
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const { toast } = useToast();
+
+  // Load recent searches from localStorage
   useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || e.key === '/') {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-    
-    document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
+    const saved = localStorage.getItem('recentSearches');
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
   }, []);
-  
-  const { data: searchResults = [], isLoading, error } = useQuery({
-    queryKey: ['global-search', globalQuery],
-    queryFn: async () => {
-      if (!globalQuery || globalQuery.length < 2) return [] as SearchResult[];
+
+  const { 
+    data: searchResults = [], 
+    isLoading, 
+    error,
+    manualRetry 
+  } = useRetryableQuery(
+    ['global-search', searchQuery, activeCategory],
+    async () => {
+      if (!searchQuery.trim()) return [];
       
-      try {
-        // Search companies
-        const { data: companies } = await supabase
-          .from('companies')
-          .select('id, name, sector')
-          .ilike('name', `%${globalQuery}%`)
-          .limit(5);
-        
-        // Search notes
-        const { data: notes } = await supabase
-          .from('notes')
-          .select('id, title, company_id, companies(id, name)')
-          .ilike('title', `%${globalQuery}%`)
-          .limit(5);
-        
-        // Search meetings
-        const { data: meetings } = await supabase
-          .from('meetings')
-          .select('id, title, company_id, companies(id, name)')
-          .ilike('title', `%${globalQuery}%`)
-          .limit(5);
-        
-        // Combine results with proper type handling
-        const results: SearchResult[] = [
-          ...(companies || []).map((c: CompanyResult) => ({
-            id: c.id,
-            name: c.name,
-            type: 'company' as const,
-            subtitle: c.sector || 'Company',
-            url: `/companies/${c.id}`
-          })),
-          
-          ...(notes || []).map((n: NoteResult) => {
-            const companyName = n.companies && n.companies.length > 0 ? n.companies[0].name : null;
-            return {
-              id: n.id,
-              name: n.title,
-              type: 'note' as const,
-              subtitle: companyName ? `Note - ${companyName}` : 'Note',
-              url: `/notes/${n.id}`
-            };
-          }),
-          
-          ...(meetings || []).map((m: MeetingResult) => {
-            const companyName = m.companies && m.companies.length > 0 ? m.companies[0].name : null;
-            return {
-              id: m.id,
-              name: m.title,
-              type: 'meeting' as const,
-              subtitle: companyName ? `Meeting - ${companyName}` : 'Meeting',
-              url: `/meetings/${m.id}`
-            };
-          })
-        ];
-        
-        return results;
-      } catch (error) {
-        console.error('Search error:', error);
-        throw new Error(getSupabaseErrorMessage(error));
+      console.log('Performing global search:', { searchQuery, activeCategory });
+      
+      const searchPromises = [];
+      
+      if (activeCategory === 'all' || activeCategory === 'companies') {
+        searchPromises.push(searchCompanies(searchQuery));
       }
+      
+      if (activeCategory === 'all' || activeCategory === 'notes') {
+        searchPromises.push(searchNotes(searchQuery));
+      }
+      
+      if (activeCategory === 'all' || activeCategory === 'meetings') {
+        searchPromises.push(searchMeetings(searchQuery));
+      }
+      
+      const results = await Promise.all(searchPromises);
+      return results.flat();
     },
-    enabled: open && globalQuery.length >= 2,
-    retry: 2,
-    retryDelay: 1000,
-  });
-  
-  const handleSelect = (item: SearchResult) => {
-    setOpen(false);
-    addRecentSearch(item.name);
-    navigate(item.url);
-  };
-  
-  const renderIcon = (type: string) => {
-    switch (type) {
-      case 'company':
-        return <Briefcase className="mr-2 h-4 w-4" />;
-      case 'note':
-        return <FileText className="mr-2 h-4 w-4" />;
-      case 'meeting':
-        return <CalendarDays className="mr-2 h-4 w-4" />;
-      case 'document':
-        return <FileText className="mr-2 h-4 w-4" />;
-      default:
-        return <Search className="mr-2 h-4 w-4" />;
+    {
+      enabled: searchQuery.length >= 2,
+      staleTime: 30000,
+      maxRetries: 2,
+    }
+  );
+
+  const handleSearch = (query: string, filters?: any) => {
+    setSearchQuery(query);
+    
+    // Add to recent searches
+    if (query.trim()) {
+      const newRecent = [query, ...recentSearches.filter(s => s !== query)].slice(0, 10);
+      setRecentSearches(newRecent);
+      localStorage.setItem('recentSearches', JSON.stringify(newRecent));
     }
   };
 
-  return (
-    <>
-      <Button
-        variant="outline"
-        className="relative h-10 w-full justify-start rounded-[0.5rem] bg-background text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-64"
-        onClick={() => setOpen(true)}
-      >
-        <Search className="mr-2 h-4 w-4" />
-        <span className="hidden lg:inline-flex">Search...</span>
-        <kbd className="pointer-events-none absolute right-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100 sm:flex">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </Button>
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recentSearches');
+    toast({
+      title: "Search History Cleared",
+      description: "Your recent searches have been cleared.",
+    });
+  };
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput
-          ref={inputRef}
-          placeholder="Search companies, notes, meetings..."
-          value={globalQuery}
-          onValueChange={setGlobalQuery}
-        />
-        <CommandList>
-          {error ? (
-            <div className="p-4">
-              <SearchErrorBoundary 
-                error={error as Error} 
-                onRetry={() => window.location.reload()}
-                context="global search"
-              />
-            </div>
-          ) : isLoading ? (
-            <div className="p-4">
-              <SearchSkeleton count={3} />
-            </div>
-          ) : (
-            <>
-              <CommandEmpty>
-                <EmptySearchState 
-                  query={globalQuery}
-                  type={globalQuery.length > 0 ? 'no-results' : 'start-typing'}
-                />
-              </CommandEmpty>
-              
-              {recentSearches.length > 0 && globalQuery.length === 0 && (
-                <CommandGroup heading="Recent Searches">
-                  {recentSearches.map((search) => (
-                    <CommandItem 
-                      key={search}
-                      onSelect={() => {
-                        setGlobalQuery(search);
-                        inputRef.current?.focus();
-                      }}
-                    >
-                      <Search className="mr-2 h-4 w-4" />
-                      {search}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-              
-              {globalQuery.length > 0 && (
-                <>
-                  {searchResults.filter(item => item.type === 'company').length > 0 && (
-                    <CommandGroup heading="Companies">
-                      {searchResults
-                        .filter(item => item.type === 'company')
-                        .map((item) => (
-                          <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
-                            {renderIcon(item.type)}
-                            <span>{item.name}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
-                          </CommandItem>
-                        ))}
-                    </CommandGroup>
-                  )}
-                  
-                  {searchResults.filter(item => item.type === 'note').length > 0 && (
-                    <CommandGroup heading="Notes">
-                      {searchResults
-                        .filter(item => item.type === 'note')
-                        .map((item) => (
-                          <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
-                            {renderIcon(item.type)}
-                            <span>{item.name}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
-                          </CommandItem>
-                        ))}
-                    </CommandGroup>
-                  )}
-                  
-                  {searchResults.filter(item => item.type === 'meeting').length > 0 && (
-                    <CommandGroup heading="Meetings">
-                      {searchResults
-                        .filter(item => item.type === 'meeting')
-                        .map((item) => (
-                          <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
-                            {renderIcon(item.type)}
-                            <span>{item.name}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
-                          </CommandItem>
-                        ))}
-                    </CommandGroup>
-                  )}
-                </>
-              )}
-              
-              <CommandSeparator />
-              
-              <CommandGroup heading="Jump to">
-                <CommandItem onSelect={() => { navigate('/portfolio'); setOpen(false); }}>
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  <span>Portfolio</span>
-                </CommandItem>
-                <CommandItem onSelect={() => { navigate('/meetings'); setOpen(false); }}>
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  <span>Meetings</span>
-                </CommandItem>
-                <CommandItem onSelect={() => { navigate('/notes'); setOpen(false); }}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Notes</span>
-                </CommandItem>
-                <CommandItem onSelect={() => { navigate('/analytics'); setOpen(false); }}>
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  <span>Analytics</span>
-                </CommandItem>
-              </CommandGroup>
-            </>
-          )}
-        </CommandList>
-      </CommandDialog>
-    </>
+  if (error) {
+    return <SearchErrorBoundary error={error as Error} onRetry={manualRetry} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex-1 max-w-2xl">
+          <EnhancedSearchInput
+            onSearch={handleSearch}
+            placeholder="Search companies, notes, meetings, and more..."
+            showFilters={true}
+            recentSearches={recentSearches}
+            onClearHistory={clearRecentSearches}
+          />
+        </div>
+        
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setShowFeedback(true)}
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          Feedback
+        </Button>
+      </div>
+
+      {/* Category Filter */}
+      <div className="flex flex-wrap gap-2">
+        {(['all', 'companies', 'notes', 'meetings'] as SearchCategory[]).map((category) => (
+          <Button
+            key={category}
+            variant={activeCategory === category ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveCategory(category)}
+          >
+            {category.charAt(0).toUpperCase() + category.slice(1)}
+          </Button>
+        ))}
+      </div>
+
+      {/* Search Results */}
+      {searchQuery.length < 2 ? (
+        <EmptySearchState type="start-typing" />
+      ) : isLoading ? (
+        <SearchSkeleton count={6} />
+      ) : searchResults.length === 0 ? (
+        <EmptySearchState query={searchQuery} type="no-results" />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+            </h3>
+          </div>
+          <div className="grid gap-4">
+            {searchResults.map((result) => (
+              <SearchResultCard key={`${result.type}-${result.id}`} result={result} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <UserFeedback 
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        context="Global Search"
+      />
+    </div>
   );
 };
 
