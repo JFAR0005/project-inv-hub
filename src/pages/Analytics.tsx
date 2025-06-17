@@ -45,7 +45,9 @@ const Analytics = () => {
         throw new Error(getSupabaseErrorMessage(error));
       }
     },
-    { maxRetries: 3 }
+    { 
+      maxRetries: 3 
+    }
   );
 
   // Fetch metrics for selected company with better error handling

@@ -2,7 +2,7 @@
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useState } from 'react';
 
-interface UseRetryableQueryOptions<T> extends UseQueryOptions<T> {
+interface UseRetryableQueryOptions<T> extends Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn'> {
   maxRetries?: number;
 }
 
