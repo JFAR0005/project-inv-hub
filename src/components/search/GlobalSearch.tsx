@@ -22,6 +22,10 @@ import { Button } from '@/components/ui/button';
 import { useSearch } from '@/context/SearchContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import SearchErrorBoundary from '../error/SearchErrorBoundary';
+import SearchSkeleton from './SearchSkeleton';
+import EmptySearchState from './EmptySearchState';
+import { getSupabaseErrorMessage } from '@/utils/errorMessages';
 
 interface SearchResult {
   id: string;
@@ -69,68 +73,75 @@ const GlobalSearch = () => {
     return () => document.removeEventListener('keydown', down);
   }, []);
   
-  const { data: searchResults = [], isLoading } = useQuery({
+  const { data: searchResults = [], isLoading, error } = useQuery({
     queryKey: ['global-search', globalQuery],
     queryFn: async () => {
       if (!globalQuery || globalQuery.length < 2) return [] as SearchResult[];
       
-      // Search companies
-      const { data: companies } = await supabase
-        .from('companies')
-        .select('id, name, sector')
-        .ilike('name', `%${globalQuery}%`)
-        .limit(5);
-      
-      // Search notes
-      const { data: notes } = await supabase
-        .from('notes')
-        .select('id, title, company_id, companies(id, name)')
-        .ilike('title', `%${globalQuery}%`)
-        .limit(5);
-      
-      // Search meetings
-      const { data: meetings } = await supabase
-        .from('meetings')
-        .select('id, title, company_id, companies(id, name)')
-        .ilike('title', `%${globalQuery}%`)
-        .limit(5);
-      
-      // Combine results with proper type handling
-      const results: SearchResult[] = [
-        ...(companies || []).map((c: CompanyResult) => ({
-          id: c.id,
-          name: c.name,
-          type: 'company' as const,
-          subtitle: c.sector || 'Company',
-          url: `/companies/${c.id}`
-        })),
+      try {
+        // Search companies
+        const { data: companies } = await supabase
+          .from('companies')
+          .select('id, name, sector')
+          .ilike('name', `%${globalQuery}%`)
+          .limit(5);
         
-        ...(notes || []).map((n: NoteResult) => {
-          const companyName = n.companies && n.companies.length > 0 ? n.companies[0].name : null;
-          return {
-            id: n.id,
-            name: n.title,
-            type: 'note' as const,
-            subtitle: companyName ? `Note - ${companyName}` : 'Note',
-            url: `/notes/${n.id}`
-          };
-        }),
+        // Search notes
+        const { data: notes } = await supabase
+          .from('notes')
+          .select('id, title, company_id, companies(id, name)')
+          .ilike('title', `%${globalQuery}%`)
+          .limit(5);
         
-        ...(meetings || []).map((m: MeetingResult) => {
-          const companyName = m.companies && m.companies.length > 0 ? m.companies[0].name : null;
-          return {
-            id: m.id,
-            name: m.title,
-            type: 'meeting' as const,
-            subtitle: companyName ? `Meeting - ${companyName}` : 'Meeting',
-            url: `/meetings/${m.id}`
-          };
-        })
-      ];
-      
-      return results;
+        // Search meetings
+        const { data: meetings } = await supabase
+          .from('meetings')
+          .select('id, title, company_id, companies(id, name)')
+          .ilike('title', `%${globalQuery}%`)
+          .limit(5);
+        
+        // Combine results with proper type handling
+        const results: SearchResult[] = [
+          ...(companies || []).map((c: CompanyResult) => ({
+            id: c.id,
+            name: c.name,
+            type: 'company' as const,
+            subtitle: c.sector || 'Company',
+            url: `/companies/${c.id}`
+          })),
+          
+          ...(notes || []).map((n: NoteResult) => {
+            const companyName = n.companies && n.companies.length > 0 ? n.companies[0].name : null;
+            return {
+              id: n.id,
+              name: n.title,
+              type: 'note' as const,
+              subtitle: companyName ? `Note - ${companyName}` : 'Note',
+              url: `/notes/${n.id}`
+            };
+          }),
+          
+          ...(meetings || []).map((m: MeetingResult) => {
+            const companyName = m.companies && m.companies.length > 0 ? m.companies[0].name : null;
+            return {
+              id: m.id,
+              name: m.title,
+              type: 'meeting' as const,
+              subtitle: companyName ? `Meeting - ${companyName}` : 'Meeting',
+              url: `/meetings/${m.id}`
+            };
+          })
+        ];
+        
+        return results;
+      } catch (error) {
+        console.error('Search error:', error);
+        throw new Error(getSupabaseErrorMessage(error));
+      }
     },
-    enabled: open && globalQuery.length >= 2
+    enabled: open && globalQuery.length >= 2,
+    retry: 2,
+    retryDelay: 1000,
   });
   
   const handleSelect = (item: SearchResult) => {
@@ -176,93 +187,112 @@ const GlobalSearch = () => {
           onValueChange={setGlobalQuery}
         />
         <CommandList>
-          <CommandEmpty>
-            {globalQuery.length > 0 ? 'No results found.' : 'Start typing to search...'}
-          </CommandEmpty>
-          
-          {recentSearches.length > 0 && globalQuery.length === 0 && (
-            <CommandGroup heading="Recent Searches">
-              {recentSearches.map((search) => (
-                <CommandItem 
-                  key={search}
-                  onSelect={() => {
-                    setGlobalQuery(search);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  {search}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-          
-          {globalQuery.length > 0 && (
+          {error ? (
+            <div className="p-4">
+              <SearchErrorBoundary 
+                error={error as Error} 
+                onRetry={() => window.location.reload()}
+                context="global search"
+              />
+            </div>
+          ) : isLoading ? (
+            <div className="p-4">
+              <SearchSkeleton count={3} />
+            </div>
+          ) : (
             <>
-              {searchResults.filter(item => item.type === 'company').length > 0 && (
-                <CommandGroup heading="Companies">
-                  {searchResults
-                    .filter(item => item.type === 'company')
-                    .map((item) => (
-                      <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
-                        {renderIcon(item.type)}
-                        <span>{item.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
-                      </CommandItem>
-                    ))}
+              <CommandEmpty>
+                <EmptySearchState 
+                  query={globalQuery}
+                  type={globalQuery.length > 0 ? 'no-results' : 'start-typing'}
+                />
+              </CommandEmpty>
+              
+              {recentSearches.length > 0 && globalQuery.length === 0 && (
+                <CommandGroup heading="Recent Searches">
+                  {recentSearches.map((search) => (
+                    <CommandItem 
+                      key={search}
+                      onSelect={() => {
+                        setGlobalQuery(search);
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      <Search className="mr-2 h-4 w-4" />
+                      {search}
+                    </CommandItem>
+                  ))}
                 </CommandGroup>
               )}
               
-              {searchResults.filter(item => item.type === 'note').length > 0 && (
-                <CommandGroup heading="Notes">
-                  {searchResults
-                    .filter(item => item.type === 'note')
-                    .map((item) => (
-                      <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
-                        {renderIcon(item.type)}
-                        <span>{item.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
-                      </CommandItem>
-                    ))}
-                </CommandGroup>
+              {globalQuery.length > 0 && (
+                <>
+                  {searchResults.filter(item => item.type === 'company').length > 0 && (
+                    <CommandGroup heading="Companies">
+                      {searchResults
+                        .filter(item => item.type === 'company')
+                        .map((item) => (
+                          <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
+                            {renderIcon(item.type)}
+                            <span>{item.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  )}
+                  
+                  {searchResults.filter(item => item.type === 'note').length > 0 && (
+                    <CommandGroup heading="Notes">
+                      {searchResults
+                        .filter(item => item.type === 'note')
+                        .map((item) => (
+                          <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
+                            {renderIcon(item.type)}
+                            <span>{item.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  )}
+                  
+                  {searchResults.filter(item => item.type === 'meeting').length > 0 && (
+                    <CommandGroup heading="Meetings">
+                      {searchResults
+                        .filter(item => item.type === 'meeting')
+                        .map((item) => (
+                          <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
+                            {renderIcon(item.type)}
+                            <span>{item.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  )}
+                </>
               )}
               
-              {searchResults.filter(item => item.type === 'meeting').length > 0 && (
-                <CommandGroup heading="Meetings">
-                  {searchResults
-                    .filter(item => item.type === 'meeting')
-                    .map((item) => (
-                      <CommandItem key={`${item.type}-${item.id}`} onSelect={() => handleSelect(item)}>
-                        {renderIcon(item.type)}
-                        <span>{item.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{item.subtitle}</span>
-                      </CommandItem>
-                    ))}
-                </CommandGroup>
-              )}
+              <CommandSeparator />
+              
+              <CommandGroup heading="Jump to">
+                <CommandItem onSelect={() => { navigate('/portfolio'); setOpen(false); }}>
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  <span>Portfolio</span>
+                </CommandItem>
+                <CommandItem onSelect={() => { navigate('/meetings'); setOpen(false); }}>
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  <span>Meetings</span>
+                </CommandItem>
+                <CommandItem onSelect={() => { navigate('/notes'); setOpen(false); }}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  <span>Notes</span>
+                </CommandItem>
+                <CommandItem onSelect={() => { navigate('/analytics'); setOpen(false); }}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>Analytics</span>
+                </CommandItem>
+              </CommandGroup>
             </>
           )}
-          
-          <CommandSeparator />
-          
-          <CommandGroup heading="Jump to">
-            <CommandItem onSelect={() => { navigate('/portfolio'); setOpen(false); }}>
-              <Briefcase className="mr-2 h-4 w-4" />
-              <span>Portfolio</span>
-            </CommandItem>
-            <CommandItem onSelect={() => { navigate('/meetings'); setOpen(false); }}>
-              <CalendarDays className="mr-2 h-4 w-4" />
-              <span>Meetings</span>
-            </CommandItem>
-            <CommandItem onSelect={() => { navigate('/notes'); setOpen(false); }}>
-              <FileText className="mr-2 h-4 w-4" />
-              <span>Notes</span>
-            </CommandItem>
-            <CommandItem onSelect={() => { navigate('/analytics'); setOpen(false); }}>
-              <BarChart3 className="mr-2 h-4 w-4" />
-              <span>Analytics</span>
-            </CommandItem>
-          </CommandGroup>
         </CommandList>
       </CommandDialog>
     </>

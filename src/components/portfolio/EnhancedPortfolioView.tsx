@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +25,9 @@ import {
   EyeOff,
   Activity
 } from 'lucide-react';
+import PortfolioLoadingState from './PortfolioLoadingState';
+import { getSupabaseErrorMessage } from '@/utils/errorMessages';
+import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 
 interface CompanyWithHealth {
   id: string;
@@ -68,15 +70,15 @@ const EnhancedPortfolioView: React.FC = () => {
   // Initialize notification system
   useNotificationSystem();
 
-  // Simplified query to avoid RLS issues
+  // Replace the existing useQuery with useRetryableQuery
   const { 
     data: companies = [], 
     isLoading, 
     error,
-    refetch 
-  } = useQuery({
-    queryKey: ['enhanced-portfolio', user?.id],
-    queryFn: async (): Promise<CompanyWithHealth[]> => {
+    manualRetry 
+  } = useRetryableQuery(
+    ['enhanced-portfolio', user?.id],
+    async (): Promise<CompanyWithHealth[]> => {
       console.log('Fetching portfolio data...');
       
       try {
@@ -177,13 +179,15 @@ const EnhancedPortfolioView: React.FC = () => {
         });
       } catch (error) {
         console.error('Portfolio query error:', error);
-        throw error;
+        throw new Error(getSupabaseErrorMessage(error));
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 2,
-    enabled: !!user
-  });
+    {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      enabled: !!user,
+      maxRetries: 3,
+    }
+  );
 
   // Calculate health metrics
   const healthMetrics = useMemo(() => {
@@ -243,7 +247,7 @@ const EnhancedPortfolioView: React.FC = () => {
             <p className="text-gray-600 mt-1">Advanced portfolio management and insights</p>
           </div>
         </div>
-        <PortfolioError error={error as Error} onRetry={() => refetch()} />
+        <PortfolioError error={error as Error} onRetry={manualRetry} />
       </div>
     );
   }
@@ -270,7 +274,7 @@ const EnhancedPortfolioView: React.FC = () => {
             </Button>
           </div>
         </div>
-        <PortfolioSkeleton viewMode={viewMode} />
+        <PortfolioLoadingState viewMode={viewMode} />
       </div>
     );
   }

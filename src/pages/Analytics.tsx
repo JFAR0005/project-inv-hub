@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -8,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import AnalyticsErrorState from '@/components/analytics/AnalyticsErrorState';
+import { getSupabaseErrorMessage } from '@/utils/errorMessages';
+import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 
 interface MetricData {
   date: string;
@@ -27,37 +29,49 @@ const Analytics = () => {
   const { user } = useAuth();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
 
-  // Fetch companies
-  const { data: companies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
+  // Fetch companies with better error handling
+  const { data: companies, error: companiesError, manualRetry: retryCompanies } = useRetryableQuery(
+    ['companies'],
+    async () => {
+      try {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('id, name')
+          .order('name');
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        throw new Error(getSupabaseErrorMessage(error));
+      }
     },
-  });
+    { maxRetries: 3 }
+  );
 
-  // Fetch metrics for selected company
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ['metrics', selectedCompanyId],
-    queryFn: async () => {
+  // Fetch metrics for selected company with better error handling
+  const { data: metrics, isLoading, error: metricsError, manualRetry: retryMetrics } = useRetryableQuery(
+    ['metrics', selectedCompanyId],
+    async () => {
       if (!selectedCompanyId) return [];
       
-      const { data, error } = await supabase
-        .from('metrics')
-        .select('*')
-        .eq('company_id', selectedCompanyId)
-        .order('date', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from('metrics')
+          .select('*')
+          .eq('company_id', selectedCompanyId)
+          .order('date', { ascending: true });
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        throw new Error(getSupabaseErrorMessage(error));
+      }
     },
-    enabled: !!selectedCompanyId,
-  });
+    { 
+      enabled: !!selectedCompanyId,
+      maxRetries: 3 
+    }
+  );
 
   // Process metrics data for charts
   const processMetricsData = () => {
@@ -83,11 +97,42 @@ const Analytics = () => {
 
   const { arrData, burnData, headcountData } = processMetricsData();
 
+  if (companiesError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <AnalyticsErrorState 
+          error={companiesError as Error} 
+          onRetry={retryCompanies}
+          context="companies data"
+        />
+      </div>
+    );
+  }
+
+  if (metricsError && selectedCompanyId) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Analytics</h1>
+          <p className="text-muted-foreground mt-2">
+            Portfolio performance metrics and insights
+          </p>
+        </div>
+        <AnalyticsErrorState 
+          error={metricsError as Error} 
+          onRetry={retryMetrics}
+          context="metrics data"
+        />
+      </div>
+    );
+  }
+
   if (isLoading && selectedCompanyId) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2 text-muted-foreground">Loading metrics...</span>
         </div>
       </div>
     );
