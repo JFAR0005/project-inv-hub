@@ -1,42 +1,34 @@
 
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 
 interface DataLoadingStateProps {
-  type?: 'spinner' | 'skeleton' | 'cards';
-  count?: number;
-  className?: string;
+  message?: string;
+  rows?: number;
+  showCards?: boolean;
 }
 
 const DataLoadingState: React.FC<DataLoadingStateProps> = ({ 
-  type = 'spinner', 
-  count = 3,
-  className = '' 
+  message = "Loading...", 
+  rows = 3,
+  showCards = true 
 }) => {
-  if (type === 'spinner') {
+  if (showCards) {
     return (
-      <div className={`flex items-center justify-center py-8 ${className}`}>
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (type === 'cards') {
-    return (
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
-        {Array.from({ length: count }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-6">
-              <div className="space-y-3">
+      <div className="space-y-4">
+        {Array.from({ length: rows }).map((_, index) => (
+          <Card key={index}>
+            <CardHeader>
+              <Skeleton className="h-4 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-20 w-full" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-6 w-20" />
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -46,13 +38,11 @@ const DataLoadingState: React.FC<DataLoadingStateProps> = ({
   }
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      ))}
+    <div className="flex items-center justify-center py-12">
+      <div className="flex items-center space-x-2 text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>{message}</span>
+      </div>
     </div>
   );
 };
