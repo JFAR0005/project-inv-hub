@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { SearchResult } from './SearchResultCard';
-import SearchResultCard from './SearchResultCard';
-import { EmptySearchState } from './EmptySearchState';
-import { SearchSkeleton } from './SearchSkeleton';
-import { SearchErrorBoundary } from '@/components/error/SearchErrorBoundary';
+import SearchResultCard, { SearchResult } from './SearchResultCard';
+import EmptySearchState from './EmptySearchState';
+import SearchSkeleton from './SearchSkeleton';
+import SearchErrorBoundary from '@/components/error/SearchErrorBoundary';
 import { supabase } from '@/integrations/supabase/client';
 import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 import { Button } from '@/components/ui/button';
