@@ -8,40 +8,49 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const supabaseClient = createClient(
+    // Create a Supabase client with the service role key
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     )
 
+    // Demo users to create
     const demoUsers = [
       {
         email: 'admin@blacknova.vc',
-        password: 'demo',
+        password: 'demo123',
         role: 'admin',
         name: 'Admin User'
       },
       {
-        email: 'capital@blacknova.vc',
-        password: 'demo',
-        role: 'capital_team',
-        name: 'Capital Team Member'
-      },
-      {
         email: 'partner@blacknova.vc',
-        password: 'demo',
+        password: 'demo123',
         role: 'partner',
-        name: 'Partner'
+        name: 'Partner User'
       },
       {
         email: 'founder@blacknova.vc',
-        password: 'demo',
+        password: 'demo123',
         role: 'founder',
-        name: 'Founder'
+        name: 'Founder User'
+      },
+      {
+        email: 'capital@blacknova.vc',
+        password: 'demo123',
+        role: 'capital_team',
+        name: 'Capital Team User'
       }
     ]
 
@@ -49,75 +58,62 @@ serve(async (req) => {
 
     for (const user of demoUsers) {
       try {
-        // First check if user already exists
-        const { data: existingAuth } = await supabaseClient.auth.admin.listUsers()
-        const existingUser = existingAuth?.users?.find(u => u.email === user.email)
-        
-        let authUserId = existingUser?.id
-
-        if (!existingUser) {
-          // Create auth user
-          const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
-            email: user.email,
-            password: user.password,
-            email_confirm: true,
-            user_metadata: {
-              name: user.name
-            }
-          })
-
-          if (authError) {
-            console.error(`Error creating auth user ${user.email}:`, authError)
-            results.push({ email: user.email, success: false, error: authError.message })
-            continue
+        // Create auth user
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: user.email,
+          password: user.password,
+          email_confirm: true,
+          user_metadata: {
+            name: user.name,
+            role: user.role
           }
-          
-          authUserId = authData.user.id
+        })
+
+        if (authError) {
+          console.error(`Failed to create auth user ${user.email}:`, authError)
+          results.push({ email: user.email, success: false, error: authError.message })
+          continue
         }
 
-        // Create/update user profile
-        const { error: profileError } = await supabaseClient
+        // Create or update profile
+        const { error: profileError } = await supabaseAdmin
           .from('users')
           .upsert({
-            id: authUserId,
+            id: authData.user.id,
             email: user.email,
             name: user.name,
             role: user.role,
-            created_at: new Date().toISOString()
-          }, {
-            onConflict: 'id'
+            is_active: true
           })
 
         if (profileError) {
-          console.error(`Error creating/updating profile for ${user.email}:`, profileError)
+          console.error(`Failed to create profile for ${user.email}:`, profileError)
           results.push({ email: user.email, success: false, error: profileError.message })
         } else {
-          results.push({ 
-            email: user.email, 
-            success: true, 
-            action: existingUser ? 'updated' : 'created' 
-          })
+          results.push({ email: user.email, success: true })
         }
+
       } catch (error) {
-        console.error(`Error processing user ${user.email}:`, error)
+        console.error(`Error creating user ${user.email}:`, error)
         results.push({ email: user.email, success: false, error: error.message })
       }
     }
 
     return new Response(
-      JSON.stringify({ message: 'Demo users creation completed', results }),
-      {
+      JSON.stringify({ results }),
+      { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       },
     )
+
   } catch (error) {
-    console.error('Error in create-demo-users function:', error)
+    console.error('Function error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
+      { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
       },
     )
   }

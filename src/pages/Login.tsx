@@ -1,87 +1,202 @@
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import LoginForm from '@/components/auth/LoginForm';
-import DemoUserSetup from '@/components/auth/DemoUserSetup';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import LoadingSpinner from '@/components/layout/LoadingSpinner';
-import { useNavigate } from 'react-router-dom';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
-const Login = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const { login, isAuthenticated, error: authError, clearError } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Redirect authenticated users to home
+  // Clear errors when component mounts or when user starts typing
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      console.log('User is authenticated, redirecting to home');
-      navigate('/', { replace: true });
+    clearError();
+    setError(null);
+  }, [clearError]);
+
+  useEffect(() => {
+    if (email || password) {
+      setError(null);
+      clearError();
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [email, password, clearError]);
 
-  // Show loading while auth state is being determined
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova">
-        <LoadingSpinner size="lg" className="text-white" />
-      </div>
-    );
-  }
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = (location.state as any)?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
-  // If user is authenticated, show loading while redirecting
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova">
-        <LoadingSpinner size="lg" className="text-white" />
-      </div>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await login(email, password);
+      // Navigation will happen automatically due to useEffect above
+    } catch (error: any) {
+      console.error('Login error:', error);
+      let errorMessage = 'Failed to sign in. Please check your credentials.';
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and click the confirmation link.';
+      } else if (error.message?.includes('Too many requests')) {
+        errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async (role: 'admin' | 'partner' | 'founder') => {
+    const demoCredentials = {
+      admin: { email: 'admin@blacknova.vc', password: 'demo123' },
+      partner: { email: 'partner@blacknova.vc', password: 'demo123' },
+      founder: { email: 'founder@blacknova.vc', password: 'demo123' }
+    };
+
+    const credentials = demoCredentials[role];
+    setEmail(credentials.email);
+    setPassword(credentials.password);
+    
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await login(credentials.email, credentials.password);
+    } catch (error: any) {
+      console.error('Demo login error:', error);
+      setError('Demo login failed. Please try manual login.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-white">Black Nova</h1>
-          <p className="text-white/80 mt-2">Venture Capital Operating Platform</p>
-        </div>
-        
-        <div className="bg-background rounded-lg shadow-xl p-8">
-          <LoginForm />
-        </div>
-        
-        {/* Demo Setup Card */}
-        <DemoUserSetup />
-        
-        {/* Demo Credentials Card */}
-        <Card className="bg-background/90">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Demo Credentials</CardTitle>
-            <CardDescription className="text-xs">
-              Use these credentials to test different role perspectives
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-xs">
-            <div className="grid grid-cols-1 gap-2">
-              <div className="p-2 bg-muted rounded">
-                <div className="font-medium">Admin</div>
-                <div className="text-muted-foreground">admin@blacknova.vc / demo</div>
-              </div>
-              <div className="p-2 bg-muted rounded">
-                <div className="font-medium">Capital Team</div>
-                <div className="text-muted-foreground">capital@blacknova.vc / demo</div>
-              </div>
-              <div className="p-2 bg-muted rounded">
-                <div className="font-medium">Partner</div>
-                <div className="text-muted-foreground">partner@blacknova.vc / demo</div>
-              </div>
-              <div className="p-2 bg-muted rounded">
-                <div className="font-medium">Founder</div>
-                <div className="text-muted-foreground">founder@blacknova.vc / demo</div>
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            Black Nova
+          </CardTitle>
+          <CardDescription className="text-center">
+            Venture Capital Operating Platform
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+              />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            {(error || authError) && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error || authError}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or try demo accounts
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleDemoLogin('admin')}
+              disabled={isLoading}
+              className="w-full"
+            >
+              Demo Admin
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDemoLogin('partner')}
+              disabled={isLoading}
+              className="w-full"
+            >
+              Demo Partner
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDemoLogin('founder')}
+              disabled={isLoading}
+              className="w-full"
+            >
+              Demo Founder
+            </Button>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground">
+            <p>Demo credentials: Use any demo button above</p>
+            <p className="mt-1">Or email: admin@blacknova.vc / Password: demo123</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
