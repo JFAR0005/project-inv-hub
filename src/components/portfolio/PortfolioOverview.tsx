@@ -24,6 +24,24 @@ import {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
+interface CompanyWithUpdate {
+  id: string;
+  name: string;
+  sector?: string;
+  arr?: number;
+  mrr?: number;
+  burn_rate?: number;
+  headcount?: number;
+  runway?: number;
+  latest_update?: {
+    submitted_at: string;
+    arr?: number;
+    mrr?: number;
+    raise_status?: string;
+    burn_rate?: number;
+  } | null;
+}
+
 const PortfolioOverview: React.FC = () => {
   const { data: companies, isLoading, error, refetch } = useQuery({
     queryKey: ['portfolio-overview'],
@@ -48,7 +66,7 @@ const PortfolioOverview: React.FC = () => {
           return {
             ...company,
             latest_update: updates && updates.length > 0 ? updates[0] : null
-          };
+          } as CompanyWithUpdate;
         })
       );
       
@@ -75,8 +93,8 @@ const PortfolioOverview: React.FC = () => {
     
     // Portfolio ARR - ensure we handle null/undefined values
     const totalArr = companies.reduce((sum, company) => {
-      const arr = company.latest_update?.arr;
-      return sum + (typeof arr === 'number' ? arr : 0);
+      const arr = company.latest_update?.arr || company.arr;
+      return sum + (typeof arr === 'number' && !isNaN(arr) ? arr : 0);
     }, 0);
     
     // ARR growth placeholder
@@ -141,8 +159,8 @@ const PortfolioOverview: React.FC = () => {
   // ARR by sector - ensure proper type handling
   const sectorArr = companies.reduce((acc: Record<string, number>, company) => {
     const sector = company.sector || 'Unknown';
-    const arr = company.latest_update?.arr;
-    if (typeof arr === 'number') {
+    const arr = company.latest_update?.arr || company.arr;
+    if (typeof arr === 'number' && !isNaN(arr)) {
       acc[sector] = (acc[sector] || 0) + arr;
     }
     return acc;

@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -19,7 +18,7 @@ interface NoteData {
   content?: string;
   created_at: string;
   author_id: string;
-  companies?: { id: string; name: string } | null;
+  companies: CompanyData[] | null;
 }
 
 interface MeetingData {
@@ -28,7 +27,7 @@ interface MeetingData {
   description?: string;
   start_time: string;
   end_time: string;
-  companies?: { id: string; name: string } | null;
+  companies: CompanyData[] | null;
 }
 
 interface DealData {
@@ -36,7 +35,7 @@ interface DealData {
   stage?: string;
   status?: string;
   valuation_expectation?: number;
-  companies?: { id: string; name: string; sector?: string } | null;
+  companies: (CompanyData & { sector?: string })[] | null;
 }
 
 export const useGlobalSearch = () => {
@@ -94,20 +93,26 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (notes) {
-          results.push(...notes.map((note: NoteData) => ({
-            id: note.id,
-            type: 'note' as const,
-            title: note.title,
-            subtitle: note.companies?.name || 'Unknown Company',
-            description: note.content?.substring(0, 150) + '...' || '',
-            metadata: { 
-              created_at: note.created_at,
-              company: note.companies?.name,
-              author_id: note.author_id 
-            },
-            url: `/notes?noteId=${note.id}`,
-            relevanceScore: calculateRelevance(query, note.title),
-          })));
+          results.push(...notes.map((note: NoteData) => {
+            const companyName = note.companies && note.companies.length > 0 
+              ? note.companies[0].name 
+              : 'Unknown Company';
+            
+            return {
+              id: note.id,
+              type: 'note' as const,
+              title: note.title,
+              subtitle: companyName,
+              description: note.content?.substring(0, 150) + '...' || '',
+              metadata: { 
+                created_at: note.created_at,
+                company: companyName,
+                author_id: note.author_id 
+              },
+              url: `/notes?noteId=${note.id}`,
+              relevanceScore: calculateRelevance(query, note.title),
+            };
+          }));
         }
       }
 
@@ -123,20 +128,26 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (meetings) {
-          results.push(...meetings.map((meeting: MeetingData) => ({
-            id: meeting.id,
-            type: 'meeting' as const,
-            title: meeting.title,
-            subtitle: meeting.companies?.name || 'Unknown Company',
-            description: meeting.description || '',
-            metadata: { 
-              start_time: meeting.start_time,
-              end_time: meeting.end_time,
-              company: meeting.companies?.name 
-            },
-            url: `/meetings?meetingId=${meeting.id}`,
-            relevanceScore: calculateRelevance(query, meeting.title),
-          })));
+          results.push(...meetings.map((meeting: MeetingData) => {
+            const companyName = meeting.companies && meeting.companies.length > 0 
+              ? meeting.companies[0].name 
+              : 'Unknown Company';
+            
+            return {
+              id: meeting.id,
+              type: 'meeting' as const,
+              title: meeting.title,
+              subtitle: companyName,
+              description: meeting.description || '',
+              metadata: { 
+                start_time: meeting.start_time,
+                end_time: meeting.end_time,
+                company: companyName 
+              },
+              url: `/meetings?meetingId=${meeting.id}`,
+              relevanceScore: calculateRelevance(query, meeting.title),
+            };
+          }));
         }
       }
 
@@ -151,27 +162,33 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (deals) {
-          const filteredDeals = deals.filter((deal: DealData) => 
-            deal.companies?.name?.toLowerCase().includes(query) ||
-            deal.companies?.sector?.toLowerCase().includes(query) ||
-            deal.stage?.toLowerCase().includes(query)
-          );
+          const filteredDeals = deals.filter((deal: DealData) => {
+            const company = deal.companies && deal.companies.length > 0 ? deal.companies[0] : null;
+            return company?.name?.toLowerCase().includes(query) ||
+              company?.sector?.toLowerCase().includes(query) ||
+              deal.stage?.toLowerCase().includes(query);
+          });
 
-          results.push(...filteredDeals.map((deal: DealData) => ({
-            id: deal.id,
-            type: 'deal' as const,
-            title: deal.companies?.name || 'Unknown Company',
-            subtitle: `${deal.stage} - ${deal.status}`,
-            description: deal.companies?.sector || '',
-            metadata: { 
-              stage: deal.stage,
-              status: deal.status,
-              valuation: deal.valuation_expectation,
-              sector: deal.companies?.sector 
-            },
-            url: `/dealflow?dealId=${deal.id}`,
-            relevanceScore: calculateRelevance(query, deal.companies?.name || ''),
-          })));
+          results.push(...filteredDeals.map((deal: DealData) => {
+            const company = deal.companies && deal.companies.length > 0 ? deal.companies[0] : null;
+            const companyName = company?.name || 'Unknown Company';
+            
+            return {
+              id: deal.id,
+              type: 'deal' as const,
+              title: companyName,
+              subtitle: `${deal.stage} - ${deal.status}`,
+              description: company?.sector || '',
+              metadata: { 
+                stage: deal.stage,
+                status: deal.status,
+                valuation: deal.valuation_expectation,
+                sector: company?.sector 
+              },
+              url: `/dealflow?dealId=${deal.id}`,
+              relevanceScore: calculateRelevance(query, companyName),
+            };
+          }));
         }
       }
 

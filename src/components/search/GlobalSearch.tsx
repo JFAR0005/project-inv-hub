@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -42,14 +41,14 @@ interface NoteResult {
   id: string;
   title: string;
   company_id?: string;
-  companies?: { name: string } | null;
+  companies: CompanyResult[] | null;
 }
 
 interface MeetingResult {
   id: string;
   title: string;
   company_id?: string;
-  companies?: { name: string } | null;
+  companies: CompanyResult[] | null;
 }
 
 const GlobalSearch = () => {
@@ -85,14 +84,14 @@ const GlobalSearch = () => {
       // Search notes
       const { data: notes } = await supabase
         .from('notes')
-        .select('id, title, company_id, companies(name)')
+        .select('id, title, company_id, companies(id, name)')
         .ilike('title', `%${globalQuery}%`)
         .limit(5);
       
       // Search meetings
       const { data: meetings } = await supabase
         .from('meetings')
-        .select('id, title, company_id, companies(name)')
+        .select('id, title, company_id, companies(id, name)')
         .ilike('title', `%${globalQuery}%`)
         .limit(5);
       
@@ -106,21 +105,27 @@ const GlobalSearch = () => {
           url: `/companies/${c.id}`
         })),
         
-        ...(notes || []).map((n: NoteResult) => ({
-          id: n.id,
-          name: n.title,
-          type: 'note' as const,
-          subtitle: n.companies?.name ? `Note - ${n.companies.name}` : 'Note',
-          url: `/notes/${n.id}`
-        })),
+        ...(notes || []).map((n: NoteResult) => {
+          const companyName = n.companies && n.companies.length > 0 ? n.companies[0].name : null;
+          return {
+            id: n.id,
+            name: n.title,
+            type: 'note' as const,
+            subtitle: companyName ? `Note - ${companyName}` : 'Note',
+            url: `/notes/${n.id}`
+          };
+        }),
         
-        ...(meetings || []).map((m: MeetingResult) => ({
-          id: m.id,
-          name: m.title,
-          type: 'meeting' as const,
-          subtitle: m.companies?.name ? `Meeting - ${m.companies.name}` : 'Meeting',
-          url: `/meetings/${m.id}`
-        }))
+        ...(meetings || []).map((m: MeetingResult) => {
+          const companyName = m.companies && m.companies.length > 0 ? m.companies[0].name : null;
+          return {
+            id: m.id,
+            name: m.title,
+            type: 'meeting' as const,
+            subtitle: companyName ? `Meeting - ${companyName}` : 'Meeting',
+            url: `/meetings/${m.id}`
+          };
+        })
       ];
       
       return results;

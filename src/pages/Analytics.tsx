@@ -63,7 +63,7 @@ const Analytics = () => {
   const processMetricsData = () => {
     if (!metrics || metrics.length === 0) return { arrData: [], burnData: [], headcountData: [] };
 
-    const groupedByDate = metrics.reduce((acc, metric: MetricData) => {
+    const groupedByDate = (metrics as MetricData[]).reduce((acc, metric) => {
       const date = metric.date;
       if (!acc[date]) {
         acc[date] = { date };

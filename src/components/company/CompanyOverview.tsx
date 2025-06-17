@@ -22,6 +22,12 @@ interface ChartDataPoint {
   [key: string]: any;
 }
 
+interface MetricRow {
+  date: string;
+  metric_name: string;
+  value: number;
+}
+
 const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company, companyId }) => {
   // Fetch recent metrics
   const { data: recentMetrics } = useQuery({
@@ -62,7 +68,7 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company, companyId })
   const processMetricsForCharts = () => {
     if (!recentMetrics || recentMetrics.length === 0) return { arrData: [], headcountData: [] };
 
-    const groupedByDate = recentMetrics.reduce((acc, metric) => {
+    const groupedByDate = (recentMetrics as MetricRow[]).reduce((acc, metric) => {
       const date = metric.date;
       if (!acc[date]) {
         acc[date] = { date };
@@ -153,14 +159,14 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company, companyId })
                   <DollarSign className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-medium">ARR</span>
                 </div>
-                <p className="text-lg font-bold">{formatCurrency(company.arr)}</p>
+                <p className="text-lg font-bold">{formatCurrency(company.arr || undefined)}</p>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-blue-600" />
                   <span className="text-sm font-medium">MRR</span>
                 </div>
-                <p className="text-lg font-bold">{formatCurrency(company.mrr)}</p>
+                <p className="text-lg font-bold">{formatCurrency(company.mrr || undefined)}</p>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -174,7 +180,7 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company, companyId })
                   <TrendingUp className="h-4 w-4 text-red-600" />
                   <span className="text-sm font-medium">Burn Rate</span>
                 </div>
-                <p className="text-lg font-bold">{formatCurrency(company.burn_rate)}</p>
+                <p className="text-lg font-bold">{formatCurrency(company.burn_rate || undefined)}</p>
               </div>
             </div>
           </CardContent>
