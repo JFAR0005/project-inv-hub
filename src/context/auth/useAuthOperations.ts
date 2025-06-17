@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { UserRole } from './rolePermissions';
+import { UserRole } from './authTypes';
 import { AuthUser } from './authTypes';
 import { performLogin, performLogout } from './authUtils';
 

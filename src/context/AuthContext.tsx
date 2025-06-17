@@ -2,8 +2,10 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
-import { AuthUser } from './auth/authTypes';
+import { AuthUser, UserRole } from './auth/authTypes';
 import { fetchUserData, performLogin, performLogout } from './auth/authUtils';
+import { useAuthOperations } from './auth/useAuthOperations';
+import { hasPermission as checkPermission } from './auth/rolePermissions';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -11,9 +13,15 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  originalRole: UserRole | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  hasPermission: (permission: string) => boolean;
+  setTemporaryRole: (role: UserRole) => void;
+  clearTemporaryRole: () => void;
+  switchRole: (role: UserRole) => void;
+  resetRole: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,41 +43,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
 
   const clearError = () => setError(null);
 
-  const login = async (email: string, password: string): Promise<void> => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      await performLogin(email, password);
-      // The auth state change will handle the rest
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'Login failed');
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const {
+    login,
+    logout,
+    switchRole,
+    resetRole,
+    setTemporaryRole,
+    clearTemporaryRole,
+  } = useAuthOperations(user, setUser, setError, setIsLoading, setOriginalRole);
 
-  const logout = async (): Promise<void> => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      const logoutError = await performLogout();
-      if (logoutError) {
-        setError(logoutError);
-      }
-      // Clear state immediately
-      setUser(null);
-      setSession(null);
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      setError(error.message || 'Logout failed');
-    } finally {
-      setIsLoading(false);
-    }
+  const hasPermission = (permission: string): boolean => {
+    if (!user?.role) return false;
+    return checkPermission(user.role, permission);
   };
 
   useEffect(() => {
@@ -111,6 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else if (event === 'SIGNED_OUT' || !session) {
           if (mounted) {
             setUser(null);
+            setOriginalRole(null);
             setIsLoading(false);
           }
         }
@@ -172,9 +162,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user && !!session,
     isLoading,
     error,
+    originalRole,
     login,
     logout,
     clearError,
+    hasPermission,
+    setTemporaryRole,
+    clearTemporaryRole,
+    switchRole,
+    resetRole,
   };
 
   return (
