@@ -5,6 +5,40 @@ import { supabase } from '@/lib/supabase';
 import { SearchResult, SearchFilters, SearchOptions } from '@/types/search';
 import { useAuth } from '@/context/AuthContext';
 
+interface CompanyData {
+  id: string;
+  name: string;
+  sector?: string;
+  location?: string;
+  description?: string;
+}
+
+interface NoteData {
+  id: string;
+  title: string;
+  content?: string;
+  created_at: string;
+  author_id: string;
+  companies?: { id: string; name: string } | null;
+}
+
+interface MeetingData {
+  id: string;
+  title: string;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  companies?: { id: string; name: string } | null;
+}
+
+interface DealData {
+  id: string;
+  stage?: string;
+  status?: string;
+  valuation_expectation?: number;
+  companies?: { id: string; name: string; sector?: string } | null;
+}
+
 export const useGlobalSearch = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,11 +69,11 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (companies) {
-          results.push(...companies.map(company => ({
+          results.push(...companies.map((company: CompanyData) => ({
             id: company.id,
             type: 'company' as const,
             title: company.name,
-            subtitle: company.sector,
+            subtitle: company.sector || '',
             description: company.description || '',
             metadata: { location: company.location, sector: company.sector },
             url: `/company/${company.id}`,
@@ -60,7 +94,7 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (notes) {
-          results.push(...notes.map(note => ({
+          results.push(...notes.map((note: NoteData) => ({
             id: note.id,
             type: 'note' as const,
             title: note.title,
@@ -89,7 +123,7 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (meetings) {
-          results.push(...meetings.map(meeting => ({
+          results.push(...meetings.map((meeting: MeetingData) => ({
             id: meeting.id,
             type: 'meeting' as const,
             title: meeting.title,
@@ -117,13 +151,13 @@ export const useGlobalSearch = () => {
           .limit(20);
 
         if (deals) {
-          const filteredDeals = deals.filter(deal => 
+          const filteredDeals = deals.filter((deal: DealData) => 
             deal.companies?.name?.toLowerCase().includes(query) ||
             deal.companies?.sector?.toLowerCase().includes(query) ||
             deal.stage?.toLowerCase().includes(query)
           );
 
-          results.push(...filteredDeals.map(deal => ({
+          results.push(...filteredDeals.map((deal: DealData) => ({
             id: deal.id,
             type: 'deal' as const,
             title: deal.companies?.name || 'Unknown Company',

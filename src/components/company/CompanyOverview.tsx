@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +13,13 @@ type Company = Database['public']['Tables']['companies']['Row'];
 interface CompanyOverviewProps {
   company: Company;
   companyId: string;
+}
+
+interface ChartDataPoint {
+  date: string;
+  arr?: number;
+  headcount?: number;
+  [key: string]: any;
 }
 
 const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company, companyId }) => {
@@ -63,13 +69,13 @@ const CompanyOverview: React.FC<CompanyOverviewProps> = ({ company, companyId })
       }
       acc[date][metric.metric_name] = metric.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, ChartDataPoint>);
 
     const chartData = Object.values(groupedByDate).reverse(); // Chronological order
 
     return {
-      arrData: chartData.filter(d => d.arr !== undefined).slice(-6),
-      headcountData: chartData.filter(d => d.headcount !== undefined).slice(-6),
+      arrData: chartData.filter(d => typeof d.arr === 'number').slice(-6),
+      headcountData: chartData.filter(d => typeof d.headcount === 'number').slice(-6),
     };
   };
 

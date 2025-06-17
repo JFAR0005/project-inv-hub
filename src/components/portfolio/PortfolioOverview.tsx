@@ -73,9 +73,11 @@ const PortfolioOverview: React.FC = () => {
     // Total invested amount (use placeholder since field doesn't exist)
     const totalInvested = companies.length * 500000; // Placeholder: $500k average
     
-    // Portfolio ARR
-    const totalArr = companies.reduce((sum, company) => 
-      sum + (company.latest_update?.arr || 0), 0);
+    // Portfolio ARR - ensure we handle null/undefined values
+    const totalArr = companies.reduce((sum, company) => {
+      const arr = company.latest_update?.arr;
+      return sum + (typeof arr === 'number' ? arr : 0);
+    }, 0);
     
     // ARR growth placeholder
     const arrGrowth = 12.5;
@@ -136,11 +138,12 @@ const PortfolioOverview: React.FC = () => {
     { name: 'Never Updated', value: metrics.updateStatus.neverUpdated },
   ];
   
-  // ARR by sector
+  // ARR by sector - ensure proper type handling
   const sectorArr = companies.reduce((acc: Record<string, number>, company) => {
     const sector = company.sector || 'Unknown';
-    if (company.latest_update?.arr) {
-      acc[sector] = (acc[sector] || 0) + company.latest_update.arr;
+    const arr = company.latest_update?.arr;
+    if (typeof arr === 'number') {
+      acc[sector] = (acc[sector] || 0) + arr;
     }
     return acc;
   }, {});

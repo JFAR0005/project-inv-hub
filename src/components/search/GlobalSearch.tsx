@@ -32,6 +32,26 @@ interface SearchResult {
   url: string;
 }
 
+interface CompanyResult {
+  id: string;
+  name: string;
+  sector?: string;
+}
+
+interface NoteResult {
+  id: string;
+  title: string;
+  company_id?: string;
+  companies?: { name: string } | null;
+}
+
+interface MeetingResult {
+  id: string;
+  title: string;
+  company_id?: string;
+  companies?: { name: string } | null;
+}
+
 const GlobalSearch = () => {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,31 +96,31 @@ const GlobalSearch = () => {
         .ilike('title', `%${globalQuery}%`)
         .limit(5);
       
-      // Combine results
+      // Combine results with proper type handling
       const results: SearchResult[] = [
-        ...(companies?.map(c => ({
+        ...(companies || []).map((c: CompanyResult) => ({
           id: c.id,
           name: c.name,
           type: 'company' as const,
           subtitle: c.sector || 'Company',
           url: `/companies/${c.id}`
-        })) || []),
+        })),
         
-        ...(notes?.map(n => ({
+        ...(notes || []).map((n: NoteResult) => ({
           id: n.id,
           name: n.title,
           type: 'note' as const,
           subtitle: n.companies?.name ? `Note - ${n.companies.name}` : 'Note',
           url: `/notes/${n.id}`
-        })) || []),
+        })),
         
-        ...(meetings?.map(m => ({
+        ...(meetings || []).map((m: MeetingResult) => ({
           id: m.id,
           name: m.title,
           type: 'meeting' as const,
           subtitle: m.companies?.name ? `Meeting - ${m.companies.name}` : 'Meeting',
           url: `/meetings/${m.id}`
-        })) || [])
+        }))
       ];
       
       return results;

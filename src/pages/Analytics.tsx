@@ -9,6 +9,20 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+interface MetricData {
+  date: string;
+  metric_name: string;
+  value: number;
+}
+
+interface ChartDataPoint {
+  date: string;
+  arr?: number;
+  burn_rate?: number;
+  headcount?: number;
+  [key: string]: any;
+}
+
 const Analytics = () => {
   const { user } = useAuth();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -49,21 +63,21 @@ const Analytics = () => {
   const processMetricsData = () => {
     if (!metrics || metrics.length === 0) return { arrData: [], burnData: [], headcountData: [] };
 
-    const groupedByDate = metrics.reduce((acc, metric) => {
+    const groupedByDate = metrics.reduce((acc, metric: MetricData) => {
       const date = metric.date;
       if (!acc[date]) {
         acc[date] = { date };
       }
       acc[date][metric.metric_name] = metric.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, ChartDataPoint>);
 
     const chartData = Object.values(groupedByDate);
 
     return {
-      arrData: chartData.filter(d => d.arr !== undefined),
-      burnData: chartData.filter(d => d.burn_rate !== undefined),
-      headcountData: chartData.filter(d => d.headcount !== undefined),
+      arrData: chartData.filter(d => typeof d.arr === 'number'),
+      burnData: chartData.filter(d => typeof d.burn_rate === 'number'),
+      headcountData: chartData.filter(d => typeof d.headcount === 'number'),
     };
   };
 
