@@ -2,32 +2,32 @@
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useState } from 'react';
 
-interface RetryableQueryOptions<T> extends Omit<UseQueryOptions<T>, 'retry' | 'queryKey'> {
+interface UseRetryableQueryOptions<T> extends UseQueryOptions<T> {
   maxRetries?: number;
-  retryDelay?: number;
 }
 
 export const useRetryableQuery = <T>(
-  queryKey: unknown[],
+  queryKey: string[],
   queryFn: () => Promise<T>,
-  options: RetryableQueryOptions<T> = {}
+  options: UseRetryableQueryOptions<T> = {}
 ) => {
   const [retryCount, setRetryCount] = useState(0);
-  const { maxRetries = 3, retryDelay = 1000, ...queryOptions } = options;
+  const { maxRetries = 3, ...queryOptions } = options;
 
   const query = useQuery({
-    ...queryOptions,
-    queryKey: [...queryKey, retryCount],
+    queryKey,
     queryFn,
-    retry: (failureCount, error) => {
-      console.log(`Query failed ${failureCount} times:`, error);
+    retry: (failureCount) => {
+      console.log(`Query failed, attempt ${failureCount + 1}/${maxRetries + 1}`);
       return failureCount < maxRetries;
     },
-    retryDelay: (attemptIndex) => Math.min(retryDelay * Math.pow(2, attemptIndex), 30000),
+    ...queryOptions,
   });
 
   const manualRetry = () => {
+    console.log('Manual retry triggered');
     setRetryCount(prev => prev + 1);
+    query.refetch();
   };
 
   return {
