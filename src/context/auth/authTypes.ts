@@ -1,28 +1,22 @@
 
 import { User } from '@supabase/supabase-js';
-import { UserRole } from './rolePermissions';
+
+export type UserRole = 'admin' | 'partner' | 'founder' | 'capital_team';
 
 export interface AuthUser extends User {
-  role?: UserRole;
-  name?: string;
+  role: UserRole;
+  name: string;
   companyId?: string;
 }
 
-export interface AuthContextType {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  originalRole: UserRole | null;
-  error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  hasPermission: (permission: string) => boolean;
-  switchRole: (role: UserRole) => void;
-  resetRole: () => void;
-  setTemporaryRole: (role: UserRole) => void;
-  clearTemporaryRole: () => void;
-  clearError: () => void;
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  company_id?: string;
+  team?: string;
+  is_active: boolean;
+  last_seen_at?: string;
+  created_at: string;
 }
-
-// Re-export UserRole for convenience
-export type { UserRole };

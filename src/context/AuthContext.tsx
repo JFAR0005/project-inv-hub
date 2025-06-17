@@ -1,11 +1,20 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { AuthContextType, AuthUser } from './auth/authTypes';
-import { UserRole, hasPermission } from './auth/rolePermissions';
-import { fetchUserData } from './auth/authUtils';
-import { useAuthOperations } from './auth/useAuthOperations';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
+import { AuthUser } from './auth/authTypes';
+import { fetchUserData, performLogin, performLogout } from './auth/authUtils';
+
+interface AuthContextType {
+  user: AuthUser | null;
+  session: Session | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,146 +26,155 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-  const authOperations = useAuthOperations(
-    user,
-    setUser,
-    setError,
-    setIsLoading,
-    setOriginalRole
-  );
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const clearError = () => setError(null);
+
+  const login = async (email: string, password: string): Promise<void> => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      await performLogin(email, password);
+      // The auth state change will handle the rest
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || 'Login failed');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      const logoutError = await performLogout();
+      if (logoutError) {
+        setError(logoutError);
+      }
+      // Clear state immediately
+      setUser(null);
+      setSession(null);
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      setError(error.message || 'Logout failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
 
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        
+        if (!mounted) return;
+
+        setSession(session);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Defer user data fetching to prevent deadlocks
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            try {
+              const { user: userData, error: userError } = await fetchUserData(session.user);
+              if (mounted) {
+                setUser(userData);
+                if (userError) {
+                  setError(userError);
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching user data:', error);
+              if (mounted) {
+                setError('Failed to load user profile');
+              }
+            } finally {
+              if (mounted) {
+                setIsLoading(false);
+              }
+            }
+          }, 0);
+        } else if (event === 'SIGNED_OUT' || !session) {
+          if (mounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
+        }
+      }
+    );
+
+    // Check for existing session
     const initializeAuth = async () => {
       try {
-        console.log('Initializing auth...');
+        const { data: { session: existingSession }, error } = await supabase.auth.getSession();
         
-        // Get initial session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('Error getting session:', sessionError);
-          if (mounted) {
-            setError('Failed to restore session. Please log in again.');
-            setIsLoading(false);
-            setInitialized(true);
-          }
-          return;
+        if (error) {
+          console.error('Session error:', error);
+          cleanupAuthState();
         }
         
-        if (session?.user && mounted) {
-          console.log('Found existing session for:', session.user.email);
-          await handleFetchUserData(session.user);
-        } else if (mounted) {
-          console.log('No existing session found');
-          setIsLoading(false);
-          setInitialized(true);
+        if (!mounted) return;
+
+        if (existingSession?.user) {
+          setSession(existingSession);
+          try {
+            const { user: userData, error: userError } = await fetchUserData(existingSession.user);
+            if (mounted) {
+              setUser(userData);
+              if (userError) {
+                setError(userError);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+            if (mounted) {
+              setError('Failed to load user profile');
+            }
+          }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('Auth initialization error:', error);
         if (mounted) {
-          setError('Failed to initialize authentication.');
+          setError('Authentication initialization failed');
+        }
+      } finally {
+        if (mounted) {
           setIsLoading(false);
-          setInitialized(true);
         }
       }
     };
 
-    // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      console.log('Auth state changed:', event, session?.user?.email);
-      
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setOriginalRole(null);
-        setError(null);
-        setIsLoading(false);
-        return;
-      }
-      
-      if (event === 'TOKEN_REFRESHED' && session?.user) {
-        // Don't refetch user data on token refresh, just update the user object
-        setUser(prevUser => {
-          if (!prevUser) return null;
-          return {
-            ...prevUser,
-            ...session.user,
-            role: prevUser.role,
-            name: prevUser.name,
-            companyId: prevUser.companyId
-          } as AuthUser;
-        });
-        return;
-      }
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log('User signed in:', session.user.email);
-        await handleFetchUserData(session.user);
-      } else if (!session?.user) {
-        setUser(null);
-        setOriginalRole(null);
-        setIsLoading(false);
-      }
-    });
-
-    // Initialize after setting up listener
-    if (!initialized) {
-      initializeAuth();
-    }
+    initializeAuth();
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [initialized]);
-
-  const handleFetchUserData = async (authUser: User) => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      console.log('Fetching user data for:', authUser.email);
-      
-      const { user: userData, error: fetchError } = await fetchUserData(authUser);
-      
-      if (fetchError) {
-        setError(fetchError);
-      }
-      
-      console.log('Setting user data:', userData);
-      setUser(userData);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setError('Failed to load user profile.');
-    } finally {
-      setIsLoading(false);
-      setInitialized(true);
-    }
-  };
-
-  const hasUserPermission = (permission: string): boolean => {
-    return hasPermission(user?.role, permission);
-  };
-
-  const isAuthenticated = !!user;
+  }, []);
 
   const value: AuthContextType = {
     user,
-    isAuthenticated,
+    session,
+    isAuthenticated: !!user && !!session,
     isLoading,
-    originalRole,
     error,
-    hasPermission: hasUserPermission,
-    ...authOperations,
+    login,
+    logout,
+    clearError,
   };
 
   return (

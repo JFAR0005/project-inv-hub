@@ -2,21 +2,48 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Dashboard from '@/components/dashboard/Dashboard';
-import AuthTest from '@/components/auth/AuthTest';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova p-4">
-        <div className="text-center space-y-6">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Black Nova</h1>
-            <p className="text-white/80">Venture Capital Operating Platform</p>
-          </div>
-          <AuthTest />
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-2xl font-bold">
+              Black Nova
+            </CardTitle>
+            <CardDescription>
+              Venture Capital Operating Platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center space-y-4">
+              <p className="text-muted-foreground">
+                Please sign in to access your portfolio dashboard
+              </p>
+              <Button 
+                onClick={() => navigate('/login')}
+                className="w-full"
+              >
+                Sign In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -30,7 +57,6 @@ const Index = () => {
             Here's what's happening with your portfolio today.
           </p>
         </div>
-        <AuthTest />
       </div>
       <Dashboard />
     </div>
