@@ -42,9 +42,9 @@ function App() {
   return (
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-            <Router>
+        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+          <Router>
+            <AuthProvider>
               <div className="min-h-screen bg-background">
                 <Routes>
                   <Route path="/" element={<Layout><Outlet /></Layout>}>
@@ -126,15 +126,15 @@ function App() {
                     } />
                   </Route>
                   
-                  {/* Auth Routes */}
+                  {/* Auth Routes - now inside AuthProvider */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/auth" element={<AuthRedirect />} />
                 </Routes>
               </div>
-            </Router>
-            <Toaster />
-          </ThemeProvider>
-        </AuthProvider>
+            </AuthProvider>
+          </Router>
+          <Toaster />
+        </ThemeProvider>
       </QueryClientProvider>
     </GlobalErrorBoundary>
   );
