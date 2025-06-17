@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -15,6 +16,7 @@ const LoginForm = () => {
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const getErrorMessage = (error: any): string => {
     const errorMessage = error?.message || '';
@@ -75,7 +77,8 @@ const LoginForm = () => {
         description: "Welcome back to Black Nova!",
       });
       
-      // Let AuthRedirect handle the navigation
+      // Navigate to dashboard after successful login
+      navigate('/', { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
       const errorMessage = getErrorMessage(error);
@@ -92,7 +95,7 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="w-full max-w-md space-y-6">
+    <div className="w-full space-y-6">
       <div className="text-center">
         <h1 className="text-3xl font-bold">Welcome Back</h1>
         <p className="text-muted-foreground mt-2">Sign in to access your Black Nova dashboard</p>

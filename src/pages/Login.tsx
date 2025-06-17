@@ -25,13 +25,13 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-blacknova p-4">
-      <div className="text-center mb-6">
-        <h1 className="text-4xl font-bold text-white">Black Nova</h1>
-        <p className="text-white/80 mt-2">Venture Capital Operating Platform</p>
-      </div>
-      
-      <div className="w-full max-w-md space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-blacknova p-4">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-bold text-white">Black Nova</h1>
+          <p className="text-white/80 mt-2">Venture Capital Operating Platform</p>
+        </div>
+        
         <div className="bg-background rounded-lg shadow-xl p-8">
           <LoginForm />
         </div>

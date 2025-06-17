@@ -122,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleFetchUserData = async (authUser: User) => {
     setError(null);
+    setIsLoading(true);
     try {
       console.log('Fetching user data for:', authUser.email);
       // For now, let's create a mock admin user to bypass the database issue
