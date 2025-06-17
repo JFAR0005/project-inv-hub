@@ -126,30 +126,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user data for:', authUser.email);
       
-      // Create a proper user based on the demo credentials
-      let role: UserRole = 'founder'; // default role
-      let name = 'User';
+      const { user: userData, error: fetchError } = await fetchUserData(authUser);
       
-      if (authUser.email === 'admin@blacknova.vc') {
-        role = 'admin';
-        name = 'Admin User';
-      } else if (authUser.email === 'capital@blacknova.vc') {
-        role = 'capital_team';
-        name = 'Capital Team Member';
-      } else if (authUser.email === 'partner@blacknova.vc') {
-        role = 'partner';
-        name = 'Partner';
-      } else if (authUser.email === 'founder@blacknova.vc') {
-        role = 'founder';
-        name = 'Founder';
+      if (fetchError) {
+        setError(fetchError);
       }
-
-      const userData: AuthUser = {
-        ...authUser,
-        role,
-        name,
-        companyId: undefined
-      };
       
       console.log('Setting user data:', userData);
       setUser(userData);

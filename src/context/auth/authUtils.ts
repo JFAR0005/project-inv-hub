@@ -10,81 +10,84 @@ export const fetchUserData = async (authUser: User): Promise<{
   try {
     console.log('Fetching user data for:', authUser.email);
     
+    // For demo purposes, map email to role
+    let role: UserRole = 'founder'; // default role
+    let name = authUser.email?.split('@')[0] || 'User';
+    
+    if (authUser.email === 'admin@blacknova.vc') {
+      role = 'admin';
+      name = 'Admin User';
+    } else if (authUser.email === 'capital@blacknova.vc') {
+      role = 'capital_team';
+      name = 'Capital Team Member';
+    } else if (authUser.email === 'partner@blacknova.vc') {
+      role = 'partner';
+      name = 'Partner';
+    } else if (authUser.email === 'founder@blacknova.vc') {
+      role = 'founder';
+      name = 'Founder';
+    }
+
+    // Try to fetch from users table first
     const { data: userData, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', authUser.id)
       .maybeSingle();
 
-    if (error) {
+    if (error && error.code !== 'PGRST116') {
       console.error('Error fetching user data:', error);
       return {
         user: {
           ...authUser,
-          role: undefined,
-          name: undefined,
+          role,
+          name,
           companyId: undefined
         } as AuthUser,
-        error: 'Failed to load user profile. Please try refreshing the page.'
+        error: 'Failed to load user profile. Using demo data.'
       };
     }
 
     if (!userData) {
-      console.log('User not found in users table, creating profile...');
-      
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: authUser.id,
-          email: authUser.email,
-          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-          role: 'founder'
-        })
-        .select()
-        .single();
+      // Create user profile if it doesn't exist
+      try {
+        const { data: newUser, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: authUser.id,
+            email: authUser.email,
+            name: name,
+            role: role
+          })
+          .select()
+          .single();
 
-      if (insertError) {
-        console.error('Error creating user profile:', insertError);
-        return {
-          user: {
-            ...authUser,
-            role: 'founder' as UserRole,
-            name: authUser.email?.split('@')[0],
-            companyId: undefined
-          } as AuthUser,
-          error: 'Failed to create user profile. Please try refreshing the page.'
-        };
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+        } else {
+          console.log('User profile created successfully:', newUser);
+        }
+      } catch (insertError) {
+        console.error('Failed to create user profile:', insertError);
       }
-
-      console.log('User profile created successfully:', newUser);
-      return {
-        user: {
-          ...authUser,
-          role: newUser.role as UserRole,
-          name: newUser.name,
-          companyId: newUser.company_id
-        } as AuthUser,
-        error: null
-      };
-    } else {
-      console.log('User data fetched successfully:', userData);
-      return {
-        user: {
-          ...authUser,
-          role: userData.role as UserRole,
-          name: userData.name,
-          companyId: userData.company_id
-        } as AuthUser,
-        error: null
-      };
     }
+
+    return {
+      user: {
+        ...authUser,
+        role: userData?.role as UserRole || role,
+        name: userData?.name || name,
+        companyId: userData?.company_id
+      } as AuthUser,
+      error: null
+    };
   } catch (error) {
     console.error('Error in fetchUserData:', error);
     return {
       user: {
         ...authUser,
-        role: undefined,
-        name: undefined,
+        role: 'founder' as UserRole,
+        name: authUser.email?.split('@')[0] || 'User',
         companyId: undefined
       } as AuthUser,
       error: 'An unexpected error occurred while loading your profile.'
@@ -100,7 +103,6 @@ export const performLogin = async (email: string, password: string): Promise<voi
     cleanupAuthState();
     await supabase.auth.signOut();
   } catch (error) {
-    // Ignore sign out errors during login
     console.log('Previous session cleanup:', error);
   }
 

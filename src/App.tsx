@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from './context/AuthContext';
+import GlobalErrorBoundary from './components/error/GlobalErrorBoundary';
 import RoleBasedRoute from './components/layout/RoleBasedRoute';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
@@ -21,103 +22,121 @@ import FundraisingTracker from './components/fundraising/FundraisingTracker';
 import AdminDashboard from './components/admin/AdminDashboard';
 import Integrations from './pages/Integrations';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Don't retry on 4xx errors
+        if (error?.status >= 400 && error?.status < 500) {
+          return false;
+        }
+        // Retry up to 3 times for other errors
+        return failureCount < 3;
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+
 function App() {
   return (
-    <QueryClientProvider client={new QueryClient()}>
-      <AuthProvider>
-        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-          <Router>
-            <div className="min-h-screen bg-background">
-              <Routes>
-                <Route path="/" element={<Layout><Outlet /></Layout>}>
-                  <Route index element={<Dashboard />} />
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+            <Router>
+              <div className="min-h-screen bg-background">
+                <Routes>
+                  <Route path="/" element={<Layout><Outlet /></Layout>}>
+                    <Route index element={<Dashboard />} />
+                    
+                    {/* Portfolio Routes */}
+                    <Route path="/portfolio" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                        <EnhancedPortfolioView />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Company Routes */}
+                    <Route path="/companies" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                        <EnhancedPortfolioView />
+                      </RoleBasedRoute>
+                    } />
+                    <Route path="/companies/:id" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                        <CompanyProfile />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Updates Routes */}
+                    <Route path="/updates" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                        <SubmitUpdateForm />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Notes Routes */}
+                    <Route path="/notes" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                        <NotesView />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Analytics Routes */}
+                    <Route path="/analytics" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                        <AnalyticsDashboard />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Meetings Routes */}
+                    <Route path="/meetings" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
+                        <MeetingsCalendar />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Admin Routes */}
+                    <Route path="/admin" element={
+                      <RoleBasedRoute roles={['admin']}>
+                        <AdminDashboard />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Deal Tracker Routes */}
+                    <Route path="/deals" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                        <DealTracker />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Fundraising Routes */}
+                    <Route path="/fundraising" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                        <FundraisingTracker />
+                      </RoleBasedRoute>
+                    } />
+                    
+                    {/* Integration Routes */}
+                    <Route path="/integrations" element={
+                      <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
+                        <Integrations />
+                      </RoleBasedRoute>
+                    } />
+                  </Route>
                   
-                  {/* Portfolio Routes */}
-                  <Route path="/portfolio" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <EnhancedPortfolioView />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Company Routes - Fixed routing */}
-                  <Route path="/companies" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <EnhancedPortfolioView />
-                    </RoleBasedRoute>
-                  } />
-                  <Route path="/companies/:id" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <CompanyProfile />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Updates Routes - Fixed to show form properly */}
-                  <Route path="/updates" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <SubmitUpdateForm />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Notes Routes */}
-                  <Route path="/notes" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <NotesView />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Analytics Routes */}
-                  <Route path="/analytics" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <AnalyticsDashboard />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Meetings Routes */}
-                  <Route path="/meetings" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
-                      <MeetingsCalendar />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Admin Routes - Fixed role checking */}
-                  <Route path="/admin" element={
-                    <RoleBasedRoute roles={['admin']}>
-                      <AdminDashboard />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Deal Tracker Routes */}
-                  <Route path="/deals" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <DealTracker />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Fundraising Routes */}
-                  <Route path="/fundraising" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <FundraisingTracker />
-                    </RoleBasedRoute>
-                  } />
-                  
-                  {/* Integration Routes */}
-                  <Route path="/integrations" element={
-                    <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
-                      <Integrations />
-                    </RoleBasedRoute>
-                  } />
-                </Route>
-                
-                {/* Auth Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/auth" element={<AuthRedirect />} />
-              </Routes>
-            </div>
-          </Router>
-          <Toaster />
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/auth" element={<AuthRedirect />} />
+                </Routes>
+              </div>
+            </Router>
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   );
 }
 
