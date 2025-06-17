@@ -101,7 +101,7 @@ export const performLogin = async (email: string, password: string): Promise<voi
   // Clean up any existing auth state first
   try {
     cleanupAuthState();
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'global' });
   } catch (error) {
     console.log('Previous session cleanup:', error);
   }
@@ -123,7 +123,7 @@ export const performLogout = async (): Promise<string | null> => {
   try {
     console.log('Performing logout...');
     cleanupAuthState();
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
     if (error) {
       console.error('Logout error:', error);
       return 'Failed to log out completely. Please clear your browser cache.';

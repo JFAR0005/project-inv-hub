@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
 import { AuthUser, UserRole } from './auth/authTypes';
-import { fetchUserData, performLogin, performLogout } from './auth/authUtils';
+import { fetchUserData } from './auth/authUtils';
 import { useAuthOperations } from './auth/useAuthOperations';
 import { hasPermission as checkPermission } from './auth/rolePermissions';
 

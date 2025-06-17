@@ -2,6 +2,7 @@
 import { UserRole } from './authTypes';
 import { AuthUser } from './authTypes';
 import { performLogin, performLogout } from './authUtils';
+import { cleanupAuthState } from '@/integrations/supabase/client';
 
 export const useAuthOperations = (
   user: AuthUser | null,
@@ -16,6 +17,7 @@ export const useAuthOperations = (
     
     try {
       await performLogin(email, password);
+      // Don't set loading to false here - let auth state change handle it
     } catch (error: any) {
       setIsLoading(false);
       throw error; // Re-throw to let the component handle the specific error
@@ -30,13 +32,20 @@ export const useAuthOperations = (
       if (errorMessage) {
         setError(errorMessage);
       }
+      // Force page reload for complete cleanup
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
     } catch (error) {
       console.error('Logout error:', error);
       setError('An error occurred while logging out.');
-    } finally {
-      // Always clear local state
+      // Always clear local state even on error
       setUser(null);
       setOriginalRole(null);
+      cleanupAuthState();
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
     }
   };
 

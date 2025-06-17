@@ -44,8 +44,12 @@ const LoginForm = () => {
       return 'Network error. Please check your connection and try again.';
     }
     
+    if (errorMessage.includes('Auth session missing')) {
+      return 'Authentication session expired. Please try logging in again.';
+    }
+    
     // Generic fallback with demo info
-    return 'Login failed. For demo, use any of the sample accounts below with password "demo".';
+    return 'Login failed. For demo, use any of the sample accounts below with password "demo123".';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,7 +79,7 @@ const LoginForm = () => {
         description: "Welcome back to Black Nova!",
       });
       
-      // Don't navigate here - let the auth state change handle it
+      // Navigation will be handled by auth state change and page reload
     } catch (error: any) {
       console.error("Login error:", error);
       const errorMessage = getErrorMessage(error);
@@ -86,6 +90,36 @@ const LoginForm = () => {
         description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDemoLogin = async (role: 'admin' | 'partner' | 'founder' | 'capital') => {
+    const demoCredentials = {
+      admin: { email: 'admin@blacknova.vc', password: 'demo123' },
+      partner: { email: 'partner@blacknova.vc', password: 'demo123' },
+      founder: { email: 'founder@blacknova.vc', password: 'demo123' },
+      capital: { email: 'capital@blacknova.vc', password: 'demo123' }
+    };
+
+    const credentials = demoCredentials[role];
+    setEmail(credentials.email);
+    setPassword(credentials.password);
+    
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await login(credentials.email, credentials.password);
+      toast({
+        title: "Demo Login Successful",
+        description: `Logged in as ${role}`,
+      });
+    } catch (error: any) {
+      console.error('Demo login error:', error);
+      const errorMessage = getErrorMessage(error);
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -152,14 +186,55 @@ const LoginForm = () => {
         </Button>
       </form>
       
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or try demo accounts
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          onClick={() => handleDemoLogin('admin')}
+          disabled={isSubmitting}
+          size="sm"
+        >
+          Demo Admin
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleDemoLogin('capital')}
+          disabled={isSubmitting}
+          size="sm"
+        >
+          Demo Capital
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleDemoLogin('partner')}
+          disabled={isSubmitting}
+          size="sm"
+        >
+          Demo Partner
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleDemoLogin('founder')}
+          disabled={isSubmitting}
+          size="sm"
+        >
+          Demo Founder
+        </Button>
+      </div>
+      
       <div className="text-center text-sm text-muted-foreground">
-        <p>Demo accounts (password: 'demo'):</p>
-        <ul className="mt-1 space-y-1">
-          <li>admin@blacknova.vc (Admin)</li>
-          <li>capital@blacknova.vc (Capital Team)</li>
-          <li>partner@blacknova.vc (Partner)</li>
-          <li>founder@blacknova.vc (Founder)</li>
-        </ul>
+        <p>Demo credentials: password "demo123" for all accounts</p>
+        <p className="mt-1">Or manually enter: admin@blacknova.vc / demo123</p>
       </div>
     </div>
   );
