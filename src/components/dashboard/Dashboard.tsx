@@ -47,8 +47,8 @@ const Dashboard = () => {
       bgColor: 'bg-green-50',
     },
     {
-      title: 'Total Updates',
-      value: healthData?.totalUpdates || 0,
+      title: 'Recent Updates',
+      value: healthData?.recentUpdates || 0,
       icon: Activity,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',

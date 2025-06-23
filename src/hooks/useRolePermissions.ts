@@ -11,17 +11,18 @@ export function useRolePermissions() {
     return {
       canViewCompany: (companyId: string) => {
         if (role === 'admin' || role === 'partner') return true;
-        if (role === 'founder') return user?.company_id === companyId;
+        if (role === 'founder') return user?.companyId === companyId;
         return false;
       },
       canEditCompany: (companyId: string) => {
         if (role === 'admin') return true;
-        if (role === 'founder') return user?.company_id === companyId;
+        if (role === 'founder') return user?.companyId === companyId;
         return false;
       },
       canViewAllCompanies: role === 'admin' || role === 'partner',
       canManageUsers: role === 'admin',
       canViewFinancials: role === 'admin' || role === 'partner',
+      userRole: role,
     };
   }, [user]);
 
