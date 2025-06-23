@@ -1,48 +1,54 @@
 
-import React from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import ErrorBoundary from '@/components/error/ErrorBoundary';
+import { AlertTriangle } from 'lucide-react';
 
-interface PortfolioErrorBoundaryProps {
-  children: React.ReactNode;
+interface Props {
+  children: ReactNode;
 }
 
-const PortfolioErrorBoundary: React.FC<PortfolioErrorBoundaryProps> = ({ children }) => {
-  return (
-    <ErrorBoundary
-      fallback={
-        <Card className="max-w-2xl mx-auto mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              Portfolio Error
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              There was an error loading your portfolio data. This could be due to a temporary network issue or invalid data.
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+class PortfolioErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Portfolio error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Something went wrong</h3>
+            <p className="text-muted-foreground mb-4">
+              There was an error loading the portfolio data.
             </p>
-            <div className="space-y-2 text-sm">
-              <p><strong>What you can try:</strong></p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Refresh the page</li>
-                <li>Check your internet connection</li>
-                <li>Clear your browser cache</li>
-                <li>Contact support if the issue persists</li>
-              </ul>
-            </div>
-            <Button onClick={() => window.location.reload()}>
-              Refresh Page
+            <Button 
+              onClick={() => this.setState({ hasError: false, error: undefined })}
+            >
+              Try again
             </Button>
           </CardContent>
         </Card>
-      }
-    >
-      {children}
-    </ErrorBoundary>
-  );
-};
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default PortfolioErrorBoundary;

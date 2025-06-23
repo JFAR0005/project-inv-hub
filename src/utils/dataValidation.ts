@@ -47,7 +47,7 @@ export const truncateText = (text: string, maxLength: number): string => {
   return text.substring(0, maxLength) + '...';
 };
 
-// Add missing exports for search functionality
+// Search functionality schemas and validation
 export const searchQuerySchema = z.object({
   query: z.string().min(1, 'Search query is required'),
   filters: z.object({

@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, TrendingUp } from 'lucide-react';
-import PortfolioTable from '../PortfolioTable';
+import { AlertTriangle, TrendingUp, Building } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface CompanyWithHealth {
   id: string;
@@ -44,8 +45,8 @@ const PortfolioHealthTabs: React.FC<PortfolioHealthTabsProps> = ({
   activeFilter,
   setActiveFilter
 }) => {
-  const filteredCompanies = React.useMemo(() => {
-    switch (activeFilter) {
+  const getFilteredCompanies = (filter: string) => {
+    switch (filter) {
       case 'needs-update':
         return companies.filter(c => c.needsUpdate);
       case 'raising':
@@ -53,55 +54,102 @@ const PortfolioHealthTabs: React.FC<PortfolioHealthTabsProps> = ({
       default:
         return companies;
     }
-  }, [companies, activeFilter]);
+  };
+
+  const CompanyRow = ({ company }: { company: CompanyWithHealth }) => (
+    <div className="flex items-center justify-between p-4 border rounded-lg">
+      <div className="flex-1">
+        <h3 className="font-semibold">{company.name}</h3>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+          {company.sector && <span>{company.sector}</span>}
+          {company.stage && <span>{company.stage}</span>}
+          <span>
+            Last update: {company.latest_update 
+              ? format(new Date(company.latest_update.submitted_at), 'MMM d, yyyy')
+              : 'Never'}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {company.needsUpdate && (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Needs Update
+          </Badge>
+        )}
+        {company.isRaising && (
+          <Badge variant="default" className="flex items-center gap-1">
+            <TrendingUp className="h-3 w-3" />
+            Raising
+          </Badge>
+        )}
+        {!company.needsUpdate && !company.isRaising && (
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <Building className="h-3 w-3" />
+            Healthy
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <Tabs value={activeFilter} onValueChange={(value) => setActiveFilter(value as typeof activeFilter)} className="w-full">
+    <Tabs value={activeFilter} onValueChange={(value) => setActiveFilter(value as any)}>
       <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="all" className="flex items-center gap-2">
-          All Companies
-          <Badge variant="secondary">{metrics.total}</Badge>
+        <TabsTrigger value="all">
+          All Companies ({metrics.total})
         </TabsTrigger>
-        <TabsTrigger value="needs-update" className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
-          Need Updates
-          <Badge variant="destructive">{metrics.needingUpdates}</Badge>
+        <TabsTrigger value="needs-update">
+          Need Updates ({metrics.needingUpdates})
         </TabsTrigger>
-        <TabsTrigger value="raising" className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" />
-          Raising
-          <Badge className="bg-green-500">{metrics.raising}</Badge>
+        <TabsTrigger value="raising">
+          Raising ({metrics.raising})
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="all" className="space-y-4">
-        <PortfolioTable companies={filteredCompanies} />
+      <TabsContent value="all" className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>All Portfolio Companies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {getFilteredCompanies('all').map(company => (
+                <CompanyRow key={company.id} company={company} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </TabsContent>
 
-      <TabsContent value="needs-update" className="space-y-4">
-        <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-            <h3 className="font-semibold text-red-800 dark:text-red-400">Companies Requiring Attention</h3>
-          </div>
-          <p className="text-sm text-red-700 dark:text-red-300">
-            These companies haven't submitted updates in over 30 days. Consider reaching out to founders.
-          </p>
-        </div>
-        <PortfolioTable companies={filteredCompanies} />
+      <TabsContent value="needs-update" className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Companies Needing Updates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {getFilteredCompanies('needs-update').map(company => (
+                <CompanyRow key={company.id} company={company} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </TabsContent>
 
-      <TabsContent value="raising" className="space-y-4">
-        <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-5 w-5 text-green-600" />
-            <h3 className="font-semibold text-green-800 dark:text-green-400">Active Fundraising</h3>
-          </div>
-          <p className="text-sm text-green-700 dark:text-green-300">
-            These companies are currently raising capital. Monitor progress and provide support.
-          </p>
-        </div>
-        <PortfolioTable companies={filteredCompanies} />
+      <TabsContent value="raising" className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Companies Currently Raising</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {getFilteredCompanies('raising').map(company => (
+                <CompanyRow key={company.id} company={company} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );

@@ -1,38 +1,44 @@
 
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
-interface UseRetryableQueryOptions<T> extends Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn'> {
-  maxRetries?: number;
+interface RetryableQueryResult<T> {
+  data: T | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  manualRetry: () => void;
 }
 
-export const useRetryableQuery = <T>(
+export function useRetryableQuery<T>(
   queryKey: string[],
   queryFn: () => Promise<T>,
-  options: UseRetryableQueryOptions<T> = {}
-) => {
+  options?: Partial<UseQueryOptions<T, Error>> & { maxRetries?: number }
+): RetryableQueryResult<T> {
   const [retryCount, setRetryCount] = useState(0);
-  const { maxRetries = 3, ...queryOptions } = options;
+  const maxRetries = options?.maxRetries || 3;
 
-  const query = useQuery({
-    queryKey,
+  const {
+    data,
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: [...queryKey, retryCount],
     queryFn,
-    retry: (failureCount) => {
-      console.log(`Query failed, attempt ${failureCount + 1}/${maxRetries + 1}`);
-      return failureCount < maxRetries;
-    },
-    ...queryOptions,
+    retry: maxRetries,
+    staleTime: options?.staleTime || 0,
+    enabled: options?.enabled !== false,
   });
 
-  const manualRetry = () => {
-    console.log('Manual retry triggered');
+  const manualRetry = useCallback(() => {
     setRetryCount(prev => prev + 1);
-    query.refetch();
-  };
+    refetch();
+  }, [refetch]);
 
   return {
-    ...query,
-    manualRetry,
-    retryCount,
+    data,
+    isLoading,
+    error: error as Error | null,
+    manualRetry
   };
-};
+}

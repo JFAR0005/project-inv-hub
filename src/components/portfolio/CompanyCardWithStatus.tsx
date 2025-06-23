@@ -1,18 +1,15 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ExternalLink, Building, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
-import UpdateStatusBadge from './UpdateStatusBadge';
+import { AlertTriangle, TrendingUp, Building } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface CompanyWithHealth {
   id: string;
   name: string;
   sector?: string;
   stage?: string;
-  location?: string;
   arr?: number;
   latest_update?: {
     submitted_at: string;
@@ -30,106 +27,58 @@ interface CompanyCardWithStatusProps {
 }
 
 const CompanyCardWithStatus: React.FC<CompanyCardWithStatusProps> = ({ company }) => {
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toLocaleString()}`;
+  const getStatusColor = () => {
+    if (company.needsUpdate) return 'destructive';
+    if (company.isRaising) return 'default';
+    return 'secondary';
   };
 
-  const getStageColor = (stage?: string) => {
-    switch (stage?.toLowerCase()) {
-      case 'seed': return 'bg-blue-100 text-blue-800';
-      case 'series a': return 'bg-green-100 text-green-800';
-      case 'series b': return 'bg-purple-100 text-purple-800';
-      case 'series c': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getRaiseStatusColor = (status?: string) => {
-    switch (status?.toLowerCase()) {
-      case 'actively fundraising': return 'bg-red-100 text-red-800';
-      case 'preparing to raise': return 'bg-yellow-100 text-yellow-800';
-      case 'not raising': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getStatusIcon = () => {
+    if (company.needsUpdate) return <AlertTriangle className="h-4 w-4" />;
+    if (company.isRaising) return <TrendingUp className="h-4 w-4" />;
+    return <Building className="h-4 w-4" />;
   };
 
   return (
-    <Card className={`h-full transition-shadow hover:shadow-md ${company.needsUpdate ? 'border-red-200' : ''}`}>
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <CardTitle className="text-lg">
-            <Link 
-              to={`/company/${company.id}`}
-              className="hover:underline flex items-center gap-2"
-            >
-              <Building className="h-4 w-4" />
-              {company.name}
-            </Link>
-          </CardTitle>
-          <UpdateStatusBadge 
-            lastUpdateDate={company.latest_update?.submitted_at}
-            className="text-xs"
-          />
-        </div>
-        
-        <div className="flex flex-wrap gap-2 mt-2">
-          {company.stage && (
-            <Badge className={getStageColor(company.stage)} variant="outline">
-              {company.stage}
-            </Badge>
-          )}
-          {company.latest_update?.raise_status && (
-            <Badge className={getRaiseStatusColor(company.latest_update.raise_status)} variant="outline">
-              {company.latest_update.raise_status}
-            </Badge>
-          )}
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg">{company.name}</CardTitle>
+          <Badge variant={getStatusColor()} className="flex items-center gap-1">
+            {getStatusIcon()}
+            {company.needsUpdate ? 'Needs Update' : 
+             company.isRaising ? 'Raising' : 'Healthy'}
+          </Badge>
         </div>
       </CardHeader>
-      
-      <CardContent className="space-y-3">
-        {company.location && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-3 w-3" />
-            {company.location}
-          </div>
-        )}
-        
-        {company.sector && (
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium">Sector:</span> {company.sector}
-          </div>
-        )}
-        
-        {company.arr && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">ARR:</span>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold">{formatCurrency(company.arr)}</span>
-              {company.latest_update?.arr && company.latest_update.arr !== company.arr && (
-                <div className="flex items-center">
-                  {company.latest_update.arr > company.arr ? (
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                  )}
-                </div>
-              )}
+      <CardContent>
+        <div className="space-y-2">
+          {company.sector && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Sector:</span>
+              <span>{company.sector}</span>
             </div>
+          )}
+          {company.stage && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Stage:</span>
+              <span>{company.stage}</span>
+            </div>
+          )}
+          {company.arr && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">ARR:</span>
+              <span>${company.arr.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Last Update:</span>
+            <span>
+              {company.latest_update 
+                ? format(new Date(company.latest_update.submitted_at), 'MMM d')
+                : 'Never'}
+            </span>
           </div>
-        )}
-        
-        <div className="pt-2 border-t">
-          <Button variant="outline" size="sm" asChild className="w-full">
-            <Link to={`/company/${company.id}`} className="flex items-center gap-2">
-              View Details
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          </Button>
         </div>
       </CardContent>
     </Card>

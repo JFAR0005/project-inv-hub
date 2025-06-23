@@ -1,28 +1,27 @@
 
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-interface CompanyNotFoundProps {
-  message?: string;
-}
-
-const CompanyNotFound: React.FC<CompanyNotFoundProps> = ({ 
-  message = "The company you're looking for doesn't exist or you don't have permission to view it." 
-}) => {
+const CompanyNotFound: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="text-center py-12">
-      <Building className="h-16 w-16 mx-auto mb-6 text-muted-foreground opacity-50" />
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">Company Not Found</h2>
-      <p className="text-gray-600 mb-6 max-w-md mx-auto">{message}</p>
-      <Button onClick={() => navigate('/portfolio')} variant="outline">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Portfolio
-      </Button>
-    </div>
+    <Card>
+      <CardContent className="py-12 text-center">
+        <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-medium mb-2">Company Not Found</h3>
+        <p className="text-muted-foreground mb-6">
+          The company you're looking for doesn't exist or you don't have permission to view it.
+        </p>
+        <Button onClick={() => navigate('/portfolio')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Portfolio
+        </Button>
+      </CardContent>
+    </Card>
   );
 };
 

@@ -1,13 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, Activity, Users, Building, History, TrendingUp } from 'lucide-react';
-import CompanyOverview from './CompanyOverview';
-import CompanyMetrics from './CompanyMetrics';
-import CompanyDocuments from './CompanyDocuments';
-import CompanyUpdates from './CompanyUpdates';
-import CompanyUpdateHistory from './CompanyUpdateHistory';
-import UpdateAnalytics from './UpdateAnalytics';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Database } from '@/integrations/supabase/types';
 
 type Company = Database['public']['Tables']['companies']['Row'];
@@ -20,97 +14,90 @@ interface CompanyProfileTabsProps {
 const CompanyProfileTabs: React.FC<CompanyProfileTabsProps> = ({ company, companyId }) => {
   return (
     <Tabs defaultValue="overview" className="w-full">
-      <TabsList className="grid w-full grid-cols-7">
-        <TabsTrigger value="overview" className="flex items-center gap-2">
-          <Building className="h-4 w-4" />
-          Overview
-        </TabsTrigger>
-        <TabsTrigger value="metrics" className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4" />
-          Metrics
-        </TabsTrigger>
-        <TabsTrigger value="documents" className="flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          Documents
-        </TabsTrigger>
-        <TabsTrigger value="updates" className="flex items-center gap-2">
-          <Activity className="h-4 w-4" />
-          Updates
-        </TabsTrigger>
-        <TabsTrigger value="history" className="flex items-center gap-2">
-          <History className="h-4 w-4" />
-          History
-        </TabsTrigger>
-        <TabsTrigger value="analytics" className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" />
-          Analytics
-        </TabsTrigger>
-        <TabsTrigger value="team" className="flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          Team
-        </TabsTrigger>
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="metrics">Metrics</TabsTrigger>
+        <TabsTrigger value="notes">Notes</TabsTrigger>
+        <TabsTrigger value="meetings">Meetings</TabsTrigger>
       </TabsList>
-
-      <TabsContent value="overview" className="mt-6">
-        <CompanyOverview company={company} companyId={companyId} />
+      
+      <TabsContent value="overview" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-medium mb-2">Financial Metrics</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>ARR:</span>
+                    <span>${company.arr?.toLocaleString() || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>MRR:</span>
+                    <span>${company.mrr?.toLocaleString() || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Burn Rate:</span>
+                    <span>${company.burn_rate?.toLocaleString() || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Runway:</span>
+                    <span>{company.runway || 'N/A'} months</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">Team</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Headcount:</span>
+                    <span>{company.headcount || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Churn Rate:</span>
+                    <span>{company.churn_rate ? `${company.churn_rate}%` : 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </TabsContent>
-
-      <TabsContent value="metrics" className="mt-6">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Key Metrics</h2>
-            <p className="text-muted-foreground">Financial and operational performance indicators</p>
-          </div>
-          <CompanyMetrics companyId={companyId} />
-        </div>
+      
+      <TabsContent value="metrics">
+        <Card>
+          <CardHeader>
+            <CardTitle>Performance Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Metrics dashboard coming soon...</p>
+          </CardContent>
+        </Card>
       </TabsContent>
-
-      <TabsContent value="documents" className="mt-6">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Documents</h2>
-            <p className="text-muted-foreground">Files and resources related to {company.name}</p>
-          </div>
-          <CompanyDocuments companyId={companyId} />
-        </div>
+      
+      <TabsContent value="notes">
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Notes section coming soon...</p>
+          </CardContent>
+        </Card>
       </TabsContent>
-
-      <TabsContent value="updates" className="mt-6">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Recent Updates</h2>
-            <p className="text-muted-foreground">Latest founder updates from the company</p>
-          </div>
-          <CompanyUpdates companyId={companyId} />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="history" className="mt-6">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Update History</h2>
-            <p className="text-muted-foreground">Complete history of all founder updates with filtering and search</p>
-          </div>
-          <CompanyUpdateHistory companyId={companyId} />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="analytics" className="mt-6">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Update Analytics</h2>
-            <p className="text-muted-foreground">Trends and insights from historical update data</p>
-          </div>
-          <UpdateAnalytics companyId={companyId} />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="team" className="mt-6">
-        <div className="text-center py-12 text-muted-foreground">
-          <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-medium mb-2">Team Management</h3>
-          <p>Team member management will be available soon</p>
-        </div>
+      
+      <TabsContent value="meetings">
+        <Card>
+          <CardHeader>
+            <CardTitle>Meetings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Meetings section coming soon...</p>
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );

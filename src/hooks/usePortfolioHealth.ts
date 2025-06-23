@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { differenceInDays, parseISO } from 'date-fns';
 
 interface CompanyWithHealth {
   id: string;
@@ -24,72 +25,67 @@ interface PortfolioHealthData {
   totalCompanies: number;
   companiesNeedingUpdate: number;
   companiesRaising: number;
-  totalUpdates: number;
 }
 
-export const usePortfolioHealth = () => {
+export function usePortfolioHealth() {
   return useQuery({
     queryKey: ['portfolio-health'],
     queryFn: async (): Promise<PortfolioHealthData> => {
-      // Fetch companies
-      const { data: companiesData, error } = await supabase
+      // Fetch companies with their latest updates
+      const { data: companies, error: companiesError } = await supabase
         .from('companies')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
+        .select('*');
 
-      // Fetch all updates to count total
-      const { data: allUpdates, error: updatesError } = await supabase
+      if (companiesError) throw companiesError;
+
+      // Fetch latest founder updates for each company
+      const { data: updates, error: updatesError } = await supabase
         .from('founder_updates')
-        .select('id');
-      
-      if (updatesError) throw updatesError;
-      
-      // For each company, fetch its latest update
-      const companiesWithUpdates = await Promise.all(
-        (companiesData || []).map(async (company) => {
-          const { data: updates } = await supabase
-            .from('founder_updates')
-            .select('submitted_at, arr, mrr, raise_status')
-            .eq('company_id', company.id)
-            .order('submitted_at', { ascending: false })
-            .limit(1);
-          
-          const latestUpdate = updates && updates.length > 0 ? updates[0] : null;
-          
-          // Calculate health indicators
-          const daysSinceUpdate = latestUpdate 
-            ? Math.floor((new Date().getTime() - new Date(latestUpdate.submitted_at).getTime()) / (1000 * 60 * 60 * 24))
-            : 999;
-          
-          const needsUpdate = !latestUpdate || daysSinceUpdate > 30;
-          const isRaising = latestUpdate?.raise_status?.toLowerCase().includes('raising') || 
-                           latestUpdate?.raise_status?.toLowerCase().includes('active') || false;
-          
-          return {
-            ...company,
-            latest_update: latestUpdate,
-            needsUpdate,
-            isRaising,
-            daysSinceUpdate
-          };
-        })
-      );
+        .select('*')
+        .order('submitted_at', { ascending: false });
 
-      // Calculate summary stats
-      const totalCompanies = companiesWithUpdates.length;
-      const companiesNeedingUpdate = companiesWithUpdates.filter(c => c.needsUpdate).length;
-      const companiesRaising = companiesWithUpdates.filter(c => c.isRaising).length;
-      const totalUpdates = allUpdates?.length || 0;
-      
+      if (updatesError) throw updatesError;
+
+      // Process companies with health data
+      const companiesWithHealth: CompanyWithHealth[] = (companies || []).map(company => {
+        const latestUpdate = updates?.find(update => update.company_id === company.id);
+        
+        const daysSinceUpdate = latestUpdate 
+          ? differenceInDays(new Date(), parseISO(latestUpdate.submitted_at))
+          : 999;
+
+        const needsUpdate = daysSinceUpdate > 30; // 30 days threshold
+        const isRaising = latestUpdate?.raise_status === 'raising';
+
+        return {
+          id: company.id,
+          name: company.name,
+          sector: company.sector,
+          stage: company.stage,
+          arr: company.arr,
+          latest_update: latestUpdate ? {
+            submitted_at: latestUpdate.submitted_at,
+            arr: latestUpdate.arr,
+            mrr: latestUpdate.mrr,
+            raise_status: latestUpdate.raise_status,
+          } : undefined,
+          needsUpdate,
+          isRaising,
+          daysSinceUpdate
+        };
+      });
+
+      const totalCompanies = companiesWithHealth.length;
+      const companiesNeedingUpdate = companiesWithHealth.filter(c => c.needsUpdate).length;
+      const companiesRaising = companiesWithHealth.filter(c => c.isRaising).length;
+
       return {
-        companies: companiesWithUpdates,
+        companies: companiesWithHealth,
         totalCompanies,
         companiesNeedingUpdate,
-        companiesRaising,
-        totalUpdates
+        companiesRaising
       };
     },
+    staleTime: 60000, // 1 minute
   });
-};
+}

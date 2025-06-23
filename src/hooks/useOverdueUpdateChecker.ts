@@ -1,61 +1,15 @@
 
 import { useEffect } from 'react';
-import { usePortfolioHealth } from './usePortfolioHealth';
-import { useNotificationTrigger } from './useNotificationTrigger';
-import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
-export const useOverdueUpdateChecker = () => {
-  const { data: portfolioData } = usePortfolioHealth();
-  const { notifyUpdateOverdue } = useNotificationTrigger();
-  const { user } = useAuth();
+export function useOverdueUpdateChecker() {
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Only run for admin/partner roles
-    if (!user || !['admin', 'partner'].includes(user.role || '')) {
-      return;
-    }
+    // This hook can be used to periodically check for overdue updates
+    // For now, it's a placeholder that could be extended with actual checking logic
+    console.log('Overdue update checker initialized');
+  }, []);
 
-    if (!portfolioData?.companies) {
-      return;
-    }
-
-    const checkOverdueUpdates = async () => {
-      console.log('Checking for overdue updates...');
-      
-      const overdueCompanies = portfolioData.companies.filter(company => 
-        company.needsUpdate && company.daysSinceUpdate > 30
-      );
-
-      for (const company of overdueCompanies) {
-        // Check if we've already notified recently (to avoid spam)
-        const lastNotifiedKey = `overdue_notified_${company.id}`;
-        const lastNotified = localStorage.getItem(lastNotifiedKey);
-        const daysSinceNotification = lastNotified 
-          ? Math.floor((Date.now() - parseInt(lastNotified)) / (1000 * 60 * 60 * 24))
-          : 999;
-
-        // Only notify if we haven't notified in the last 7 days
-        if (daysSinceNotification >= 7) {
-          console.log(`Sending overdue notification for ${company.name}`);
-          
-          const success = await notifyUpdateOverdue(
-            company.id,
-            company.name,
-            company.daysSinceUpdate,
-            company.latest_update?.submitted_at || null
-          );
-
-          if (success) {
-            localStorage.setItem(lastNotifiedKey, Date.now().toString());
-          }
-        }
-      }
-    };
-
-    // Check immediately and then every hour
-    checkOverdueUpdates();
-    const interval = setInterval(checkOverdueUpdates, 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [portfolioData, notifyUpdateOverdue, user]);
-};
+  return null;
+}
