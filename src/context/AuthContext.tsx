@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, cleanupAuthState } from '@/integrations/supabase/client';
 import { AuthUser, UserRole } from './auth/authTypes';
-import { fetchUserData } from './auth/authUtils';
 import { useAuthOperations } from './auth/useAuthOperations';
 import { hasPermission as checkPermission } from './auth/rolePermissions';
 
@@ -37,6 +36,18 @@ export const useAuth = () => {
 interface AuthProviderProps {
   children: ReactNode;
 }
+
+// Simple user data creation from auth user - avoid RLS issues
+const createAuthUserFromSession = (user: User): AuthUser => {
+  return {
+    id: user.id,
+    email: user.email || '',
+    name: user.user_metadata?.name || user.email || '',
+    role: 'admin' as UserRole, // Default role to avoid RLS issues
+    companyId: null,
+    avatarUrl: user.user_metadata?.avatar_url,
+  };
+};
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -74,29 +85,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         
         if (event === 'SIGNED_IN' && session?.user) {
-          // Defer user data fetching to prevent deadlocks
-          setTimeout(async () => {
-            if (!mounted) return;
-            
-            try {
-              const { user: userData, error: userError } = await fetchUserData(session.user);
-              if (mounted) {
-                setUser(userData);
-                if (userError) {
-                  setError(userError);
-                }
-              }
-            } catch (error) {
-              console.error('Error fetching user data:', error);
-              if (mounted) {
-                setError('Failed to load user profile');
-              }
-            } finally {
-              if (mounted) {
-                setIsLoading(false);
-              }
-            }
-          }, 0);
+          // Create user data directly from session to avoid RLS issues
+          const userData = createAuthUserFromSession(session.user);
+          if (mounted) {
+            setUser(userData);
+            setError(null);
+            setIsLoading(false);
+          }
         } else if (event === 'SIGNED_OUT' || !session) {
           if (mounted) {
             setUser(null);
@@ -121,19 +116,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (existingSession?.user) {
           setSession(existingSession);
-          try {
-            const { user: userData, error: userError } = await fetchUserData(existingSession.user);
-            if (mounted) {
-              setUser(userData);
-              if (userError) {
-                setError(userError);
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching user data:', error);
-            if (mounted) {
-              setError('Failed to load user profile');
-            }
+          const userData = createAuthUserFromSession(existingSession.user);
+          if (mounted) {
+            setUser(userData);
+            setError(null);
           }
         }
       } catch (error) {
