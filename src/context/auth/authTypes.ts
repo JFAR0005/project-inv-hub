@@ -3,10 +3,13 @@ import { User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'partner' | 'founder' | 'capital_team';
 
-export interface AuthUser extends User {
-  role: UserRole;
+export interface AuthUser {
+  id: string;
+  email: string;
   name: string;
+  role?: UserRole;
   companyId?: string;
+  avatarUrl?: string;
 }
 
 export interface UserProfile {

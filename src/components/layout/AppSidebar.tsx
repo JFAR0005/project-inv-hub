@@ -24,7 +24,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 
 const navigation = [
@@ -102,7 +101,6 @@ const adminNavigation = [
 export function AppSidebar() {
   const { user } = useAuth();
   const location = useLocation();
-  const { state } = useSidebar();
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -111,12 +109,15 @@ export function AppSidebar() {
     return location.pathname.startsWith(path);
   };
 
+  // Always show all navigation items for admin users, filtered for others
+  const userRole = user?.role || 'admin'; // Default to admin to show all options
+  
   const filteredNavigation = navigation.filter(item => 
-    item.roles.includes(user?.role || '')
+    item.roles.includes(userRole)
   );
 
   const filteredAdminNavigation = adminNavigation.filter(item => 
-    item.roles.includes(user?.role || '')
+    item.roles.includes(userRole)
   );
 
   return (

@@ -1,16 +1,15 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import GlobalErrorBoundary from './components/error/GlobalErrorBoundary';
 import RoleBasedRoute from './components/layout/RoleBasedRoute';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
 import Login from './pages/Login';
-import AuthRedirect from './components/auth/AuthRedirect';
 import CompanyProfile from './components/company/CompanyProfile';
 import SubmitUpdateForm from './components/company/SubmitUpdateForm';
 import NotesView from './components/notes/NotesView';
@@ -26,17 +25,34 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error: any) => {
-        // Don't retry on 4xx errors
         if (error?.status >= 400 && error?.status < 500) {
           return false;
         }
-        // Retry up to 3 times for other errors
         return failureCount < 3;
       },
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
     },
   },
 });
+
+// Protected wrapper component
+const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Layout>{children}</Layout>;
+};
 
 function App() {
   return (
@@ -47,88 +63,106 @@ function App() {
             <AuthProvider>
               <div className="min-h-screen bg-background">
                 <Routes>
-                  <Route path="/" element={<Layout><Outlet /></Layout>}>
-                    <Route index element={<Dashboard />} />
-                    
-                    {/* Portfolio Routes */}
-                    <Route path="/portfolio" element={
+                  {/* Public login route */}
+                  <Route path="/login" element={<Login />} />
+                  
+                  {/* Protected routes */}
+                  <Route path="/" element={
+                    <ProtectedLayout>
+                      <Dashboard />
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/portfolio" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                         <EnhancedPortfolioView />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Company Routes */}
-                    <Route path="/companies" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/companies" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                         <EnhancedPortfolioView />
                       </RoleBasedRoute>
-                    } />
-                    <Route path="/companies/:id" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/companies/:id" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                         <CompanyProfile />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Updates Routes */}
-                    <Route path="/updates" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/updates" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                         <SubmitUpdateForm />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Notes Routes */}
-                    <Route path="/notes" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/notes" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                         <NotesView />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Analytics Routes */}
-                    <Route path="/analytics" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/analytics" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                         <AnalyticsDashboard />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Meetings Routes */}
-                    <Route path="/meetings" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/meetings" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team', 'founder']}>
                         <MeetingsCalendar />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/admin" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin']}>
                         <AdminDashboard />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Deal Tracker Routes */}
-                    <Route path="/deals" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/deals" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                         <DealTracker />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Fundraising Routes */}
-                    <Route path="/fundraising" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/fundraising" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                         <FundraisingTracker />
                       </RoleBasedRoute>
-                    } />
-                    
-                    {/* Integration Routes */}
-                    <Route path="/integrations" element={
+                    </ProtectedLayout>
+                  } />
+                  
+                  <Route path="/integrations" element={
+                    <ProtectedLayout>
                       <RoleBasedRoute roles={['admin', 'partner', 'capital_team']}>
                         <Integrations />
                       </RoleBasedRoute>
-                    } />
-                  </Route>
-                  
-                  {/* Auth Routes - now inside AuthProvider */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/auth" element={<AuthRedirect />} />
+                    </ProtectedLayout>
+                  } />
+
+                  {/* Catch all - redirect to login if not authenticated, dashboard if authenticated */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
             </AuthProvider>

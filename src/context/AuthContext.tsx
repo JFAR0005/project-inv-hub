@@ -37,13 +37,13 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Simple user data creation from auth user - avoid RLS issues
+// Simple user data creation from auth user
 const createAuthUserFromSession = (user: User): AuthUser => {
   return {
     id: user.id,
     email: user.email || '',
     name: user.user_metadata?.name || user.email || '',
-    role: 'admin' as UserRole, // Default role to avoid RLS issues
+    role: 'admin' as UserRole, // Default role
     companyId: null,
     avatarUrl: user.user_metadata?.avatar_url,
   };
@@ -85,7 +85,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         
         if (event === 'SIGNED_IN' && session?.user) {
-          // Create user data directly from session to avoid RLS issues
           const userData = createAuthUserFromSession(session.user);
           if (mounted) {
             setUser(userData);
