@@ -24,7 +24,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -101,7 +100,7 @@ const adminNavigation = [
 ];
 
 export function AppSidebar() {
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const { state } = useSidebar();
 
@@ -122,11 +121,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarTrigger className="m-2 self-end" />
-      
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredNavigation.map((item) => (
@@ -134,7 +131,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={isActive(item.href)}>
                     <Link to={item.href}>
                       <item.icon className="h-4 w-4" />
-                      {state !== "collapsed" && <span>{item.name}</span>}
+                      <span>{item.name}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -153,7 +150,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive(item.href)}>
                       <Link to={item.href}>
                         <item.icon className="h-4 w-4" />
-                        {state !== "collapsed" && <span>{item.name}</span>}
+                        <span>{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

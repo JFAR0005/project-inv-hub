@@ -74,16 +74,6 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {user?.name || user?.email}
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Here's what's happening with your portfolio today.
-        </p>
-      </div>
-
       {/* Notification Banner */}
       <NotificationBanner />
 
