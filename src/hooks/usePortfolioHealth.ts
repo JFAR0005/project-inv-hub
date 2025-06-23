@@ -2,6 +2,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface CompanyWithHealth {
+  id: string;
+  name: string;
+  sector?: string;
+  stage?: string;
+  arr?: number;
+  latest_update?: {
+    submitted_at: string;
+    arr?: number;
+    mrr?: number;
+    raise_status?: string;
+  };
+  needsUpdate: boolean;
+  isRaising: boolean;
+  daysSinceUpdate: number;
+}
+
 export interface PortfolioHealthData {
   totalCompanies: number;
   companiesNeedingUpdate: number;
@@ -9,6 +26,7 @@ export interface PortfolioHealthData {
   recentUpdates: number;
   averageRating: number;
   healthScore: number;
+  companies: CompanyWithHealth[];
 }
 
 export function usePortfolioHealth() {
@@ -16,46 +34,74 @@ export function usePortfolioHealth() {
     queryKey: ['portfolio-health'],
     queryFn: async (): Promise<PortfolioHealthData> => {
       try {
-        // Get total companies
-        const { count: totalCompanies } = await supabase
+        // Get all companies with their latest updates
+        const { data: companies, error: companiesError } = await supabase
           .from('companies')
-          .select('*', { count: 'exact', head: true });
+          .select(`
+            id,
+            name,
+            sector,
+            stage,
+            arr,
+            founder_updates (
+              submitted_at,
+              arr,
+              mrr,
+              raise_status
+            )
+          `)
+          .order('created_at', { ascending: false });
 
-        // Get companies that need updates (haven't submitted in 30+ days)
+        if (companiesError) throw companiesError;
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const { data: recentUpdates } = await supabase
-          .from('founder_updates')
-          .select('company_id')
-          .gte('submitted_at', thirtyDaysAgo.toISOString());
+        // Process companies to add health data
+        const companiesWithHealth: CompanyWithHealth[] = (companies || []).map(company => {
+          const latestUpdate = company.founder_updates && company.founder_updates.length > 0 
+            ? company.founder_updates[0] 
+            : null;
 
-        const companiesWithRecentUpdates = new Set(
-          recentUpdates?.map(update => update.company_id) || []
-        );
+          const daysSinceUpdate = latestUpdate 
+            ? Math.floor((new Date().getTime() - new Date(latestUpdate.submitted_at).getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
 
-        const companiesNeedingUpdate = (totalCompanies || 0) - companiesWithRecentUpdates.size;
+          const needsUpdate = daysSinceUpdate > 30;
+          const isRaising = latestUpdate?.raise_status && latestUpdate.raise_status !== 'Not raising';
 
-        // Get companies actively raising
-        const { count: companiesRaising } = await supabase
-          .from('founder_updates')
-          .select('*', { count: 'exact', head: true })
-          .not('raise_status', 'is', null)
-          .neq('raise_status', 'Not raising');
+          return {
+            id: company.id,
+            name: company.name,
+            sector: company.sector,
+            stage: company.stage,
+            arr: company.arr,
+            latest_update: latestUpdate ? {
+              submitted_at: latestUpdate.submitted_at,
+              arr: latestUpdate.arr,
+              mrr: latestUpdate.mrr,
+              raise_status: latestUpdate.raise_status
+            } : undefined,
+            needsUpdate,
+            isRaising: !!isRaising,
+            daysSinceUpdate
+          };
+        });
 
-        // Get recent updates count
-        const { count: recentUpdatesCount } = await supabase
-          .from('founder_updates')
-          .select('*', { count: 'exact', head: true })
-          .gte('submitted_at', thirtyDaysAgo.toISOString());
+        // Calculate aggregate metrics
+        const totalCompanies = companiesWithHealth.length;
+        const companiesNeedingUpdate = companiesWithHealth.filter(c => c.needsUpdate).length;
+        const companiesRaising = companiesWithHealth.filter(c => c.isRaising).length;
+        const recentUpdates = companiesWithHealth.filter(c => c.daysSinceUpdate <= 30).length;
 
         return {
-          totalCompanies: totalCompanies || 0,
-          companiesNeedingUpdate: Math.max(0, companiesNeedingUpdate),
-          companiesRaising: companiesRaising || 0,
-          recentUpdates: recentUpdatesCount || 0,
+          totalCompanies,
+          companiesNeedingUpdate,
+          companiesRaising,
+          recentUpdates,
           averageRating: 8.5,
           healthScore: 85,
+          companies: companiesWithHealth,
         };
       } catch (error) {
         console.error('Error fetching portfolio health:', error);
@@ -66,6 +112,7 @@ export function usePortfolioHealth() {
           recentUpdates: 0,
           averageRating: 0,
           healthScore: 0,
+          companies: [],
         };
       }
     },
